@@ -1,0 +1,9 @@
+root ::= answer
+answer ::= "{"   ws   "\"focal_epileptiform_activity\":"   ws   number   ","   ws   "\"generalized_epileptiform_activity\":"   ws   number   ","   ws   "\"focal_non_epileptiform_activity\":"   ws   number   ","   ws   "\"generalized_non_epileptiform_activity\":"   ws   number   ", "   ws   "\"abnormality\":"   ws   number   "}"
+answerlist ::= "[]" | "["   ws   answer   (","   ws   answer)*   "]"
+string ::= "\""   ([^"]*)   "\""
+boolean ::= "true" | "false"
+ws ::= [ \t\n]*
+number ::= [1-4]
+stringlist ::= "["   ws   "]" | "["   ws   string   (","   ws   string)*   ws   "]"
+numberlist ::= "["   ws   "]" | "["   ws   string   (","   ws   number)*   ws   "]"

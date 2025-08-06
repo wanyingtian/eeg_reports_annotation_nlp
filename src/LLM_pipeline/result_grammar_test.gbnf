@@ -1,0 +1,11 @@
+root ::= Answers
+Classification ::= "{"   ws   "\"decision\":"   ws   number   ","   ws   "\"reasons\":"   ws   stringlist   "}"
+Classificationlist ::= "[]" | "["   ws   Classification   (","   ws   Classification)*   "]"
+Answers ::= "{"   ws   "\"focal_epileptiform_activity\":"   ws   Classification   ","   ws   "\"generalized_epileptiform_activity\":"   ws   Classification   ","   ws   "\"focal_non_epileptiform_activity\":"   ws   Classification   ","   ws   "\"generalized_non_epileptiform_activity\":"   ws   Classification   ","   ws   "\"abnormality\":"   ws   Classification   "}"
+Answerslist ::= "[]" | "["   ws   Answers   (","   ws   Answers)*   "]"
+string ::= "\""   ([^"]*)   "\""
+boolean ::= "true" | "false"
+ws ::= [ \t\n]*
+number ::= [1-4]
+stringlist ::= "["   ws   "]" | "["   ws   string   (","   ws   string)*   ws   "]"
+numberlist ::= "["   ws   "]" | "["   ws   string   (","   ws   number)*   ws   "]"
