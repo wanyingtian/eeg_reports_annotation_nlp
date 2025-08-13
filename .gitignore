@@ -2,13 +2,14 @@
 # temporarily ignore outputs and scripts under construction
 
 outputs/baseline_results/** 
-outputs/evidence_analysis_results/**
+outputs/evidence_analysis_results/
 outputs/performance_plots/
 outputs/pipeline_output/**
 outputs/processed_output/**
 
 src/evidence_analysis/
 src/performance_analysis/
+src/baseline_models/shap_explanations.ipynb
 
 spec-file.txt
 

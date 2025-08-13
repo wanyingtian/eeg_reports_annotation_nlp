@@ -117,7 +117,7 @@ python src/performance_analysis/main.py
 - Rule-based and model-based evidence polarity classification
 - Performance visualization
 
-## 🧠 Requirements
+## Requirements
 
 - Python 3.12
 - `llama-cpp-python` (for running GGUF models)
@@ -126,6 +126,26 @@ python src/performance_analysis/main.py
 
 See `environment.yml` for full list.
 
-## 📬 Contact
+
+## License
+This repository is licensed under the Apache License 2.0.
+
+Copyright 2025 Wanying Tian
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Note: Models downloaded via hf_hub_download have their own licenses. Users are responsible for reviewing and complying with the license terms of any models they download.
+
+## Contact
 
 If you use or modify this code, feel free to reach out or submit improvements via pull request.

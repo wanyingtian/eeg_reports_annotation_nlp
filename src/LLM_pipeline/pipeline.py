@@ -450,7 +450,7 @@ def main(num_reports, completed_csv_path, author,model_name):
     start_time = time.time()
     # Prepare the grammars
     result_grammar = load_gbnf_file('result_grammar.gbnf')
-    result_grammar_exp = load_gbnf_file('result_grammar_test.gbnf')
+    result_grammar_exp = load_gbnf_file('result_grammar_exp.gbnf')
     # Download the mistral model
     model = download_model(model_name)
     # output filenames based on version
