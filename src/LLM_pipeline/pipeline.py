@@ -1,260 +1,56 @@
-import pandas as pd
-import sqlite3
-import httpx
-import json
-import os
-import argparse
-from llama_cpp.llama import Llama, LlamaGrammar
-from huggingface_hub import hf_hub_download
-import time
-import multiprocessing
-import re
-# Config
-OUTPUT_FOLDER_PATH = '../../outputs/pipeline_output'
-TEMPERATURE = 0  # default 0.8
-MAX_TOKENS = 3000
-STOP_SEQUENCES = None
-COMMENT = """
-testing the pipeline with 10 reports in organized repo
+#!/usr/bin/env python3
 """
-REPORT_DB_PATH = '../../data/zoe_reports_10.db'
+EEG Report Processing Pipeline (LLM-based)
 
-REPORT_DB_PATH_MARIA = '../../data/zoe_reports_10.db' # this is a placeholder, change it to the actual path for Maria's reports
+- Loads EEG reports from a SQLite database.
+- Runs a classification prompt and an explanation prompt against an LLM (llama.cpp).
+- Writes results incrementally to versioned CSVs and emits a run-config summary.
+- Resumes safely after crashes; uses atomic file writes to avoid corruption.
 
+Usage (examples)
+---------------
+# Process 10 reports from Zoe, mistral model:
+python pipeline.py --num-reports 10 --author zoe --model mistral
 
-# Function to fetch reports from SQLite database
-def fetch_reports(db_path):
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        query = "SELECT `Hashed ID`, `Report` FROM reports"
-        cursor.execute(query)
-        
-        while True:
-            row = cursor.fetchone()
-            if row is None:
-                break
-            yield row
-    except sqlite3.Error as e:
-        print(f"SQLite error: {e}")
-    finally:
-        conn.close()
+# Resume from a previous CSV:
+python pipeline.py --num-reports 10 --completed-csv /path/to/previous.csv
 
-# Function to generate results as JSON format
-def convert_to_json(model, prompt1, report, optional_context=None, grammar=None, 
-                    temperature=TEMPERATURE, stop=STOP_SEQUENCES):
-    full_prompt = ""
-    full_prompt += prompt1 + report
-    if optional_context:
-        full_prompt += optional_context + "\n\n"
-    
-    try:
-        response = model(
-            full_prompt,
-            grammar=grammar,
-            temperature=temperature,
-            max_tokens=MAX_TOKENS,
-            stop=stop
-        )
-        result = response['choices'][0]['text']
-        return result
-    except json.JSONDecodeError as e:
-        print("Failed to decode JSON from the following response:")
-        print(response['choices'][0]['text'])
-        raise e  # Re-raise the exception after logging
+# Point to custom DBs and output directory:
+python pipeline.py --num-reports 10 --zoe-db ../../data/zoe_reports_10.db \
+  --maria-db ../../data/maria_reports_10.db --outdir ../../outputs/pipeline_output
+"""
 
-# Function to load grammar file    
-def load_gbnf_file(file_path):
-    try:
-        with open(file_path, 'r') as file:
-            content = file.read()
+from __future__ import annotations
 
-        if not content.strip():
-            raise ValueError("The .gbnf file is empty.")
-        
-        grammar = LlamaGrammar.from_string(content)
-        return grammar
+import argparse
+import json
+import logging
+import multiprocessing as mp
+import os
+import re
+import sqlite3
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Generator, Iterable, Optional, Tuple
 
-    except FileNotFoundError:
-        print(f"Error: The file at {file_path} does not exist.")
-        return None
-    except ValueError as e:
-        print(f"ValueError: {e}")
-        return None
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return None
+import pandas as pd
+from huggingface_hub import hf_hub_download
+from llama_cpp.llama import Llama, LlamaGrammar
 
-def download_model(model_name="mistral"):
-    # download the selected models
-    model_configs = {
-        "mistral": {
-            "repo_id": "TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
-            "filename": "mistral-7b-instruct-v0.2.Q5_K_M.gguf"
-        },
-        "deepseek": {
-            "repo_id": "TheBloke/deepseek-llm-7b-base-GGUF",
-            "filename": "deepseek-llm-7b-base.Q5_K_M.gguf"
-        },
-        "deepseek-coder": {
-            "repo_id": "TheBloke/deepseek-coder-6.7B-instruct-GGUF",
-            "filename": "deepseek-coder-6.7b-instruct.Q5_K_M.gguf"
-        },
-        "deepseek-chat": {
-            "repo_id": "TheBloke/deepseek-llm-7B-chat-GGUF",
-            "filename": "deepseek-llm-7b-chat.Q5_K_M.gguf"
-        },
-        "hermes-mistral": {
-            "repo_id": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO-GGUF",
-            "filename": "Nous-Hermes-2-Mistral-7B-DPO.Q5_K_M.gguf"
-        },
-        "hermes-llama2": {
-            "repo_id": "TheBloke/Nous-Hermes-Llama-2-7B-GGUF",
-            "filename": "nous-hermes-llama-2-7b.Q5_K_M.gguf"
-        },
+# --------------------------- Defaults / Constants --------------------------- #
 
-    }
+DEFAULT_OUTDIR = Path("../../outputs/pipeline_output")
+DEFAULT_ZOE_DB = Path("../../data/zoe_reports_10.db")
+DEFAULT_MARIA_DB = Path("../../data/zoe_reports_10.db")  # TODO: replace with real Maria DB
 
-    if model_name not in model_configs:
-        raise ValueError(f"Unsupported model '{model_name}'. Choose from {list(model_configs.keys())}.")
+# Model defaults
+DEFAULT_TEMPERATURE = 0.0
+DEFAULT_MAX_TOKENS = 3000
+DEFAULT_STOP: Optional[Iterable[str]] = None
 
-    config = model_configs[model_name]
-
-    try:
-        model_path = hf_hub_download(repo_id=config["repo_id"], filename=config["filename"])
-        llm_model = Llama(model_path=model_path, n_ctx=4096, n_gpu_layers=30)
-        print(f"{model_name.capitalize()} model loaded successfully")
-        return llm_model
-    except Exception as e:
-        print(f"Failed to load the {model_name} model: {e}")
-        raise
-
-def determine_filenames(num_reports, author = 'zoe',model = 'mistral'):
-    """ Determine the output filenames based on the number of reports and existing files. """
-    # Define the folder path
-    folder_path = OUTPUT_FOLDER_PATH 
-
-    # Create the folder if it doesn't exist
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-
-    # Determine the version index based on existing files in the folder
-    version_index = 1
-    while os.path.exists(os.path.join(folder_path, f'{model}_{author}_first_{num_reports}_results_v{version_index}.csv')):
-        version_index += 1
-
-    output_filename = os.path.join(folder_path, f'{model}_{author}_first_{num_reports}_results_v{version_index}.csv')
-    config_filename = os.path.join(folder_path, f'{model}_{author}_config_first_{num_reports}_v{version_index}.txt')
-
-    return output_filename, config_filename
-
-
-
-# Function to load and process the completed CSV
-def process_completed_csv(completed_csv_path):
-    """ Process and load completed reports from CSV """
-    results_df = pd.DataFrame(columns=[
-        'Hashed ID', 'Report', 'Label', 'classifications', 
-        'explanations'
-    ])
-    
-    if completed_csv_path and os.path.exists(completed_csv_path):
-        print("Completed file exists")
-        try:
-            completed_df = pd.read_csv(completed_csv_path)
-            results_df = pd.concat([results_df, completed_df], ignore_index=True)
-            completed_hashes = set(completed_df['Hashed ID'])
-            print(f"Completed reports CSV file loaded successfully: {completed_csv_path}")
-            return results_df, completed_hashes
-        except Exception as e:
-            print(f"Error reading completed reports CSV file: {e}")
-            return results_df, set()
-    else:
-        print("File Don't Exist, proceed with empty df")
-        return results_df, set()
-    
-def load_reports(num_reports, completed_hashes, author = 'zoe'):
-    if author == 'zoe':
-        file_name = REPORT_DB_PATH
-    elif author == 'maria':
-        file_name = REPORT_DB_PATH_MARIA
-    # Load reports to df
-    data = [row for _, row in zip(range(num_reports), fetch_reports(file_name))]
-    df = pd.DataFrame(data, columns=['Hashed ID', 'Report'])
-
-    # Filter out already processed reports
-    df = df[~df['Hashed ID'].isin(completed_hashes)]
-    return df
-
-def run_pipeline(model, df, results_df, result_grammar, result_grammar_exp, output_filename, config_filename, start_time, n=1):
-    results_df = results_df
-    print(f"completed report in pipeline: {len(results_df)}\n")
-    #output_files(results_df, output_filename, config_filename, start_time)
-    # Process each report and save the results incrementally
-    for index, row in df.iterrows():
-        hashed_id = row['Hashed ID']
-        report = row['Report']
-        #label = row.get('Label', 'N/A')  # Handle missing labels by setting a default value
-        
-        classifications = convert_to_json(model, prompt1, report, grammar=result_grammar)
-        explanations = convert_to_json(model, prompt2, report, optional_context = classifications, grammar=result_grammar_exp)
-    
-        
-        #a1_a2_agree = normalize_string(a1_qa_results) == normalize_string(a2_qa_results_report_direct)
-        
-        # Create a temporary DataFrame for the current result
-        temp_df = pd.DataFrame([{
-            'Hashed ID': hashed_id,
-            'Report': report,
-            #'Label': label,
-            'classifications': classifications,
-            'explanations': explanations
-            #'A1_A2_agree': a1_a2_agree
-        }])
-        
-        # Append the temporary DataFrame to results_df
-        results_df = pd.concat([results_df, temp_df], ignore_index=True)
-        
-        # save the results incrementally to the CSV file
-        if (index + 1) % n == 0:  # Adjust the frequency as needed
-            print(f"Reports completed: {len(results_df)}")
-            with open(config_filename, 'w') as f:
-                f.write(f'Temperature: {TEMPERATURE}\n')
-                f.write(f"Reports completed: {len(results_df)}")
-            results_df.to_csv(output_filename, index=False)
-    
-    return results_df
-
-def output_files(results_df, output_filename, config_filename, start_time, author = 'zoe', model = 'mistral'):
-
-    # Calculate the percentage of absolute agreement
-    total_rows = len(results_df)
-    
-    # Save the results to the output file
-    results_df.to_csv(output_filename, index=False)
-    
-    # End the timer and calculate elapsed time
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    elapsed_minutes = elapsed_time / 60
-    
-    # Save the settings used for that run in a separate file
-    with open(config_filename, 'w') as f:
-        f.write(f'Author: {author}\n')
-        f.write(f'Temperature: {TEMPERATURE}\n')
-        f.write(f'Stop Sequences: {STOP_SEQUENCES}\n')
-        f.write(f'Model: {model}\n')
-        f.write(f'Comment: {COMMENT}\n')
-        f.write(f'Reports completed: {total_rows}\n')
-        f.write(f'Elapsed Time: {elapsed_time:.2f} seconds ({elapsed_minutes:.2f} minutes)\n')
-        f.write(f'Prompt1: {prompt1}\n')
-        f.write(f'Prompt2: {prompt2}\n')
-
-
-    print(f"Saved results to {output_filename} and settings to {config_filename}")
-    print(f"Time taken to run the script: {elapsed_time:.2f} seconds ({elapsed_minutes:.2f} minutes)")
-# Prompts
-prompt1 = """
+# Prompts (kept as provided)
+PROMPT_CLASSIFY = r"""
 Read the following EEG Report data carefully, then answer the following questions about the report. Use the provided definitions and examples as a guide for interpretation.
 Remember to follow constraints.
 
@@ -307,10 +103,9 @@ Please provide the answers ONLY in the following JSON format:
   "abnormality": "integer"
 }
 Do not include any additional explanations or comments in the output.
-
 """
 
-prompt2 = """ 
+PROMPT_EXPLAIN = r"""
 Read the following EEG Report and the corresponding classification output carefully. Your task is to generate a machine-readable JSON output that provides explanations for each classification by identifying and extracting verbatim phrases from the EEG report that contributed to each decision.
 
 ***Guidelines***
@@ -363,120 +158,437 @@ Do not include any additional explanations, comments, or extraneous text outside
   2. The classification output from the previous LLM response.
 
 Process the input accordingly and generate the required structured JSON output.
-
 """
-# Helper function to find the latest versioned CSV file in the folder
-def get_latest_version_csv(num_reports, folder_path='pipeline_results',file_type = 'csv'):
-    """ Get the latest version of the results CSV file for a given number of reports. """
 
-    version_files = []
-    if file_type == 'csv':
-        for file in os.listdir(folder_path):
-            match = re.match(f'first_{num_reports}_results_v(\\d+).csv', file)
-            if match:
-                version_files.append((int(match.group(1)), file))
-    elif file_type == 'config':
-        for file in os.listdir(folder_path):
-            match = re.match(f'config_first_{num_reports}_v(\\d+).csv', file)
-            if match:
-                version_files.append((int(match.group(1)), file))
+# ------------------------------- Data Classes ------------------------------ #
 
-    if version_files:
-        # Sort by version number and return the latest one
-        version_files.sort(key=lambda x: x[0], reverse=True)
-        return os.path.join(folder_path, version_files[0][1])
-    else:
-        return None
-
-def manager(num_reports, initial_csv_path, author, model):
-    
-    current_csv_path = initial_csv_path  # Start with the CSV file passed as an argument (if any)
-    
-    completed_df, completed_hashes = process_completed_csv(initial_csv_path)
-    current_doc_index = len(completed_df) if current_csv_path else 0
-    print(current_doc_index)
-    print(current_csv_path)
-
-    def worker_function(completed_csv_path):
-        """ Worker runs the pipeline """
-        main(num_reports, completed_csv_path, author, model)
-
-    while current_doc_index < num_reports:
+@dataclass(frozen=True)
+class RunConfig:
+    """Immutable run configuration."""
+    outdir: Path
+    zoe_db: Path
+    maria_db: Path
+    temperature: float = DEFAULT_TEMPERATURE
+    max_tokens: int = DEFAULT_MAX_TOKENS
+    stop: Optional[Iterable[str]] = DEFAULT_STOP
+    comment: str = "LLM pipeline run"
 
 
-        # Start worker process with the current CSV path
-        worker_process = multiprocessing.Process(target=worker_function, args=(current_csv_path,))
-        worker_process.start()
-        crash_filename = "crash_report.txt"
-        # Monitor the worker process
-        while worker_process.is_alive():
-            worker_process.join(timeout=1)
+# ------------------------------ Logging Setup ------------------------------ #
 
-        # If worker finished or crashed
-        if worker_process.exitcode == 0:
-            print("Pipeline completed successfully.")
+def setup_logging(verbosity: int) -> None:
+    level = logging.WARNING if verbosity == 0 else logging.INFO if verbosity == 1 else logging.DEBUG
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s | %(levelname)-8s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+
+# -------------------------- DB / File I/O Utilities ------------------------ #
+
+def fetch_reports(db_path: Path) -> Generator[Tuple[str, str], None, None]:
+    """
+    Stream (Hashed ID, Report) rows from the SQLite database.
+    """
+    logging.info(f"Connecting to DB: {db_path}")
+    conn = sqlite3.connect(str(db_path))
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT "Hashed ID", "Report" FROM reports')
+        while True:
+            row = cursor.fetchone()
+            if row is None:
+                break
+            yield row[0], row[1]
+    except sqlite3.Error as e:
+        logging.error(f"SQLite error: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def atomic_write_csv(df: pd.DataFrame, out_path: Path) -> None:
+    """
+    Write CSV atomically to prevent partial files on crash.
+    """
+    tmp = out_path.with_suffix(out_path.suffix + ".tmp")
+    df.to_csv(tmp, index=False)
+    tmp.replace(out_path)
+
+
+def ensure_outdir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def next_versioned_paths(outdir: Path, model: str, author: str, num_reports: int) -> Tuple[Path, Path]:
+    """
+    Determine next version index for results/config files. Pattern:
+    {model}_{author}_first_{N}_results_v{K}.csv
+    {model}_{author}_config_first_{N}_v{K}.txt
+    """
+    ensure_outdir(outdir)
+    k = 1
+    while True:
+        results = outdir / f"{model}_{author}_first_{num_reports}_results_v{k}.csv"
+        if not results.exists():
+            config = outdir / f"{model}_{author}_config_first_{num_reports}_v{k}.txt"
+            return results, config
+        k += 1
+
+
+def latest_version_csv(outdir: Path, model: str, author: str, num_reports: int) -> Optional[Path]:
+    """
+    Return the latest CSV path if present, else None.
+    """
+    pattern = re.compile(fr"{re.escape(model)}_{re.escape(author)}_first_{num_reports}_results_v(\d+)\.csv$")
+    max_k, latest = -1, None
+    for p in outdir.glob(f"{model}_{author}_first_{num_reports}_results_v*.csv"):
+        m = pattern.match(p.name)
+        if m:
+            k = int(m.group(1))
+            if k > max_k:
+                max_k, latest = k, p
+    return latest
+
+
+# ------------------------------- LLM Helpers ------------------------------- #
+
+def load_gbnf(path: Path) -> LlamaGrammar:
+    """
+    Load a .gbnf grammar file.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"GBNF not found: {path}")
+    content = path.read_text()
+    if not content.strip():
+        raise ValueError(f"GBNF is empty: {path}")
+    return LlamaGrammar.from_string(content)
+
+
+def download_model(model_name: str) -> Llama:
+    """
+    Download & load a GGUF model via huggingface_hub and llama.cpp.
+    """
+    model_configs = {
+        "mistral": {
+            "repo_id": "TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
+            "filename": "mistral-7b-instruct-v0.2.Q5_K_M.gguf",
+        },
+        "deepseek": {
+            "repo_id": "TheBloke/deepseek-llm-7b-base-GGUF",
+            "filename": "deepseek-llm-7b-base.Q5_K_M.gguf",
+        },
+        "deepseek-coder": {
+            "repo_id": "TheBloke/deepseek-coder-6.7B-instruct-GGUF",
+            "filename": "deepseek-coder-6.7b-instruct.Q5_K_M.gguf",
+        },
+        "deepseek-chat": {
+            "repo_id": "TheBloke/deepseek-llm-7B-chat-GGUF",
+            "filename": "deepseek-llm-7b-chat.Q5_K_M.gguf",
+        },
+        "hermes-mistral": {
+            "repo_id": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO-GGUF",
+            "filename": "Nous-Hermes-2-Mistral-7B-DPO.Q5_K_M.gguf",
+        },
+        "hermes-llama2": {
+            "repo_id": "TheBloke/Nous-Hermes-Llama-2-7B-GGUF",
+            "filename": "nous-hermes-llama-2-7b.Q5_K_M.gguf",
+        },
+    }
+    if model_name not in model_configs:
+        raise ValueError(f"Unsupported model '{model_name}'. Choose from {list(model_configs.keys())}.")
+
+    cfg = model_configs[model_name]
+    logging.info(f"Downloading model {model_name}...")
+    model_path = hf_hub_download(repo_id=cfg["repo_id"], filename=cfg["filename"])
+    logging.info("Loading model into llama.cpp...")
+    # n_gpu_layers is environment-dependent; keep conservative defaults.
+    return Llama(model_path=model_path, n_ctx=4096, n_gpu_layers=30)
+
+
+def llm_json(
+    model: Llama,
+    prompt: str,
+    temperature: float,
+    max_tokens: int,
+    stop: Optional[Iterable[str]],
+    grammar: Optional[LlamaGrammar] = None,
+) -> str:
+    """
+    Invoke the LLM and return the raw text (expected to be JSON per grammar).
+    """
+    resp = model(
+        prompt,
+        grammar=grammar,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        stop=stop,
+    )
+    text = resp["choices"][0]["text"]
+    return text
+
+
+# ------------------------------ Core Pipeline ------------------------------ #
+
+def process_completed_csv(path: Optional[Path]) -> Tuple[pd.DataFrame, set[str]]:
+    """
+    Load existing results to resume. Returns (df, set_of_hashed_ids).
+    """
+    cols = ["Hashed ID", "Report", "classifications", "explanations"]
+    base = pd.DataFrame(columns=cols)
+    if not path:
+        logging.info("No completed CSV supplied; starting fresh.")
+        return base, set()
+    if not path.exists():
+        logging.warning(f"Completed CSV not found: {path}; starting fresh.")
+        return base, set()
+
+    try:
+        df = pd.read_csv(path)
+        # Normalize columns in case of prior version drift
+        for c in cols:
+            if c not in df.columns:
+                df[c] = pd.NA
+        completed = set(df["Hashed ID"].dropna().astype(str))
+        logging.info(f"Loaded {len(completed)} completed reports from {path}")
+        return df[cols].copy(), completed
+    except Exception as e:
+        logging.error(f"Failed to read completed CSV: {e}")
+        return base, set()
+
+
+def load_reports_df(
+    db_path: Path, num_reports: int, exclude_hashes: set[str]
+) -> pd.DataFrame:
+    """
+    Pull up to num_reports (Hashed ID, Report) not present in exclude_hashes.
+    """
+    rows = []
+    for i, (hid, rep) in enumerate(fetch_reports(db_path)):
+        if len(rows) >= num_reports:
             break
-        else:
-            # Log crash info to the config file
-            crash_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-            crash_message = f"Worker crashed at {crash_time}. Restarting...\n"
-            
-            with open(crash_filename, 'a') as f:  # Append crash info to the config file
-                f.write(crash_message)
-                f.write(f"Current document index: {current_doc_index}\n")
-                f.write(f"Current CSV file: {current_csv_path}\n")
-                f.write(f"Worker exit code: {worker_process.exitcode}\n")
-
-            print("Worker crashed. Restarting...")
-
-            # On crash, find the latest version of the CSV file if it exists
-            latest_csv_path = get_latest_version_csv(num_reports) 
-            if latest_csv_path:
-                print(f"Switching to latest CSV file: {latest_csv_path}")
-                current_csv_path = latest_csv_path  # Use the latest versioned file after the crash
-            else:
-                current_csv_path = None  # Continue with no completed CSV file
-
-            # Reload the completed reports from the latest file (if any)
-            completed_df, completed_hashes = process_completed_csv(current_csv_path)
-            current_doc_index = len(completed_hashes)
-            print(f"Restarting from document {current_doc_index}...")
+        if str(hid) in exclude_hashes:
+            continue
+        rows.append((str(hid), rep))
+    df = pd.DataFrame(rows, columns=["Hashed ID", "Report"])
+    logging.info(f"Loaded {len(df)} pending reports from {db_path}")
+    return df
 
 
+def run_pipeline(
+    model: Llama,
+    df: pd.DataFrame,
+    results_df: pd.DataFrame,
+    grammar_classify: LlamaGrammar,
+    grammar_explain: LlamaGrammar,
+    out_results: Path,
+    out_config: Path,
+    cfg: RunConfig,
+    flush_every: int = 5,
+) -> pd.DataFrame:
+    """
+    Iterate over reports, call LLM, and append results. Flush to disk regularly.
+    """
+    start = time.time()
+    logging.info(f"Starting pipeline on {len(df)} reports; existing {len(results_df)} completed.")
+
+    for idx, row in df.iterrows():
+        hashed_id = str(row["Hashed ID"])
+        report = str(row["Report"])
+
+        # 1) Classification
+        classify_prompt = PROMPT_CLASSIFY + "\n\n" + report
+        classifications = llm_json(
+            model=model,
+            prompt=classify_prompt,
+            temperature=cfg.temperature,
+            max_tokens=cfg.max_tokens,
+            stop=cfg.stop,
+            grammar=grammar_classify,
+        )
+
+        # 2) Explanations (feed classification JSON verbatim)
+        explain_input = (
+            PROMPT_EXPLAIN
+            + "\n\n---\nEEG Report:\n"
+            + report
+            + "\n\nClassification JSON:\n"
+            + classifications
+            + "\n"
+        )
+        explanations = llm_json(
+            model=model,
+            prompt=explain_input,
+            temperature=cfg.temperature,
+            max_tokens=cfg.max_tokens,
+            stop=cfg.stop,
+            grammar=grammar_explain,
+        )
+
+        # Append row
+        results_df = pd.concat(
+            [
+                results_df,
+                pd.DataFrame(
+                    [
+                        {
+                            "Hashed ID": hashed_id,
+                            "Report": report,
+                            "classifications": classifications,
+                            "explanations": explanations,
+                        }
+                    ]
+                ),
+            ],
+            ignore_index=True,
+        )
+
+        # Periodic flush
+        if (idx + 1) % flush_every == 0:
+            logging.info(f"[{idx+1}/{len(df)}] Flushing results to {out_results.name}")
+            # lightweight run progress
+            Path(out_config).write_text(
+                f"Temperature: {cfg.temperature}\n"
+                f"Max Tokens: {cfg.max_tokens}\n"
+                f"Reports completed (this run): {idx+1}\n"
+            )
+            atomic_write_csv(results_df, out_results)
+
+    # Final write + config dump
+    atomic_write_csv(results_df, out_results)
+    elapsed = time.time() - start
+    with open(out_config, "w") as f:
+        f.write(
+            "Run Configuration\n"
+            "------------------\n"
+            f"Author: {os.getenv('AUTHOR_OVERRIDE','')}\n"
+            f"Temperature: {cfg.temperature}\n"
+            f"Stop Sequences: {list(cfg.stop) if cfg.stop else None}\n"
+            f"Max Tokens: {cfg.max_tokens}\n"
+            f"Model: {os.getenv('MODEL_OVERRIDE','')}\n"
+            f"Comment: {cfg.comment}\n"
+            f"Reports completed (total rows): {len(results_df)}\n"
+            f"Elapsed: {elapsed:.2f}s ({elapsed/60:.2f} min)\n"
+            f"Prompt1: {PROMPT_CLASSIFY}\n"
+            f"Prompt2: {PROMPT_EXPLAIN}\n"
+        )
+    logging.info(f"Saved results -> {out_results}")
+    logging.info(f"Saved config  -> {out_config}")
+    logging.info(f"Elapsed: {elapsed:.2f}s")
+    return results_df
 
 
-def main(num_reports, completed_csv_path, author,model_name):
-    # Start the timer
-    start_time = time.time()
-    # Prepare the grammars
-    result_grammar = load_gbnf_file('result_grammar.gbnf')
-    result_grammar_exp = load_gbnf_file('result_grammar_exp.gbnf')
-    # Download the mistral model
-    model = download_model(model_name)
-    # output filenames based on version
-    output_filename, config_filename = determine_filenames(num_reports, author,model_name)
-    # Load completed reports to DataFrame (if any)
-    completed_df, completed_hashes = process_completed_csv(completed_csv_path)
-    # load reports from database and filter out completed ones
-    df = load_reports(num_reports, completed_hashes, author)
-    # Run the pipeline
-    
-    results_df = run_pipeline(model, df, completed_df, result_grammar, result_grammar_exp, output_filename,config_filename,start_time, n=1)
-    # Output files
-    output_files(results_df, output_filename, config_filename, start_time, author, model_name)
+# --------------------------- Crash-Resistant Runner ------------------------- #
 
-    
+def manager(
+    num_reports: int,
+    completed_csv: Optional[Path],
+    author: str,
+    model_name: str,
+    cfg: RunConfig,
+) -> None:
+    """
+    Supervises the run. If a worker crashes, it restarts and resumes from the
+    latest versioned CSV.
+    """
+    db_path = cfg.zoe_db if author == "zoe" else cfg.maria_db
+    out_results, out_config = next_versioned_paths(cfg.outdir, model_name, author, num_reports)
+
+    # preload completed (support resume)
+    existing_df, completed_hashes = process_completed_csv(completed_csv)
+    logging.info(f"Initial completed count: {len(completed_hashes)}")
+
+    # inner worker target
+    def worker_target(resume_csv: Optional[Path]) -> None:
+        grammar_classify = load_gbnf(Path("result_grammar.gbnf"))
+        grammar_explain = load_gbnf(Path("result_grammar_exp.gbnf"))
+        model = download_model(model_name)
+
+        # (Re)load completed and pending
+        prior_df, prior_hashes = process_completed_csv(resume_csv)
+        pending = load_reports_df(db_path, num_reports, prior_hashes)
+        results_df = run_pipeline(
+            model=model,
+            df=pending,
+            results_df=prior_df,
+            grammar_classify=grammar_classify,
+            grammar_explain=grammar_explain,
+            out_results=out_results,
+            out_config=out_config,
+            cfg=cfg,
+            flush_every=5,
+        )
+
+    # run loop
+    resume_path = completed_csv
+    crashes = 0
+    while True:
+        proc = mp.Process(target=worker_target, args=(resume_path,))
+        proc.start()
+        proc.join()
+
+        if proc.exitcode == 0:
+            logging.info("Pipeline completed successfully.")
+            break
+
+        crashes += 1
+        logging.error(f"Worker crashed (exit {proc.exitcode}). Restarting (attempt {crashes})...")
+        # Find latest CSV in our naming scheme to resume
+        latest = latest_version_csv(cfg.outdir, model_name, author, num_reports)
+        resume_path = latest if latest else None
+        # Write crash breadcrumb
+        crash_log = cfg.outdir / "crash_report.txt"
+        with open(crash_log, "a") as f:
+            ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            f.write(f"[{ts}] Crash #{crashes}, exit={proc.exitcode}, resume={resume_path}\n")
+
+
+# ----------------------------------- CLI ----------------------------------- #
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Process EEG reports with an LLM.")
+    p.add_argument("--num-reports", type=int, required=True, help="Number of reports to process.")
+    p.add_argument("--completed-csv", type=Path, default=None, help="Path to an existing results CSV to resume from.")
+    p.add_argument("--author", type=str, choices=["zoe", "maria"], default="zoe", help='Report author: "zoe" or "maria".')
+    p.add_argument(
+        "--model",
+        type=str,
+        choices=["mistral", "deepseek", "deepseek-coder", "deepseek-chat", "hermes-mistral", "hermes-llama2"],
+        default="mistral",
+        help="Model to use (GGUF).",
+    )
+    p.add_argument("--outdir", type=Path, default=DEFAULT_OUTDIR, help="Directory to write outputs.")
+    p.add_argument("--zoe-db", type=Path, default=DEFAULT_ZOE_DB, help="Path to Zoe reports SQLite DB.")
+    p.add_argument("--maria-db", type=Path, default=DEFAULT_MARIA_DB, help="Path to Maria reports SQLite DB.")
+    p.add_argument("--comment", type=str, default="testing run", help="Run comment to save in config.")
+    p.add_argument("-v", "--verbose", action="count", default=1, help="Increase verbosity (-v, -vv).")
+    return p.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    setup_logging(args.verbose)
+
+    cfg = RunConfig(
+        outdir=args.outdir,
+        zoe_db=args.zoe_db,
+        maria_db=args.maria_db,
+        comment=args.comment,
+    )
+
+    # Helpful env overrides recorded in config output (not required)
+    os.environ["AUTHOR_OVERRIDE"] = args.author
+    os.environ["MODEL_OVERRIDE"] = args.model
+
+    manager(
+        num_reports=args.num_reports,
+        completed_csv=args.completed_csv,
+        author=args.author,
+        model_name=args.model,
+        cfg=cfg,
+    )
+
+
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='Process EEG reports with LLM.')
-    parser.add_argument('--num_reports', type=int, required=True, help='Number of reports to process')
-    parser.add_argument('--completed_csv_path', type=str, default=None, help='Optional path to CSV file of completed reports')
-    parser.add_argument('--author', type=str, choices=['zoe', 'maria'], default="zoe",
-                        help='Report author: choose either "zoe" or "maria"')
-    parser.add_argument('--model', type=str, choices=['mistral', 'deepseek','deepseek-coder','deepseek-chat','hermes-mistral','hermes-llama2',], default="mistral",
-                    help='Model to use: choose "mistral" or "deepseek" or "hermes-mistral" or "hermes-llama2" or "deepseek-coder" or "deepseek-chat"')
-
-    args = parser.parse_args()
-
-    # Start the manager process
-    manager(args.num_reports, args.completed_csv_path, args.author, args.model)
+    main()
