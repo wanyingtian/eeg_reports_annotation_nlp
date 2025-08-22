@@ -48,6 +48,7 @@ DEFAULT_OUTDIR = REPO_ROOT / "outputs/pipeline_output"
 DEFAULT_ZOE_DB = REPO_ROOT / "data/zoe_reports_10.db"
 DEFAULT_MARIA_DB = REPO_ROOT / "data/zoe_reports_10.db"  # replace with real maria db if running maria reports
 
+
 # Model defaults
 DEFAULT_TEMPERATURE = 0.0
 DEFAULT_MAX_TOKENS = 3000
