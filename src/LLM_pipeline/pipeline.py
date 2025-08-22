@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+# Copyright (c) 2025 Wanying Tian
+# Licensed under the Apache-2.0 License (see LICENSE file in the project root for details).
+# #!/usr/bin/env python3
 """
 EEG Report Processing Pipeline (LLM-based)
 
