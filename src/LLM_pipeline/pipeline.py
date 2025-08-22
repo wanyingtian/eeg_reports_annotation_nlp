@@ -40,9 +40,14 @@ from llama_cpp.llama import Llama, LlamaGrammar
 
 # --------------------------- Defaults / Constants --------------------------- #
 
-DEFAULT_OUTDIR = Path("../../outputs/pipeline_output")
-DEFAULT_ZOE_DB = Path("../../data/zoe_reports_10.db")
-DEFAULT_MARIA_DB = Path("../../data/zoe_reports_10.db")  # TODO: replace with real Maria DB
+# Resolve paths relative to the repo root (two levels up from this script)
+BASE_DIR = Path(__file__).resolve().parent      # e.g., src/LLM_pipeline
+REPO_ROOT = BASE_DIR.parents[1]                 # repo root
+
+DEFAULT_OUTDIR = REPO_ROOT / "outputs/pipeline_output"
+DEFAULT_ZOE_DB = REPO_ROOT / "data/zoe_reports_10.db"
+DEFAULT_MARIA_DB = REPO_ROOT / "data/zoe_reports_10.db"  # replace with real maria db if running maria reports
+
 
 # Model defaults
 DEFAULT_TEMPERATURE = 0.0
@@ -501,8 +506,9 @@ def manager(
 
     # inner worker target
     def worker_target(resume_csv: Optional[Path]) -> None:
-        grammar_classify = load_gbnf(Path("result_grammar.gbnf"))
-        grammar_explain = load_gbnf(Path("result_grammar_exp.gbnf"))
+        grammar_classify = load_gbnf(BASE_DIR / "result_grammar.gbnf")
+        grammar_explain = load_gbnf(BASE_DIR / "result_grammar_exp.gbnf")
+    
         model = download_model(model_name)
 
         # (Re)load completed and pending
