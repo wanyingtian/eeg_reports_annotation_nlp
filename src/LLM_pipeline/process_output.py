@@ -11,9 +11,11 @@ Process LLM output CSVs into clean Excel + SQLite artifacts.
 Usage
 -----
 python process_output.py mistral_zoe_first_10_results_v1.csv \
-  --input-dir ../pipeline_results \
-  --outdir processed_results \
-  --num-reports 200 \
+
+optional arguments:
+  --input-dir ../pipeline_output \
+  --outdir processed_output\
+  --num-reports 10 \
   -v
 """
 
@@ -52,6 +54,12 @@ class IOConfig:
     sqlite_name: Optional[str] = None # default derived from input
 
 # ------------------------ Constants & Utilities ---------------------------- #
+
+# Resolve paths relative to the repo root (two levels up from this script)
+BASE_DIR = Path(__file__).resolve().parent      # e.g., src/LLM_pipeline
+REPO_ROOT = BASE_DIR.parents[1]                 # repo root
+DEFAULT_INPUT_DIR = REPO_ROOT / "outputs/pipeline_output"
+DEFAULT_OUTDIR    = REPO_ROOT / "outputs/processed_output"
 
 STANDARDIZED_KEYS: Dict[str, str] = {
     "focal_epileptiform_activity": "Focal Epi",
@@ -323,8 +331,10 @@ def process_file(cfg: IOConfig) -> None:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Process EEG classification and explanation results.")
     p.add_argument("input_filename", help="Input CSV file name (e.g., 'mistral_zoe_first_200_results_v4.csv')")
-    p.add_argument("--input-dir", type=Path, default=Path("../../outputs/pipeline_output"), help="Folder containing the input CSV")
-    p.add_argument("--outdir", type=Path, default=Path("../../outputs/processed_output"), help="Output directory for Excel/DB/errors")
+    p.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR,
+               help="Folder containing the input CSV, default: /outputs/pipeline_output")
+    p.add_argument("--outdir", type=Path, default=DEFAULT_OUTDIR,
+               help="Output directory for Excel/DB/errors, default: outputs/processed_output")
     p.add_argument("--num-reports", type=int, default=None, help="Limit number of rows to read")
     p.add_argument("--excel-name", type=str, default=None, help="Override Excel file name")
     p.add_argument("--sqlite-name", type=str, default=None, help="Override SQLite file name")

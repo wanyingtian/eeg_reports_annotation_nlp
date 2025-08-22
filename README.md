@@ -67,7 +67,7 @@ mamba env create -f environment.yml
 
 ### 1. Run the LLM pipeline
 
-If your machine has GPU, make sure to install llama_cpp with GPU support:
+If your machine has **GPU**, make sure to install llama_cpp with GPU support:
 ```bash
 CUDACXX=/usr/local/cuda/bin/nvcc CMAKE_ARGS="-DLLAMA_CUDA=on" FORCE_CMAKE=1 pip install llama-cpp-python
 ```
@@ -75,17 +75,41 @@ Then check the current GPU status using NVIDIA’s System Management Interface
 ```bash
 nvidia-smi
 ```
+If your machine has **CPU** only, ignore the previous step.
 
-If your machine has CPU only, ignore the previous step.
-To run the pipeline:
+By default, outputs go to: outputs/pipeline_output/ (from the repo root).
+To run the pipeline (basic):
 ```bash
-python src/LLM_pipeline/pipeline.py --num_reports 10 --author zoe --model mistral 
+python src/LLM_pipeline/pipeline.py --num-reports 10 --author zoe --model mistral 
 ```
 
+Alternative: If you want to resume from an existing CSV that is partially complete from previous runs:
+```bash
+python src/LLM_pipeline/pipeline.py --num-reports 10 --author zoe --model mistral \
+  --completed-csv outputs/pipeline_output/mistral_zoe_first_5_results_v1.csv
+```
+
+The pipeline auto‑creates the output directory if it doesn’t exist and version‑names results like:
+
+mistral_zoe_first_10_results_v1.csv
+
+mistral_zoe_first_10_config_first_10_v1.txt
+
 ### 2. Process LLM output
+By default, the script reads from outputs/pipeline_output/ and writes to outputs/processed_output/.
 ```bash
 python src/LLM_pipeline/process_output.py mistral_zoe_first_10_results_v1.csv
 ```
+This produces:
+
+Excel: outputs/processed_output/processed_mistral_zoe_first_10_results_v1.xlsx
+(sheets: classifications, explanations)
+
+SQLite: outputs/processed_output/processed_mistral_zoe_first_10_results_v1.db
+(tables: classifications, explanations)
+
+Errors (if any): outputs/processed_output/errors_log.csv
+
 
 ### 3. Train and evaluate baseline models
 ```bash
@@ -98,7 +122,7 @@ python src/baseline_models/inference.py --model bert_base
 python src/baseline_models/inference.py --model bag_of_words
 ```
 
-### 4. Analyze evidence polarity
+<!-- ### 4. Analyze evidence polarity
 ```bash
 python src/evidence_analysis/evidence_polarity_classification.py
 ```
@@ -106,7 +130,7 @@ python src/evidence_analysis/evidence_polarity_classification.py
 ### 5. Generate plots and evaluation results
 ```bash
 python src/performance_analysis/main.py
-```
+``` -->
 
 ## Features
 
@@ -114,8 +138,8 @@ python src/performance_analysis/main.py
 - Sentence-transformer and transformer-based pipelines
 - LLM grammar-based parsing via `llama-cpp-python`
 - SHAP explanation integration
-- Rule-based and model-based evidence polarity classification
-- Performance visualization
+<!-- - Rule-based and model-based evidence polarity classification
+- Performance visualization -->
 
 ## Requirements
 
