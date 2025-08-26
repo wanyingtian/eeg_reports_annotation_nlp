@@ -7,19 +7,25 @@ from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from sklearn.feature_extraction.text import CountVectorizer
 import os
+import argparse
 import joblib
+from pathlib import Path
+# -------------Constants-------------------
+# Resolve paths relative to the repo root (two levels up from this script)
+BASE_DIR = Path(__file__).resolve().parent      # e.g., src/baseline_models
+REPO_ROOT = BASE_DIR.parents[1]                 # repo root
 
-# Constants
+REPORT_DB_PATH = REPO_ROOT / "data/zoe_reports_sample.db" # This will not work unless replaced with path to ANNOTATED DB
+# The db should have the following columns: 'Hashed_ID', 'Report', 'Focal Epi', 'Gen Epi', 'Focal Non-epi', 'Gen Non-epi', 'Abnormality'
+# if the db format is different, please modify the fetch_reports function accordingly.
+MODEL_DIR = REPO_ROOT / 'outputs/baseline_results/trained_models'
+OUTPUT_DIR = REPO_ROOT / 'outputs/baseline_results/training_results'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-REPORT_DB_PATH = '/localhome/wta55/EEG-project/zoe_reports_LD200' 
-# ^ Replace this path with the SQLite database containing annotated reports, to protect data privacy, the path is kept local
-MODEL_DIR = '../../outputs/baseline_results/trained_models'
-OUTPUT_DIR = '../../outputs/baseline_results/training_results'
 result_columns = ["Focal Epi", "Gen Epi", "Focal Non-epi", "Gen Non-epi", "Abnormality"]
 
 # Configurable Indices
-START_INDEX = 10
-END_INDEX = 110
+START_INDEX = 0
+END_INDEX = 100
 
 # Predefined Models
 MODEL_MAPPING = {
@@ -27,6 +33,7 @@ MODEL_MAPPING = {
     "bert_base": "bert-base-uncased",
     "bag_of_words": "BagOfWords"  # Placeholder for Bag of Words
 }
+# -------------Functions-------------------
 
 # Fetch Reports
 def fetch_reports(db_path):
@@ -204,19 +211,34 @@ def train_and_save_models(df, model_name):
 
 # Main Function
 def main():
-    model_name = input("Enter model name (bert_base, bag_of_words): ").strip()
-    if model_name not in MODEL_MAPPING:
-        print("Invalid model name. Choose from: bert_base, bag_of_words.")
-        return
+
+    parser = argparse.ArgumentParser(description="Run inference on EEG reports.")
+    parser.add_argument("--model", required=True, choices=MODEL_MAPPING.keys(),
+                        help="Choose the model for inference: bert_base, bag_of_words")
+    # NEW: dataset controls (replace --author)
+    parser.add_argument("--dataset-path", type=Path, default=REPORT_DB_PATH,
+                        help='''
+                        Path to the ANNOTATED dataset SQLite file. \n
+                        The db should have the following columns: 'Hashed_ID', 'Report', 'Focal Epi', 'Gen Epi', 'Focal Non-epi', 'Gen Non-epi', 'Abnormality';" \n
+                        "if the db format is different, please modify the fetch_reports function accordingly.''')
+    parser.add_argument("--start", type=int, default=START_INDEX, help="Start index for reports (default: 0)")
+    parser.add_argument("--end", type=int, default=END_INDEX, help="End index for reports (default: 100)")
+
+    args = parser.parse_args()
+    model_name = args.model
+    dataset_path: Path = args.dataset_path
+    start = max(args.start, 0)
+    end = args.end
+ 
 
     print("Fetching reports from database...")
-    df = fetch_reports(REPORT_DB_PATH)
+    df = fetch_reports(dataset_path)
     if df.empty:
         print("No reports loaded from the database.")
         return
 
     print("Loading subset of reports...")
-    training_df = load_reports(df, START_INDEX, END_INDEX)  # Load reports for training
+    training_df = load_reports(df, start, end)  # Load reports for training
     print(f"Training models using {model_name}...")
     train_and_save_models(training_df, model_name)
 

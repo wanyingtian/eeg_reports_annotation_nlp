@@ -1,0 +1,29 @@
+# Core data science and ML libraries
+numpy
+pandas
+openpyxl
+matplotlib
+scikit-learn
+seaborn
+shap
+
+# NLP and transformers
+sentence-transformers
+transformers
+torch
+
+# LLM and specific libraries
+llama-cpp-python
+trl
+huggingface_hub
+
+# Utilities
+tqdm
+fuzzywuzzy
+joblib
+
+# Installation instructions (pip only):
+# 1. Ensure Python 3.12 is installed
+# 2. Create virtual environment: python -m venv llama_env
+# 3. Activate: source llama_env/bin/activate (Linux/Mac) or llama_env\Scripts\activate (Windows)
+# 4. Install: pip install -r requirements.txt

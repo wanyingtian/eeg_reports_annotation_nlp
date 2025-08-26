@@ -4,37 +4,46 @@ import torch
 from transformers import AutoModel, AutoTokenizer
 import os
 import joblib
-# import gensim
-# import gensim.downloader as api
 import argparse
 from tqdm import tqdm  # Progress bar
+from pathlib import Path
 
-# Constants
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# -------------Constants-------------------
+# Resolve paths relative to the repo root (two levels up from this script)
+BASE_DIR = Path(__file__).resolve().parent      # e.g., src/baseline_models
+REPO_ROOT = BASE_DIR.parents[1]                 # repo root
 
-MODEL_DIR = '../../outputs/baseline_results/trained_models'
-OUTPUT_DIR = '../../outputs/baseline_results/inference_results'
+DEFAULT_DB = REPO_ROOT / "data/zoe_reports_sample.db"
+MODEL_DIR = REPO_ROOT / 'outputs/baseline_results/trained_models'
+OUTPUT_DIR = REPO_ROOT / 'outputs/baseline_results/inference_results'
+
 result_columns = ["Focal Epi", "Gen Epi", "Focal Non-epi", "Gen Non-epi", "Abnormality"]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Predefined Models
 MODEL_MAPPING = {
-
     "bert_base": "bert-base-uncased",
-    "bag_of_words": "BagOfWords" 
+    "bag_of_words": "BagOfWords"
 }
 
+def extract_dataset_name(dataset_path: Path) -> str:
+    """Extract dataset name from file path (without extension)."""
+    return Path(dataset_path).stem
+
 # Function to load reports from the SQLite database
-def fetch_reports(db_path):
+def fetch_reports(db_path: Path) -> pd.DataFrame:
+    conn = None
     try:
-        conn = sqlite3.connect(db_path)
-        query = "SELECT `Hashed ID`, `Report` FROM reports"
+        conn = sqlite3.connect(str(db_path))
+        query = 'SELECT "Hashed_ReportURN", "Report" FROM reports'
         df = pd.read_sql_query(query, conn)
         return df
     except sqlite3.Error as e:
         print(f"SQLite error: {e}")
         return pd.DataFrame()
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
 
 # Function to load the embedding model
 def load_embedding_model(model_name):
@@ -60,17 +69,22 @@ def extract_embeddings(model_name, reports, embedding_model):
         with torch.no_grad():
             for i in range(0, len(reports), batch_size):
                 batch_reports = reports[i:i + batch_size]
-                inputs = tokenizer(batch_reports, return_tensors="pt", truncation=True, padding=True, max_length=512).to(device)
+                inputs = tokenizer(
+                    batch_reports,
+                    return_tensors="pt",
+                    truncation=True,
+                    padding=True,
+                    max_length=512
+                ).to(device)
                 outputs = model(**inputs)
                 cls_embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
                 embeddings.extend(cls_embeddings)
         return embeddings
-    elif model_name == "bag_of_words":  
+    elif model_name == "bag_of_words":
         print("Transforming Bag of Words embeddings...")
         return embedding_model.transform(reports).toarray()
     else:
         raise ValueError(f"Unsupported model: {model_name}")
-    
 
 # Predict with Threshold Logic
 def predict_with_confidence(model, embedding, epsilon):
@@ -84,9 +98,10 @@ def predict_with_confidence(model, embedding, epsilon):
     else:
         return 4  # Confident Yes
 
-def run_inference(df, model_name, epsilon, author):
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
+def run_inference(df, model_name, epsilon, dataset_id: str):
+    # Ensure output directory (optionally nest by dataset_id for tidiness)
+    out_dir = Path(OUTPUT_DIR) / dataset_id
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Loading embedding model: {model_name}")
     embedding_model = load_embedding_model(model_name)
@@ -106,13 +121,14 @@ def run_inference(df, model_name, epsilon, author):
     results = []
     missing_models = []
 
-    for index, (hashed_id, report) in tqdm(enumerate(zip(df['Hashed ID'], df['Report'])), total=len(df), desc="Processing reports"):
+    for index, (hashed_id, report) in tqdm(
+        enumerate(zip(df['Hashed_ReportURN'], df['Report'])),
+        total=len(df),
+        desc="Processing reports"
+    ):
         classifications = {}
         probabilities = {}
         top_words = {}  # Store top contributing words for each column
-
-        print(f"\nProcessing report ID: {hashed_id}")
-        # print(f"Report text: {report}")
 
         for column in result_columns:
             model_path = os.path.join(MODEL_DIR, f"{column}_{model_name}_model.pkl")
@@ -130,36 +146,36 @@ def run_inference(df, model_name, epsilon, author):
             # Compute top contributing words for BoW
             if model_name == "bag_of_words" and feature_names is not None:
                 coefficients = model.coef_.flatten()
-                word_contributions = [(feature_names[i], embeddings[index][i] * coefficients[i]) for i in range(len(coefficients))]
-                word_contributions = sorted(word_contributions, key=lambda x: abs(x[1]), reverse=True)[:30]
-
-                # Print the top words and their contributions
-                # print(f"Top contributing words for {column}:")
-                # for word, weight in word_contributions:
-                #     print(f"  - {word}: {weight:.4f}")
-
-                # Save to results
-                top_words[f"TopWords_{column}"] = ", ".join([f"{word} ({weight:.4f})" for word, weight in word_contributions])
+                word_contributions = [
+                    (feature_names[i], embeddings[index][i] * coefficients[i])
+                    for i in range(len(coefficients))
+                ]
+                word_contributions = sorted(
+                    word_contributions, key=lambda x: abs(x[1]), reverse=True
+                )[:30]
+                top_words[f"TopWords_{column}"] = ", ".join(
+                    [f"{word} ({weight:.4f})" for word, weight in word_contributions]
+                )
 
         # Create a temporary DataFrame for the current report
         temp_df = pd.DataFrame([{
-            'Hashed ID': hashed_id,
+            'Hashed_ReportURN': hashed_id,
             'Report': report,
             **classifications,
             **probabilities,
-            **top_words  # Add top contributing words to the output
+            **top_words
         }])
         results.append(temp_df)
 
     # Concatenate all results into a single DataFrame
-    results_df = pd.concat(results, ignore_index=True)
+    results_df = pd.concat(results, ignore_index=True) if results else pd.DataFrame()
 
     # Generate versioned output filenames
     version_index = 1
-    output_filename = os.path.join(OUTPUT_DIR, f"{author}_inference_results_{model_name}_ep={epsilon}_v{version_index}.csv")
-    while os.path.exists(output_filename):
+    output_filename = out_dir / f"{dataset_id}_inference_results_{model_name}_ep={epsilon}_v{version_index}.csv"
+    while output_filename.exists():
         version_index += 1
-        output_filename = os.path.join(OUTPUT_DIR, f"{author}_inference_results_{model_name}_ep={epsilon}_v{version_index}.csv")
+        output_filename = out_dir / f"{dataset_id}_inference_results_{model_name}_ep={epsilon}_v{version_index}.csv"
 
     # Save results to CSV
     results_df.to_csv(output_filename, index=False)
@@ -173,39 +189,41 @@ def main():
     parser = argparse.ArgumentParser(description="Run inference on EEG reports.")
     parser.add_argument("--model", required=True, choices=MODEL_MAPPING.keys(),
                         help="Choose the model for inference: bert_base, bag_of_words")
-    parser.add_argument('--author', type=str, choices=['zoe', 'maria'], default="zoe",
-                        help='Report author: choose either "zoe" or "maria"')
+    # NEW: dataset controls (replace --author)
+    parser.add_argument("--dataset-id", type=str, default=None,
+                        help='Dataset identifier (e.g., "zoe", "johns_data"). If not provided, uses dataset filename.')
+    parser.add_argument("--dataset-path", type=Path, default=DEFAULT_DB,
+                        help="Path to the dataset SQLite file.")
     parser.add_argument("--epsilon", type=float, default=0.1,
                         help="Set the epsilon value for confidence thresholds (default: 0.1)")
-    parser.add_argument("--start", type=int, default=0, help="Start index for reports (default: 100)")
-    parser.add_argument("--end", type=int, default=10, help="End index for reports (default: 2000)")
+    parser.add_argument("--start", type=int, default=0, help="Start index for reports (default: 0)")
+    parser.add_argument("--end", type=int, default=10, help="End index for reports (default: 10)")
 
     args = parser.parse_args()
     model_name = args.model
-    author = args.author
     epsilon = args.epsilon
-    start = args.start
+    dataset_path: Path = args.dataset_path
+    dataset_id = args.dataset_id or extract_dataset_name(dataset_path)
+    start = max(args.start, 0)
     end = args.end
 
     # Load all reports from the database
-    print("Fetching all reports from the database...")
-    if author == "zoe":
-        REPORT_DB_PATH = '../../data/zoe_reports_10.db' # only 10 reports as sample for Zoe
-    elif author == "maria":
-        REPORT_DB_PATH = '../../data/zoe_reports_10.db' # placeholder for Maria's database
-    else:
-        raise ValueError("Invalid author. Choose either 'zoe' or 'maria'.")
-    df = fetch_reports(REPORT_DB_PATH)
+    print(f"Fetching all reports from the database at: {dataset_path}")
+    df = fetch_reports(dataset_path)
     if df.empty:
         print("No reports loaded from the database.")
         return
 
-    # Load reports for inference based on start and end indices
-    print("Loading reports for inference...")
+    # Clamp end to DataFrame length for safety
+    if end is None or end > len(df):
+        end = len(df)
+
+    # Load subset for inference based on start and end indices
+    print(f"Loading reports for inference: rows [{start}:{end})")
     inference_df = df.iloc[start:end]
 
     print("Running inference...")
-    run_inference(inference_df, model_name, epsilon,author)
+    run_inference(inference_df, model_name, epsilon, dataset_id)
 
 if __name__ == "__main__":
     main()
