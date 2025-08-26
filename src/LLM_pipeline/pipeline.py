@@ -8,18 +8,20 @@ EEG Report Processing Pipeline (LLM-based)
 - Runs a classification prompt and an explanation prompt against an LLM (llama.cpp).
 - Writes results incrementally to versioned CSVs and emits a run-config summary.
 - Resumes safely after crashes; uses atomic file writes to avoid corruption.
+- Smart versioning system prevents duplicate work and manages configuration changes.
 
 Usage (examples)
 ---------------
-# Process 10 reports from Zoe, mistral model:
-python pipeline.py --num-reports 10 --author zoe --model mistral
+
+# Process with default sample dataset (zoe):
+python pipeline.py --num-reports 10 --model mistral --dataset-id "zoe" 
 
 # Resume from a previous CSV:
-python pipeline.py --num-reports 10 --completed-csv /path/to/previous.csv
+python pipeline.py --num-reports 10 --model mistral --dataset-id "zoe" --completed-csv /path/to/previous.csv 
 
-# Point to custom DBs and output directory:
-python pipeline.py --num-reports 10 --zoe-db ../../data/zoe_reports_10.db \
-  --maria-db ../../data/maria_reports_10.db --outdir ../../outputs/pipeline_output
+# Process 10 reports with custom dataset identifier, custom datapath, and output directory:
+python pipeline.py --num-reports 10 --model mistral --dataset-id "john_data"  --dataset-path /path/to/data.db --outdir ../../outputs/pipeline_output
+
 """
 
 from __future__ import annotations
@@ -47,8 +49,7 @@ BASE_DIR = Path(__file__).resolve().parent      # e.g., src/LLM_pipeline
 REPO_ROOT = BASE_DIR.parents[1]                 # repo root
 
 DEFAULT_OUTDIR = REPO_ROOT / "outputs/pipeline_output"
-DEFAULT_ZOE_DB = REPO_ROOT / "data/zoe_reports_10.db"
-DEFAULT_MARIA_DB = REPO_ROOT / "data/zoe_reports_10.db"  # replace with real maria db if running maria reports
+DEFAULT_DB = REPO_ROOT / "data/zoe_reports_sample.db"
 
 
 # Model defaults
@@ -173,8 +174,8 @@ Process the input accordingly and generate the required structured JSON output.
 class RunConfig:
     """Immutable run configuration."""
     outdir: Path
-    zoe_db: Path
-    maria_db: Path
+    dataset_path: Path
+    dataset_id: str
     temperature: float = DEFAULT_TEMPERATURE
     max_tokens: int = DEFAULT_MAX_TOKENS
     stop: Optional[Iterable[str]] = DEFAULT_STOP
@@ -196,18 +197,43 @@ def setup_logging(verbosity: int) -> None:
 
 def fetch_reports(db_path: Path) -> Generator[Tuple[str, str], None, None]:
     """
-    Stream (Hashed ID, Report) rows from the SQLite database.
+    Stream (Hashed_ReportURN, Report) rows from the SQLite database.
+    If the DB still uses 'Hashed ID', rename it to 'Hashed_ReportURN' in-place.
     """
     logging.info(f"Connecting to DB: {db_path}")
     conn = sqlite3.connect(str(db_path))
     try:
         cursor = conn.cursor()
-        cursor.execute('SELECT "Hashed ID", "Report" FROM reports')
+
+        # Inspect columns in 'reports' table
+        cursor.execute("PRAGMA table_info(reports)")
+        cols = {row[1] for row in cursor.fetchall()}
+
+        if "Hashed_ReportURN" in cols:
+            id_col = '"Hashed_ReportURN"'
+            logging.info("Column already named 'Hashed_ReportURN'; proceeding.")
+        elif "Hashed ID" in cols:
+            # Try to rename in place
+            try:
+                logging.info("Renaming 'Hashed ID' -> 'Hashed_ReportURN' in DB...")
+                cursor.execute('ALTER TABLE reports RENAME COLUMN "Hashed ID" TO "Hashed_ReportURN";')
+                conn.commit()
+                id_col = '"Hashed_ReportURN"'
+                logging.info("✓ Renamed and saved to the same database file.")
+            except sqlite3.OperationalError as e:
+                # Older SQLite might not support RENAME COLUMN; fall back to alias
+                logging.warning(f"Could not rename column in-place ({e}). Proceeding with alias.")
+                id_col = '"Hashed ID"'
+        else:
+            raise RuntimeError("Neither 'Hashed_ReportURN' nor 'Hashed ID' found in 'reports' table.")
+
+        cursor.execute(f'SELECT {id_col}, "Report" FROM reports')
         while True:
             row = cursor.fetchone()
             if row is None:
                 break
-            yield row[0], row[1]
+            yield str(row[0]), str(row[1])
+
     except sqlite3.Error as e:
         logging.error(f"SQLite error: {e}")
         raise
@@ -218,9 +244,12 @@ def fetch_reports(db_path: Path) -> Generator[Tuple[str, str], None, None]:
 def atomic_write_csv(df: pd.DataFrame, out_path: Path) -> None:
     """
     Write CSV atomically to prevent partial files on crash.
+    Also removes the 'Report' column for privacy.
     """
     tmp = out_path.with_suffix(out_path.suffix + ".tmp")
-    df.to_csv(tmp, index=False)
+    # Remove Report column for privacy
+    output_df = df.drop(columns=['Report'], errors='ignore')
+    output_df.to_csv(tmp, index=False)
     tmp.replace(out_path)
 
 
@@ -228,35 +257,171 @@ def ensure_outdir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def next_versioned_paths(outdir: Path, model: str, author: str, num_reports: int) -> Tuple[Path, Path]:
+def extract_dataset_name(dataset_path: Path) -> str:
+    """Extract dataset name from file path (without extension)."""
+    return dataset_path.stem
+
+
+def get_user_input(prompt: str, valid_responses: list = None) -> str:
+    """Get user input with validation."""
+    while True:
+        response = input(prompt).strip().lower()
+        if valid_responses is None or response in valid_responses:
+            return response
+        print(f"Please enter one of: {', '.join(valid_responses)}")
+
+
+def find_existing_files(outdir: Path, dataset_id: str, model: str, num_reports: Optional[int] = None, version: Optional[int]= None) -> list:
+    """Find existing files matching the pattern raw_{dataset_id}_{model}_{num_reports}_v*_run*.csv"""
+    if version and num_reports:
+        pattern = f"raw_{dataset_id}_{model}_{num_reports}_v{version}_run*.csv"
+    elif num_reports:
+        pattern = f"raw_{dataset_id}_{model}_{num_reports}_v*_run*.csv"
+    elif version:
+        pattern = f"raw_{dataset_id}_{model}_*_v{version}_run*.csv"
+    else:
+        pattern = f"raw_{dataset_id}_{model}_*_v*_run*.csv"
+    existing_files = list(outdir.glob(pattern))
+    return sorted(existing_files)
+
+
+def parse_filename(filename: str) -> dict:
+    """Parse filename to extract version and run numbers."""
+    pattern = r"raw_(.+)_(.+)_(\d+)_v(\d+)_run(\d+)\.csv"
+    match = re.match(pattern, filename)
+    if match:
+        return {
+            'dataset_id': match.group(1),
+            'model': match.group(2), 
+            'num_reports': int(match.group(3)),
+            'version': int(match.group(4)),
+            'run': int(match.group(5))
+        }
+    return {}
+
+
+def determine_output_path(outdir: Path, dataset_id: str, model: str, num_reports: int) -> Tuple[Path, Path, Optional[Path]]:
     """
-    Determine next version index for results/config files. Pattern:
-    {model}_{author}_first_{N}_results_v{K}.csv
-    {model}_{author}_config_first_{N}_v{K}.txt
+    Determine output paths with smart versioning logic.
+    Prompts user to select from available previous files or start fresh.
     """
     ensure_outdir(outdir)
-    k = 1
+    existing_files = find_existing_files(outdir, dataset_id, model)
+
+    # If no previous runs
+    if not existing_files:
+        results_path = outdir / f"raw_{dataset_id}_{model}_{num_reports}_v1_run1.csv"
+        config_path = outdir / f"config_{dataset_id}_{model}_v1.json"
+        return results_path, config_path, None
+
+    print("\n Found previous runs:")
+    for idx, f in enumerate(existing_files):
+        print(f"  [{idx}] {f.name}")
+    print(f"  [{len(existing_files)}] start fresh (no resume)")
+
     while True:
-        results = outdir / f"{model}_{author}_first_{num_reports}_results_v{k}.csv"
-        if not results.exists():
-            config = outdir / f"{model}_{author}_config_first_{num_reports}_v{k}.txt"
-            return results, config
-        k += 1
+        try:
+            choice = int(input("Select a file to resume from, using the same config, or choose 'start fresh': "))
+            if 0 <= choice < len(existing_files):
+                base_file = existing_files[choice]
+                parsed = parse_filename(base_file.name)
+
+                parsed_num_reports = parsed['num_reports']
+                parsed_version = parsed['version']
+                parsed_run = parsed['run']
+
+                if num_reports == parsed_num_reports:
+                    # Ask if user wants to overwrite
+                    response = get_user_input(
+                        f"Overwrite the selected file? (yes/no): ",
+                        ['yes', 'y', 'no', 'n']
+                    )
+                    if response in ['yes', 'y']:
+                        results_path = base_file
+                        config_path = outdir / f"config_{dataset_id}_{model}_v{parsed_version}.json"
+                        return results_path, config_path, base_file
+                    else:
+                        new_run = parsed_run + 1
+                        results_path = outdir / f"raw_{dataset_id}_{model}_{num_reports}_v{parsed_version}_run{new_run}.csv"
+                        config_path = outdir / f"config_{dataset_id}_{model}_v{parsed_version}.json"
+                        return results_path, config_path, base_file
+
+                elif num_reports > parsed_num_reports:
+                    # You’re requesting more reports than previously processed → new run
+                    # Reuse version, find latest run number for this num_reports
+
+                    latest = latest_file_csv(outdir, dataset_id, model, num_reports, parsed_version)
+                    if latest:
+                        latest_parsed = parse_filename(latest.name)
+                        print(f"⚠️ Latest file for {num_reports} reports at {parsed_version} is {latest.name}.")
+                        new_run = latest_parsed['run'] + 1
+                    else:
+                        new_run = 1
+                    results_path = outdir / f"raw_{dataset_id}_{model}_{num_reports}_v{parsed_version}_run{new_run}.csv"
+                    config_path = outdir / f"config_{dataset_id}_{model}_v{parsed_version}.json"
+                    return results_path, config_path, base_file
+                else:
+                    print(f"⚠️ Requested {num_reports} reports, which is fewer than {parsed_num_reports} in the selected file.")
+                    print("Please choose a file with the same or fewer reports, or start fresh.")
+                    return determine_output_path(outdir, dataset_id, model, num_reports)
 
 
-def latest_version_csv(outdir: Path, model: str, author: str, num_reports: int) -> Optional[Path]:
+
+            elif choice == len(existing_files):
+                # User chose the "Start fresh" entry — let them pick a config version to reuse, or None.
+                all_raw = find_existing_files(outdir, dataset_id, model, None)
+
+                # Collect unique versions from any existing raw files
+                versions = sorted({
+                    pf["version"]
+                    for f in all_raw
+                    for pf in [parse_filename(f.name)]
+                    if pf
+                })
+
+                # Build a single-response menu (indices 0..N, where N == "None (start fresh)")
+                print("\nAre you re-runing a previous config version? Select a config version to reuse, or choose None to start fresh:")
+                for idx, v in enumerate(versions):
+                    print(f"  [{idx}] v{v}")
+                none_index = len(versions)
+                print(f"  [{none_index}] None (start fresh)")
+
+                valid = [str(i) for i in range(none_index + 1)]
+                sel = get_user_input("Your choice: ", valid)
+
+                if int(sel) != none_index:  # Reuse selected version
+                    selected_version = versions[int(sel)]
+                    latest = latest_file_csv(outdir, dataset_id, model, num_reports, selected_version)
+                    if latest:
+                        latest_parsed = parse_filename(latest.name)
+                        new_run = latest_parsed['run'] + 1
+                    else:
+                        new_run = 1
+
+                    results_path = outdir / f"raw_{dataset_id}_{model}_{num_reports}_v{selected_version}_run{new_run}.csv"
+                    # Keep the config filename for that version (create if missing later)
+                    config_path  = outdir / f"config_{dataset_id}_{model}_v{selected_version}.json"
+                    return results_path, config_path, None
+
+                # None selected → start fresh with a new version
+                new_version = (max(versions) + 1) if versions else 1
+                results_path = outdir / f"raw_{dataset_id}_{model}_{num_reports}_v{new_version}_run1.csv"
+                config_path  = outdir / f"config_{dataset_id}_{model}_v{new_version}.json"
+                return results_path, config_path, None
+
+  
+        except (ValueError, IndexError):
+            pass
+        print("❌ Invalid input. Try again.")
+
+
+
+def latest_file_csv(outdir: Path, dataset_id: str, model: str, num_reports: int, version:Optional[int]=None) -> Optional[Path]:
     """
     Return the latest CSV path if present, else None.
     """
-    pattern = re.compile(fr"{re.escape(model)}_{re.escape(author)}_first_{num_reports}_results_v(\d+)\.csv$")
-    max_k, latest = -1, None
-    for p in outdir.glob(f"{model}_{author}_first_{num_reports}_results_v*.csv"):
-        m = pattern.match(p.name)
-        if m:
-            k = int(m.group(1))
-            if k > max_k:
-                max_k, latest = k, p
-    return latest
+    existing_files = find_existing_files(outdir, dataset_id, model, num_reports, version)
+    return existing_files[-1] if existing_files else None
 
 
 # ------------------------------- LLM Helpers ------------------------------- #
@@ -285,10 +450,6 @@ def download_model(model_name: str) -> Llama:
         "deepseek": {
             "repo_id": "TheBloke/deepseek-llm-7b-base-GGUF",
             "filename": "deepseek-llm-7b-base.Q5_K_M.gguf",
-        },
-        "deepseek-coder": {
-            "repo_id": "TheBloke/deepseek-coder-6.7B-instruct-GGUF",
-            "filename": "deepseek-coder-6.7b-instruct.Q5_K_M.gguf",
         },
         "deepseek-chat": {
             "repo_id": "TheBloke/deepseek-llm-7B-chat-GGUF",
@@ -342,7 +503,7 @@ def process_completed_csv(path: Optional[Path]) -> Tuple[pd.DataFrame, set[str]]
     """
     Load existing results to resume. Returns (df, set_of_hashed_ids).
     """
-    cols = ["Hashed ID", "Report", "classifications", "explanations"]
+    cols = ["Hashed_ReportURN", "Report", "classifications", "explanations"]
     base = pd.DataFrame(columns=cols)
     if not path:
         logging.info("No completed CSV supplied; starting fresh.")
@@ -357,7 +518,7 @@ def process_completed_csv(path: Optional[Path]) -> Tuple[pd.DataFrame, set[str]]
         for c in cols:
             if c not in df.columns:
                 df[c] = pd.NA
-        completed = set(df["Hashed ID"].dropna().astype(str))
+        completed = set(df["Hashed_ReportURN"].dropna().astype(str))
         logging.info(f"Loaded {len(completed)} completed reports from {path}")
         return df[cols].copy(), completed
     except Exception as e:
@@ -366,20 +527,35 @@ def process_completed_csv(path: Optional[Path]) -> Tuple[pd.DataFrame, set[str]]
 
 
 def load_reports_df(
-    db_path: Path, num_reports: int, exclude_hashes: set[str]
+    dataset_path: Path, num_reports: int, exclude_hashes: set[str]
 ) -> pd.DataFrame:
     """
-    Pull up to num_reports (Hashed ID, Report) not present in exclude_hashes.
+    Pull up to (num_reports - already_completed) reports not in exclude_hashes.
+    If the requested total is already met, return 0 rows.
     """
+    # How many NEW reports do we actually need?
+    target = max(num_reports - len(exclude_hashes), 0)
+
+    if target == 0:
+        logging.info(
+            f"No new reports needed: requested {num_reports}, already completed {len(exclude_hashes)}."
+        )
+        return pd.DataFrame(columns=["Hashed_ReportURN", "Report"])
+
     rows = []
-    for i, (hid, rep) in enumerate(fetch_reports(db_path)):
-        if len(rows) >= num_reports:
-            break
+    for hid, rep in fetch_reports(dataset_path):
         if str(hid) in exclude_hashes:
             continue
+        # stop BEFORE appending if we've reached target
+        if len(rows) >= target:
+            break
         rows.append((str(hid), rep))
-    df = pd.DataFrame(rows, columns=["Hashed ID", "Report"])
-    logging.info(f"Loaded {len(df)} pending reports from {db_path}")
+
+    df = pd.DataFrame(rows, columns=["Hashed_ReportURN", "Report"])
+    logging.info(
+        f"Loaded {len(df)} pending reports from {dataset_path} "
+        f"(target {target}, requested {num_reports}, skipped {len(exclude_hashes)})"
+    )
     return df
 
 
@@ -401,7 +577,7 @@ def run_pipeline(
     logging.info(f"Starting pipeline on {len(df)} reports; existing {len(results_df)} completed.")
 
     for idx, row in df.iterrows():
-        hashed_id = str(row["Hashed ID"])
+        hashed_id = str(row["Hashed_ReportURN"])
         report = str(row["Report"])
 
         # 1) Classification
@@ -440,8 +616,7 @@ def run_pipeline(
                 pd.DataFrame(
                     [
                         {
-                            "Hashed ID": hashed_id,
-                            "Report": report,
+                            "Hashed_ReportURN": hashed_id,
                             "classifications": classifications,
                             "explanations": explanations,
                         }
@@ -454,32 +629,34 @@ def run_pipeline(
         # Periodic flush
         if (idx + 1) % flush_every == 0:
             logging.info(f"[{idx+1}/{len(df)}] Flushing results to {out_results.name}")
-            # lightweight run progress
-            Path(out_config).write_text(
-                f"Temperature: {cfg.temperature}\n"
-                f"Max Tokens: {cfg.max_tokens}\n"
-                f"Reports completed (this run): {idx+1}\n"
-            )
             atomic_write_csv(results_df, out_results)
 
     # Final write + config dump
     atomic_write_csv(results_df, out_results)
     elapsed = time.time() - start
+    
+    # Save config as JSON for better structure
+    config_data = {
+        "dataset_id": cfg.dataset_id,
+        "dataset_path": str(cfg.dataset_path),
+        "model": os.getenv('MODEL_OVERRIDE', ''),
+        "temperature": cfg.temperature,
+        "max_tokens": cfg.max_tokens,
+        "stop_sequences": list(cfg.stop) if cfg.stop else None,
+        "comment": cfg.comment,
+        # "reports_completed": len(results_df),
+        # "elapsed_seconds": elapsed,
+        # "elapsed_minutes": elapsed / 60,
+        "prompts": {
+            "classify": PROMPT_CLASSIFY,
+            "explain": PROMPT_EXPLAIN
+        },
+        # "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    }
+    
     with open(out_config, "w") as f:
-        f.write(
-            "Run Configuration\n"
-            "------------------\n"
-            f"Author: {os.getenv('AUTHOR_OVERRIDE','')}\n"
-            f"Temperature: {cfg.temperature}\n"
-            f"Stop Sequences: {list(cfg.stop) if cfg.stop else None}\n"
-            f"Max Tokens: {cfg.max_tokens}\n"
-            f"Model: {os.getenv('MODEL_OVERRIDE','')}\n"
-            f"Comment: {cfg.comment}\n"
-            f"Reports completed (total rows): {len(results_df)}\n"
-            f"Elapsed: {elapsed:.2f}s ({elapsed/60:.2f} min)\n"
-            f"Prompt1: {PROMPT_CLASSIFY}\n"
-            f"Prompt2: {PROMPT_EXPLAIN}\n"
-        )
+        json.dump(config_data, f, indent=2)
+    
     logging.info(f"Saved results -> {out_results}")
     logging.info(f"Saved config  -> {out_config}")
     logging.info(f"Elapsed: {elapsed:.2f}s")
@@ -491,7 +668,8 @@ def run_pipeline(
 def manager(
     num_reports: int,
     completed_csv: Optional[Path],
-    author: str,
+    dataset_id: str,
+    dataset_path: Path,
     model_name: str,
     cfg: RunConfig,
 ) -> None:
@@ -499,12 +677,21 @@ def manager(
     Supervises the run. If a worker crashes, it restarts and resumes from the
     latest versioned CSV.
     """
-    db_path = cfg.zoe_db if author == "zoe" else cfg.maria_db
-    out_results, out_config = next_versioned_paths(cfg.outdir, model_name, author, num_reports)
-
-    # preload completed (support resume)
-    existing_df, completed_hashes = process_completed_csv(completed_csv)
-    logging.info(f"Initial completed count: {len(completed_hashes)}")
+    # Determine output paths and whether to use existing file as completed CSV
+    out_results, out_config, auto_completed_csv = determine_output_path(
+        cfg.outdir, dataset_id, model_name, num_reports
+    )
+    version = parse_filename(out_results.name).get("version", 1)
+    
+    # Priority: explicit --completed-csv > auto-detected from versioning > None
+    effective_completed_csv = completed_csv or auto_completed_csv
+    
+    if effective_completed_csv:
+        logging.info(f"Using completed CSV for resume: {effective_completed_csv}")
+    
+    # # preload completed (support resume)
+    # existing_df, completed_hashes = process_completed_csv(effective_completed_csv)
+    # logging.info(f"Initial completed count: {len(completed_hashes)}")
 
     # inner worker target
     def worker_target(resume_csv: Optional[Path]) -> None:
@@ -515,7 +702,13 @@ def manager(
 
         # (Re)load completed and pending
         prior_df, prior_hashes = process_completed_csv(resume_csv)
-        pending = load_reports_df(db_path, num_reports, prior_hashes)
+        logging.info(f"Initial completed count: {len(prior_hashes)}")
+        pending = load_reports_df(dataset_path, num_reports, prior_hashes)
+        
+        if len(pending) == 0:
+            logging.info("No pending reports to process. All reports already completed.")
+            return
+            
         results_df = run_pipeline(
             model=model,
             df=pending,
@@ -529,7 +722,7 @@ def manager(
         )
 
     # run loop
-    resume_path = completed_csv
+    resume_path = effective_completed_csv
     crashes = 0
     while True:
         proc = mp.Process(target=worker_target, args=(resume_path,))
@@ -543,8 +736,8 @@ def manager(
         crashes += 1
         logging.error(f"Worker crashed (exit {proc.exitcode}). Restarting (attempt {crashes})...")
         # Find latest CSV in our naming scheme to resume
-        latest = latest_version_csv(cfg.outdir, model_name, author, num_reports)
-        resume_path = latest if latest else None
+        latest = latest_file_csv(cfg.outdir, dataset_id, model_name, num_reports,version)
+        resume_path = latest if latest else effective_completed_csv
         # Write crash breadcrumb
         crash_log = cfg.outdir / "crash_report.txt"
         with open(crash_log, "a") as f:
@@ -558,18 +751,17 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Process EEG reports with an LLM.")
     p.add_argument("--num-reports", type=int, required=True, help="Number of reports to process.")
     p.add_argument("--completed-csv", type=Path, default=None, help="Path to an existing results CSV to resume from.")
-    p.add_argument("--author", type=str, choices=["zoe", "maria"], default="zoe", help='Report author: "zoe" or "maria".')
+    p.add_argument("--dataset-id", type=str, default=None, help='Dataset identifier (e.g., "zoe", "johns_data"). If not provided, uses dataset filename.')
+    p.add_argument("--dataset-path", type=Path, default=DEFAULT_DB, help="Path to the dataset SQLite file.")    
     p.add_argument(
         "--model",
         type=str,
-        choices=["mistral", "deepseek", "deepseek-coder", "deepseek-chat", "hermes-mistral", "hermes-llama2"],
+        choices=["mistral", "deepseek", "deepseek-chat", "hermes-mistral", "hermes-llama2"],
         default="mistral",
         help="Model to use (GGUF).",
     )
     p.add_argument("--outdir", type=Path, default=DEFAULT_OUTDIR, help="Directory to write outputs.")
-    p.add_argument("--zoe-db", type=Path, default=DEFAULT_ZOE_DB, help="Path to Zoe reports SQLite DB.")
-    p.add_argument("--maria-db", type=Path, default=DEFAULT_MARIA_DB, help="Path to Maria reports SQLite DB.")
-    p.add_argument("--comment", type=str, default="testing run", help="Run comment to save in config.")
+    p.add_argument("--comment", type=str, default="LLM pipeline run", help="Run comment to save in config.")
     p.add_argument("-v", "--verbose", action="count", default=1, help="Increase verbosity (-v, -vv).")
     return p.parse_args()
 
@@ -578,21 +770,34 @@ def main() -> None:
     args = parse_args()
     setup_logging(args.verbose)
 
+    # Handle dataset path and ID logic
+    if args.dataset_path:
+        dataset_path = args.dataset_path
+        # Use provided dataset-id, or fallback to dataset filename
+        if args.dataset_id:
+            dataset_id = args.dataset_id
+        else:
+            dataset_id = extract_dataset_name(dataset_path)
+    
+
+    logging.info(f"Using dataset: {dataset_path} with identifier: {dataset_id}")
+
     cfg = RunConfig(
         outdir=args.outdir,
-        zoe_db=args.zoe_db,
-        maria_db=args.maria_db,
+        dataset_path=dataset_path,
+        dataset_id=dataset_id,
         comment=args.comment,
     )
 
-    # Helpful env overrides recorded in config output (not required)
-    os.environ["AUTHOR_OVERRIDE"] = args.author
+    # Helpful env overrides recorded in config output
     os.environ["MODEL_OVERRIDE"] = args.model
+    os.environ["DATASET_ID_OVERRIDE"] = dataset_id
 
     manager(
         num_reports=args.num_reports,
         completed_csv=args.completed_csv,
-        author=args.author,
+        dataset_id=dataset_id,
+        dataset_path=dataset_path,
         model_name=args.model,
         cfg=cfg,
     )
