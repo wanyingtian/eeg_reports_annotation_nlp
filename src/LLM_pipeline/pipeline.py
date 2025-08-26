@@ -22,6 +22,11 @@ python pipeline.py --num-reports 10 --model mistral --dataset-id "zoe" --complet
 # Process 10 reports with custom dataset identifier, custom datapath, and output directory:
 python pipeline.py --num-reports 10 --model mistral --dataset-id "john_data"  --dataset-path /path/to/data.db --outdir ../../outputs/pipeline_output
 
+# Greedy (as default, temp = 0)
+python pipeline.py --num-reports 50 --model mistral --temperature 0
+# Exploratory
+python pipeline.py --num-reports 50 --model mistral --temperature 0.7 --top-k 40 --top-p 0.95
+
 """
 
 from __future__ import annotations
@@ -41,6 +46,7 @@ from typing import Generator, Iterable, Optional, Tuple
 import pandas as pd
 from huggingface_hub import hf_hub_download
 from llama_cpp.llama import Llama, LlamaGrammar
+from llm_models import download_model, get_available_models
 
 # --------------------------- Defaults / Constants --------------------------- #
 
@@ -54,6 +60,8 @@ DEFAULT_DB = REPO_ROOT / "data/zoe_reports_sample.db"
 
 # Model defaults
 DEFAULT_TEMPERATURE = 0.0
+DEFAULT_TOP_K = 40
+DEFAULT_TOP_P = 0.95
 DEFAULT_MAX_TOKENS = 3000
 DEFAULT_STOP: Optional[Iterable[str]] = None
 
@@ -172,11 +180,12 @@ Process the input accordingly and generate the required structured JSON output.
 
 @dataclass(frozen=True)
 class RunConfig:
-    """Immutable run configuration."""
     outdir: Path
     dataset_path: Path
     dataset_id: str
     temperature: float = DEFAULT_TEMPERATURE
+    top_k: int = DEFAULT_TOP_K
+    top_p: float = DEFAULT_TOP_P
     max_tokens: int = DEFAULT_MAX_TOKENS
     stop: Optional[Iterable[str]] = DEFAULT_STOP
     comment: str = "LLM pipeline run"
@@ -438,43 +447,6 @@ def load_gbnf(path: Path) -> LlamaGrammar:
     return LlamaGrammar.from_string(content)
 
 
-def download_model(model_name: str) -> Llama:
-    """
-    Download & load a GGUF model via huggingface_hub and llama.cpp.
-    """
-    model_configs = {
-        "mistral": {
-            "repo_id": "TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
-            "filename": "mistral-7b-instruct-v0.2.Q5_K_M.gguf",
-        },
-        "deepseek": {
-            "repo_id": "TheBloke/deepseek-llm-7b-base-GGUF",
-            "filename": "deepseek-llm-7b-base.Q5_K_M.gguf",
-        },
-        "deepseek-chat": {
-            "repo_id": "TheBloke/deepseek-llm-7B-chat-GGUF",
-            "filename": "deepseek-llm-7b-chat.Q5_K_M.gguf",
-        },
-        "hermes-mistral": {
-            "repo_id": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO-GGUF",
-            "filename": "Nous-Hermes-2-Mistral-7B-DPO.Q5_K_M.gguf",
-        },
-        "hermes-llama2": {
-            "repo_id": "TheBloke/Nous-Hermes-Llama-2-7B-GGUF",
-            "filename": "nous-hermes-llama-2-7b.Q5_K_M.gguf",
-        },
-    }
-    if model_name not in model_configs:
-        raise ValueError(f"Unsupported model '{model_name}'. Choose from {list(model_configs.keys())}.")
-
-    cfg = model_configs[model_name]
-    logging.info(f"Downloading model {model_name}...")
-    model_path = hf_hub_download(repo_id=cfg["repo_id"], filename=cfg["filename"])
-    logging.info("Loading model into llama.cpp...")
-    # n_gpu_layers is environment-dependent; keep conservative defaults.
-    return Llama(model_path=model_path, n_ctx=4096, n_gpu_layers=30)
-
-
 def llm_json(
     model: Llama,
     prompt: str,
@@ -482,19 +454,27 @@ def llm_json(
     max_tokens: int,
     stop: Optional[Iterable[str]],
     grammar: Optional[LlamaGrammar] = None,
+    top_k: Optional[int] = None,
+    top_p: Optional[float] = None,
 ) -> str:
     """
     Invoke the LLM and return the raw text (expected to be JSON per grammar).
     """
-    resp = model(
-        prompt,
-        grammar=grammar,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        stop=stop,
-    )
-    text = resp["choices"][0]["text"]
-    return text
+    kwargs = {
+        "grammar": grammar,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stop": stop,
+    }
+    # Only include sampling args if provided
+    if top_k is not None:
+        kwargs["top_k"] = top_k
+    if top_p is not None:
+        kwargs["top_p"] = top_p
+
+    resp = model(prompt, **kwargs)
+    return resp["choices"][0]["text"]
+
 
 
 # ------------------------------ Core Pipeline ------------------------------ #
@@ -589,6 +569,8 @@ def run_pipeline(
             max_tokens=cfg.max_tokens,
             stop=cfg.stop,
             grammar=grammar_classify,
+            top_k=cfg.top_k,
+            top_p=cfg.top_p,
         )
 
         # 2) Explanations (feed classification JSON verbatim)
@@ -607,6 +589,8 @@ def run_pipeline(
             max_tokens=cfg.max_tokens,
             stop=cfg.stop,
             grammar=grammar_explain,
+            top_k=cfg.top_k,
+            top_p=cfg.top_p,
         )
 
         # Append row
@@ -641,6 +625,8 @@ def run_pipeline(
         "dataset_path": str(cfg.dataset_path),
         "model": os.getenv('MODEL_OVERRIDE', ''),
         "temperature": cfg.temperature,
+        "top_k": cfg.top_k,
+        "top_p": cfg.top_p,
         "max_tokens": cfg.max_tokens,
         "stop_sequences": list(cfg.stop) if cfg.stop else None,
         "comment": cfg.comment,
@@ -756,12 +742,17 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--model",
         type=str,
-        choices=["mistral", "deepseek", "deepseek-chat", "hermes-mistral", "hermes-llama2"],
+        choices=get_available_models(),  # Dynamic model list
         default="mistral",
         help="Model to use (GGUF).",
     )
     p.add_argument("--outdir", type=Path, default=DEFAULT_OUTDIR, help="Directory to write outputs.")
     p.add_argument("--comment", type=str, default="LLM pipeline run", help="Run comment to save in config.")
+    # sampling controls
+    p.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="Sampling temperature (0 for greedy).")
+    p.add_argument("--top-k", dest="top_k", type=int, default=DEFAULT_TOP_K, help="Top-k sampling cutoff.")
+    p.add_argument("--top-p", dest="top_p", type=float, default=DEFAULT_TOP_P, help="Top-p (nucleus) sampling threshold.")
+    p.add_argument("--max-tokens", dest="max_tokens", type=int, default=DEFAULT_MAX_TOKENS, help="Max new tokens to generate.")
     p.add_argument("-v", "--verbose", action="count", default=1, help="Increase verbosity (-v, -vv).")
     return p.parse_args()
 
@@ -786,6 +777,10 @@ def main() -> None:
         outdir=args.outdir,
         dataset_path=dataset_path,
         dataset_id=dataset_id,
+        temperature=args.temperature,
+        top_k=args.top_k,
+        top_p=args.top_p,
+        max_tokens=args.max_tokens,
         comment=args.comment,
     )
 

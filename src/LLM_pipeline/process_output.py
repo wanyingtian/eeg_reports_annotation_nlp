@@ -4,7 +4,7 @@
 """
 Process LLM output CSVs into clean Excel + SQLite artifacts.
 
-- Reads a results CSV (with columns: Hashed ID, Report, classifications, explanations)
+- Reads a results CSV (with columns: Hashed_ReportURN, Report, classifications, explanations)
 - Parses/repairs JSON in `classifications` (decisions only) and `explanations`
   (decisions + reasons)
 - Writes two sheets to an Excel file and two tables to a SQLite DB
@@ -174,7 +174,7 @@ def parse_classifications(raw: str, hid: str, errors: list[dict[str, str]]) -> d
     except json.JSONDecodeError as e:
         logging.error("Classifications JSON decode failed for %s: %s", hid, e)
         errors.append({
-            "Hashed ID": hid,
+            "Hashed_ReportURN": hid,
             "Error Type": "Classifications JSON Decode",
             "Error Message": str(e),
             "Problematic JSON": raw,
@@ -205,7 +205,7 @@ def parse_explanations(raw: str, hid: str, errors: list[dict[str, str]]) -> dict
     except json.JSONDecodeError as e:
         logging.error("Explanations JSON decode failed for %s: %s", hid, e)
         errors.append({
-            "Hashed ID": hid,
+            "Hashed_ReportURN": hid,
             "Error Type": "Explanations JSON Decode",
             "Error Message": str(e),
             "Problematic JSON": raw,
@@ -243,7 +243,7 @@ def process_file(cfg: IOConfig) -> None:
         logging.error("Failed to read CSV: %s", e)
         return
 
-    req_cols = {"Hashed ID", "Report", "classifications", "explanations"}
+    req_cols = {"Hashed_ReportURN", "classifications", "explanations"}
     missing = req_cols - set(df.columns)
     if missing:
         logging.warning("Missing expected columns: %s", ", ".join(sorted(missing)))
@@ -256,7 +256,7 @@ def process_file(cfg: IOConfig) -> None:
     # Classifications (decisions only)
     if "classifications" in df.columns and df["classifications"].notna().any():
         class_dicts = df.apply(
-            lambda row: parse_classifications(str(row.get("classifications", "")), str(row.get("Hashed ID", "")), error_rows),
+            lambda row: parse_classifications(str(row.get("classifications", "")), str(row.get("Hashed_ReportURN", "")), error_rows),
             axis=1,
         )
         class_df = pd.DataFrame(list(class_dicts))
@@ -267,7 +267,7 @@ def process_file(cfg: IOConfig) -> None:
     # Explanations (decisions + reasons)
     if "explanations" in df.columns and df["explanations"].notna().any():
         expl_dicts = df.apply(
-            lambda row: parse_explanations(str(row.get("explanations", "")), str(row.get("Hashed ID", "")), error_rows),
+            lambda row: parse_explanations(str(row.get("explanations", "")), str(row.get("Hashed_ReportURN", "")), error_rows),
             axis=1,
         )
         expl_df = pd.DataFrame(list(expl_dicts))
@@ -285,9 +285,9 @@ def process_file(cfg: IOConfig) -> None:
         if rcol not in expl_df.columns:
             expl_df[rcol] = pd.NA
 
-    # Preserve Hashed ID and Report
+    # Preserve Hashed_ReportURN and Report
     for base in (class_df, expl_df):
-        base["Hashed ID"] = df.get("Hashed ID", pd.Series([pd.NA] * len(df)))
+        base["Hashed_ReportURN"] = df.get("Hashed_ReportURN", pd.Series([pd.NA] * len(df)))
         base["Report"] = df.get("Report", pd.Series([pd.NA] * len(df)))
 
     # Quick previews
@@ -321,7 +321,7 @@ def process_file(cfg: IOConfig) -> None:
 
     # Save errors (if any)
     if error_rows:
-        err_df = pd.DataFrame(error_rows, columns=["Hashed ID", "Error Type", "Error Message", "Problematic JSON"])
+        err_df = pd.DataFrame(error_rows, columns=["Hashed_ReportURN", "Error Type", "Error Message", "Problematic JSON"])
         try:
             atomic_write_csv(errors_path, err_df)
             logging.info("Wrote errors -> %s (rows=%d)", errors_path, len(err_df))

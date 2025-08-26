@@ -1,6 +1,11 @@
 # This is a .gitignore file for the eeg_reports_annotation_nlp project
 # temporarily ignore outputs and scripts under construction
 
+# Python bytecode & caches
+**/__pycache__/
+*.py[cod]
+*$py.class
+
 outputs/baseline_results/** 
 outputs/evidence_analysis_results/
 outputs/performance_plots/
