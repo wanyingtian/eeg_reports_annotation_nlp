@@ -44,61 +44,127 @@ This project analyzes clinical EEG reports using a combination of traditional ma
 
 ## Installation
 
-Ensure you have [conda](https://docs.conda.io/en/latest/) installed. Then create the environment:
-
+1. Ensure Python 3.10 is installed (tested on 3.10.12)
+2. Create virtual environment: 
 ```bash
-conda env create -f environment.yml
-conda activate llama_grammar
+python -m venv venv
 ```
-
-If you encounter dependency resolution issues (slow install or solver errors), consider installing [**Mamba**](https://mamba.readthedocs.io/en/latest/installation.html) for faster and more robust environment solving:
-
+3. Activate: 
 ```bash
-conda install -n base -c conda-forge mamba
+source venv/bin/activate # (Linux/Mac) 
+# or 
+source venv\Scripts\activate # (Windows)
 ```
-
-Then use:
-
+4. Install: 
 ```bash
-mamba env create -f environment.yml
+pip install -r requirements.txt
 ```
-
 ## Usage
 
 ### 1. Run the LLM pipeline
 
-If your machine has **GPU**, make sure to install llama_cpp with GPU support:
+#### GPU build
+If your machine has an **NVIDIA GPU**, install llama-cpp-python with CUDA/cuBLAS support:
 ```bash
-CUDACXX=/usr/local/cuda/bin/nvcc CMAKE_ARGS="-DLLAMA_CUDA=on" FORCE_CMAKE=1 pip install llama-cpp-python
+CUDACXX=$(which nvcc) \
+CMAKE_ARGS="-DGGML_CUDA=on" \
+FORCE_CMAKE=1 \
+pip install --no-binary=:all: llama-cpp-python
 ```
-Then check the current GPU status using NVIDIA’s System Management Interface
+To confirm the GPU build is working, run your pipeline as usual and, in a separate terminal, check GPU activity:
+
 ```bash
 nvidia-smi
 ```
-If your machine has **CPU** only, ignore the previous step.
+If you see Python using GPU memory, the GPU build is successful.
+If not, you probably have a CPU-only build.
+#### CPU build
+If your machine has **CPU** only, ignore the previous step, proceed.
 
+#### Running pipeline.py
 By default, outputs go to: outputs/pipeline_output/ (from the repo root).
-To run the pipeline (basic):
+
+To run the pipeline (basic), with default sample data (10 reports) and mistral model:
 ```bash
-python src/LLM_pipeline/pipeline.py --num-reports 10 --author zoe --model mistral 
+python src/LLM_pipeline/pipeline.py --num-reports 10 --model mistral 
+```
+Alternatives: 
+* If you want to resume from an existing CSV that is partially complete from previous runs:
+```bash
+python src/LLM_pipeline/pipeline.py --num-reports 10 --model mistral \
+  --completed-csv path/to/previous.csv
+```
+* Process 10 reports with custom dataset identifier, custom datapath, and output directory:
+```bash
+python src/LLM_pipeline/pipeline.py --num-reports 10 --model mistral --dataset-id "john_data"  --dataset-path /path/to/john_data.db --outdir /custom/output/dir
+```
+* The default temperature is 0, making results definitive, to explore other configurations:
+```bash
+python src/LLM_pipeline/pipeline.py --num-reports 50 --model mistral --temperature 0.7 --top-k 40 --top-p 0.95
 ```
 
-Alternative: If you want to resume from an existing CSV that is partially complete from previous runs:
+
+#### How output files are named
+
+Results are saved as CSVs with this pattern:
 ```bash
-python src/LLM_pipeline/pipeline.py --num-reports 10 --author zoe --model mistral \
-  --completed-csv outputs/pipeline_output/mistral_zoe_first_5_results_v1.csv
+raw_{dataset_id}_{model}_{num_reports}_v{version}_run{run}.csv
+```
+- **dataset_id** → from `--dataset-id` (or dataset filename if not provided)  
+- **model** → the model you selected (e.g., `mistral`)  
+- **num_reports** → the number of reports you requested (`--num-reports`)  
+- **v{version}** → version number, increments if you change configuration  
+- **run{run}** → run number, increments if you keep the same config but don’t overwrite  
+
+When you run the pipeline with the same dataset and model that previous runs have used, users are given options to: 
+1. extend from previous results and only run additional reports that do not exist in previous results
+2. rerun using previous config (run +1)
+3. rerun using new config (version +1)
+
+Each version also saves a config file:
+```bash
+config_{dataset_id}_{model}_v{version}.json
 ```
 
-The pipeline auto‑creates the output directory if it doesn’t exist and version‑names results like:
+To see all other potential usage of pipeline.py, you can run:
+```bash
+python src/LLM_pipeline/pipeline.py --help
+```
+You will see:
+```bash
+usage: pipeline.py [-h] --num-reports NUM_REPORTS [--completed-csv COMPLETED_CSV] [--dataset-id DATASET_ID] [--dataset-path DATASET_PATH]
+                   [--model {mistral,deepseek,deepseek-chat,hermes-mistral,hermes-llama2}] [--outdir OUTDIR] [--comment COMMENT] [--temperature TEMPERATURE] [--top-k TOP_K] [--top-p TOP_P]
+                   [--max-tokens MAX_TOKENS] [-v]
 
-mistral_zoe_first_10_results_v1.csv
+Process EEG reports with an LLM.
 
-mistral_zoe_first_10_config_first_10_v1.txt
+options:
+  -h, --help            show this help message and exit
+  --num-reports NUM_REPORTS
+                        Required: Number of reports to run.
+  --completed-csv COMPLETED_CSV
+                        Optional: Path to an existing results CSV to resume from.
+  --dataset-id DATASET_ID
+                        Optional: Dataset identifier (e.g., "zoe", "johns_data"). If not provided, uses dataset filename.
+  --dataset-path DATASET_PATH
+                        Optional: Path to the dataset SQLite file. If not provided, uses default sample dataset.
+  --model {mistral,deepseek,deepseek-chat,hermes-mistral,hermes-llama2}
+                        Model to use (GGUF). If not provided, defaults to 'mistral'.
+  --outdir OUTDIR       Optional: Directory to write outputs. Defaults to ./outputs/pipeline_output
+  --comment COMMENT     Optional: comment to save in config.
+  --temperature TEMPERATURE
+                        Optional: Sampling temperature (0 for greedy). Defaults to 0.
+  --top-k TOP_K         Optional: Top-k sampling cutoff. Defaults to 40.
+  --top-p TOP_P         Optional: Top-p (nucleus) sampling threshold. Defaults to 0.95.
+  --max-tokens MAX_TOKENS
+                        Optional: Max new tokens to generate. Defaults to 3000.
+  -v, --verbose         Increase verbosity (-v, -vv).
+```
 
 ### 2. Process LLM output
 By default, the script reads from outputs/pipeline_output/ and writes to outputs/processed_output/.
 ```bash
-python src/LLM_pipeline/process_output.py mistral_zoe_first_10_results_v1.csv
+python src/LLM_pipeline/process_output.py raw_zoe_reports_sample_mistral_5_v1_run1.csv
 ```
 This produces:
 
@@ -112,10 +178,13 @@ Errors (if any): outputs/processed_output/errors_log.csv
 
 
 ### 3. Train and evaluate baseline models
+Note: train.py will not work on the default sample db, you need to replace or pass in the path to an annotated database:
 ```bash
-python src/baseline_models/train.py
+python src/baseline_models/train.py --model bert_base --dataset-path /path/to/annotated/db
+python src/baseline_models/train.py --model bag_of_words --dataset-path /path/to/annotated/db
 ```
-(input baseline model when prompted: bag_of_words or bert_base)
+The db should have the following columns: 'Hashed_ID', 'Report', 'Focal Epi', 'Gen Epi', 'Focal Non-epi', 'Gen Non-epi', 'Abnormality'
+If the db format is different, please modify the fetch_reports function accordingly.
 
 ```bash
 python src/baseline_models/inference.py --model bert_base
@@ -133,22 +202,20 @@ python src/performance_analysis/main.py
 ``` -->
 
 ## Features
-
-- BoW + Logistic Regression baseline
-- Sentence-transformer and transformer-based pipelines
-- LLM grammar-based parsing via `llama-cpp-python`
-- SHAP explanation integration
-<!-- - Rule-based and model-based evidence polarity classification
-- Performance visualization -->
+- [x] LLM-based pipeline for standardized report annotation
+- [x] LLM grammar-based parsing via `llama-cpp-python`
+- [x] BoW + Logistic Regression baseline
+- [x] BERT_base + Logistic Regression baseline
+- [x] SHAP explanation visualization for baselines
+- [ ] Rule-based and model-based evidence polarity classification (in progress)
+- [ ] Performance visualization and evaluation plots (coming soon)
 
 ## Requirements
 
-- Python 3.12
+- Python 3.10
 - `llama-cpp-python` (for running GGUF models)
-- `sentence-transformers`, `transformers`, `torch`
-- `pandas`, `scikit-learn`, `matplotlib`, etc.
 
-See `environment.yml` for full list.
+See `requirements.txt` for full list.
 
 
 ## License

@@ -362,7 +362,7 @@ def determine_output_path(outdir: Path, dataset_id: str, model: str, num_reports
                     latest = latest_file_csv(outdir, dataset_id, model, num_reports, parsed_version)
                     if latest:
                         latest_parsed = parse_filename(latest.name)
-                        print(f"⚠️ Latest file for {num_reports} reports at {parsed_version} is {latest.name}.")
+                        print(f" Latest file for {num_reports} reports at {parsed_version} is {latest.name}.")
                         new_run = latest_parsed['run'] + 1
                     else:
                         new_run = 1
@@ -370,7 +370,7 @@ def determine_output_path(outdir: Path, dataset_id: str, model: str, num_reports
                     config_path = outdir / f"config_{dataset_id}_{model}_v{parsed_version}.json"
                     return results_path, config_path, base_file
                 else:
-                    print(f"⚠️ Requested {num_reports} reports, which is fewer than {parsed_num_reports} in the selected file.")
+                    print(f" Requested {num_reports} reports, which is fewer than {parsed_num_reports} in the selected file.")
                     print("Please choose a file with the same or fewer reports, or start fresh.")
                     return determine_output_path(outdir, dataset_id, model, num_reports)
 
@@ -389,7 +389,8 @@ def determine_output_path(outdir: Path, dataset_id: str, model: str, num_reports
                 })
 
                 # Build a single-response menu (indices 0..N, where N == "None (start fresh)")
-                print("\nAre you re-runing a previous config version? Select a config version to reuse, or choose None to start fresh:")
+                print("\nAre you re-runing a previous config version? If so, select the config version that you reused, or choose None to start fresh:\n"
+                "Please note: if you select previous versions, your current config should match the previous config to avoid confusion.\n")
                 for idx, v in enumerate(versions):
                     print(f"  [{idx}] v{v}")
                 none_index = len(versions)
@@ -735,24 +736,24 @@ def manager(
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Process EEG reports with an LLM.")
-    p.add_argument("--num-reports", type=int, required=True, help="Number of reports to process.")
-    p.add_argument("--completed-csv", type=Path, default=None, help="Path to an existing results CSV to resume from.")
-    p.add_argument("--dataset-id", type=str, default=None, help='Dataset identifier (e.g., "zoe", "johns_data"). If not provided, uses dataset filename.')
-    p.add_argument("--dataset-path", type=Path, default=DEFAULT_DB, help="Path to the dataset SQLite file.")    
+    p.add_argument("--num-reports", type=int, required=True, help="Required: Number of reports to run.")
+    p.add_argument("--completed-csv", type=Path, default=None, help="Optional: Path to an existing results CSV to resume from.")
+    p.add_argument("--dataset-id", type=str, default=None, help='Optional: Dataset identifier (e.g., "zoe", "johns_data"). If not provided, uses dataset filename.')
+    p.add_argument("--dataset-path", type=Path, default=DEFAULT_DB, help="Optional: Path to the dataset SQLite file. If not provided, uses default sample dataset.")    
     p.add_argument(
         "--model",
         type=str,
         choices=get_available_models(),  # Dynamic model list
         default="mistral",
-        help="Model to use (GGUF).",
+        help="Model to use (GGUF). If not provided, defaults to 'mistral'.",
     )
-    p.add_argument("--outdir", type=Path, default=DEFAULT_OUTDIR, help="Directory to write outputs.")
-    p.add_argument("--comment", type=str, default="LLM pipeline run", help="Run comment to save in config.")
+    p.add_argument("--outdir", type=Path, default=DEFAULT_OUTDIR, help="Optional: Directory to write outputs. Defaults to ./outputs/pipeline_output")
+    p.add_argument("--comment", type=str, default="LLM pipeline run", help="Optional: comment to save in config.")
     # sampling controls
-    p.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="Sampling temperature (0 for greedy).")
-    p.add_argument("--top-k", dest="top_k", type=int, default=DEFAULT_TOP_K, help="Top-k sampling cutoff.")
-    p.add_argument("--top-p", dest="top_p", type=float, default=DEFAULT_TOP_P, help="Top-p (nucleus) sampling threshold.")
-    p.add_argument("--max-tokens", dest="max_tokens", type=int, default=DEFAULT_MAX_TOKENS, help="Max new tokens to generate.")
+    p.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="Optional: Sampling temperature (0 for greedy). Defaults to 0.")
+    p.add_argument("--top-k", dest="top_k", type=int, default=DEFAULT_TOP_K, help="Optional: Top-k sampling cutoff. Defaults to 40.")
+    p.add_argument("--top-p", dest="top_p", type=float, default=DEFAULT_TOP_P, help="Optional: Top-p (nucleus) sampling threshold. Defaults to 0.95.")
+    p.add_argument("--max-tokens", dest="max_tokens", type=int, default=DEFAULT_MAX_TOKENS, help="Optional: Max new tokens to generate. Defaults to 3000.")
     p.add_argument("-v", "--verbose", action="count", default=1, help="Increase verbosity (-v, -vv).")
     return p.parse_args()
 

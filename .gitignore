@@ -19,4 +19,5 @@ src/baseline_models/shap_explanations.ipynb
 spec-file.txt
 
 full-env.yml
-cleaned_env.yml
+cleaned-env.yml
+environment.yml
