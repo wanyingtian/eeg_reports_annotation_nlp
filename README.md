@@ -88,7 +88,8 @@ To run the pipeline (basic), with default sample data (10 reports) and mistral m
 ```bash
 python src/LLM_pipeline/pipeline.py --num-reports 10 --model mistral 
 ```
-Alternatives: 
+
+##### Customizations: 
 * If you want to resume from an existing CSV that is partially complete from previous runs:
 ```bash
 python src/LLM_pipeline/pipeline.py --num-reports 10 --model mistral \
@@ -168,13 +169,15 @@ python src/LLM_pipeline/process_output.py raw_zoe_reports_sample_mistral_5_v1_ru
 ```
 This produces:
 
-Excel: outputs/processed_output/processed_mistral_zoe_first_10_results_v1.xlsx
+* Excel: outputs/processed_output/processed_raw_zoe_reports_sample_mistral_5_v1_run1.xlsx
+
 (sheets: classifications, explanations)
 
-SQLite: outputs/processed_output/processed_mistral_zoe_first_10_results_v1.db
+* SQLite: outputs/processed_output/processed_raw_zoe_reports_sample_mistral_5_v1_run1.db
+
 (tables: classifications, explanations)
 
-Errors (if any): outputs/processed_output/errors_log.csv
+* Errors (if any): outputs/processed_output/errors_log.csv
 
 
 ### 3. Train and evaluate baseline models
