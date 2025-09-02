@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Wanying Tian
+# Licensed under the Apache-2.0 License (see LICENSE file in the project root for details).
 import pandas as pd
 import sqlite3
 import torch

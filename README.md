@@ -6,18 +6,17 @@ This project analyzes clinical EEG reports using a combination of traditional ma
 
 ```
 .
-├── data/                       # Raw data (e.g., SQLite .db file)
-│   └── zoe_reports_10.db
+├── data/                       # Raw sample data (e.g., SQLite .db file)
+│   └── zoe_reports_sample.db
 
-├── environment.yml            # Conda environment file (Python + NLP tools)
+├── requirements.txt           # environment file (Python + NLP tools)
 
 ├── outputs/                   # Output artifacts and intermediate results
 │   ├── baseline_results/      # ML model outputs
 │   │   ├── inference_results/
 │   │   ├── trained_models/
 │   │   └── training_results/
-│   ├── evidence_analysis_results/   # Polarity classification output
-│   ├── performance_plots/           # Visualization results (bar charts, etc.)
+│   ├── evidence_analysis_results/   # explanation evaluation output
 │   ├── pipeline_output/             # Output from LLM pipeline
 │   │   ├── mistral_zoe_config_*.txt
 │   │   └── mistral_zoe_first_10_results_*.csv
@@ -28,18 +27,14 @@ This project analyzes clinical EEG reports using a combination of traditional ma
     │   ├── train.py
     │   ├── inference.py
     │   └── shap_explanations.ipynb
-    ├── evidence_analysis/    # Rule-based and model-based polarity classification
+    ├── evidence_analysis/    # explanation evaluation
     │   └── evidence_polarity_classification.py
-    ├── LLM_pipeline/         # LLM-based classification and grammar-based parsing
-    │   ├── pipeline.py
-    │   ├── process_output.py
-    │   ├── result_grammar.gbnf
-    │   └── result_grammar_test.gbnf
-    └── performance_analysis/ # Accuracy, agreement metrics, visualization
-        ├── main.py
-        ├── analysis_functions.py
-        ├── result_preprocessing.py
-        └── plotting.py
+    └── LLM_pipeline/         # LLM-based classification and grammar-based parsing
+        ├── pipeline.py
+        ├── process_output.py
+        ├── result_grammar.gbnf
+        └── result_grammar_test.gbnf
+
 ```
 
 ## Installation
@@ -57,6 +52,23 @@ source venv\Scripts\activate # (Windows)
 ```
 4. Install: 
 ```bash
+pip install -r requirements.txt
+```
+### Optional: Deployment on FIR Cluster
+
+FIR provides some dependencies (e.g., Rust, PyArrow) via environment modules.  
+If you are deploying on Fir, make sure to load these before creating or activating your virtual environment.
+
+```bash
+# example setup for FIR
+
+# 1.load modules required for building/installing
+module load gcc
+module load rust          # needed for HuggingFace `tokenizers`
+module load arrow         # provides pyarrow 
+# 2.activate venv
+source venv/bin/activate
+# 3. install 
 pip install -r requirements.txt
 ```
 ## Usage
@@ -210,8 +222,8 @@ python src/performance_analysis/main.py
 - [x] BoW + Logistic Regression baseline
 - [x] BERT_base + Logistic Regression baseline
 - [x] SHAP explanation visualization for baselines
-- [ ] Rule-based and model-based evidence polarity classification (in progress)
-- [ ] Performance visualization and evaluation plots (coming soon)
+- [ ] evidence polarity classification (coming soon)
+
 
 ## Requirements
 
