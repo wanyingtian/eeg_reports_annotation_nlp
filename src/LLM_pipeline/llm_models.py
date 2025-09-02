@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Wanying Tian
+# Licensed under the Apache-2.0 License (see LICENSE file in the project root for details).
 #!/usr/bin/env python3
 """
 Simple Model Configuration Module
@@ -12,7 +14,7 @@ from llama_cpp.llama import Llama
 
 # Default parameters for model loading
 DEFAULT_PARAMS = {
-    "n_ctx": 4096,
+    "n_ctx": 4096, # context window size, 4096 tokens are about 3000 words
     "n_gpu_layers": 30,
     "verbose": False,
 }
