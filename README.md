@@ -1,6 +1,6 @@
 # LLM-Based Clinical Report Analysis
 
-This project analyzes clinical EEG reports using a combination of traditional machine learning models and LLMs like Mistral via `llama.cpp`. The pipeline processes text data, runs multiple classification models, evaluates performance, and analyzes supporting evidence.
+This project analyzes clinical EEG reports using a combination of traditional machine learning models and LLMs like Mistral via `llama.cpp`. The repository contains the full LLM pipeline and baseline training scripts.
 
 ## Project Structure
 
