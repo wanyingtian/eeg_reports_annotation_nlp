@@ -16,7 +16,6 @@ This project analyzes clinical EEG reports using a combination of traditional ma
 │   │   ├── inference_results/
 │   │   ├── trained_models/
 │   │   └── training_results/
-│   ├── evidence_analysis_results/   # explanation evaluation output
 │   ├── pipeline_output/             # Output from LLM pipeline
 │   │   ├── mistral_zoe_config_*.txt
 │   │   └── mistral_zoe_first_10_results_*.csv
@@ -27,8 +26,6 @@ This project analyzes clinical EEG reports using a combination of traditional ma
     │   ├── train.py
     │   ├── inference.py
     │   └── shap_explanations.ipynb
-    ├── evidence_analysis/    # explanation evaluation
-    │   └── evidence_polarity_classification.py
     └── LLM_pipeline/         # LLM-based classification and grammar-based parsing
         ├── pipeline.py
         ├── process_output.py
