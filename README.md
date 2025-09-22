@@ -30,7 +30,7 @@ This project analyzes clinical EEG reports using a combination of traditional ma
         ├── pipeline.py
         ├── process_output.py
         ├── result_grammar.gbnf
-        └── result_grammar_test.gbnf
+        └── result_grammar_exp.gbnf
 
 ```
 
