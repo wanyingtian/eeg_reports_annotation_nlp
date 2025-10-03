@@ -16,9 +16,7 @@ This project analyzes clinical EEG reports using a combination of traditional ma
 │   │   ├── inference_results/
 │   │   ├── trained_models/
 │   │   └── training_results/
-│   ├── pipeline_output/             # Output from LLM pipeline
-│   │   ├── mistral_zoe_config_*.txt
-│   │   └── mistral_zoe_first_10_results_*.csv
+│   ├── pipeline_output/             # Raw output from LLM pipeline
 │   └── processed_output/            # Final processed results
 
 └── src/                      # Source code
