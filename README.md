@@ -26,6 +26,9 @@ This project analyzes clinical EEG reports using a combination of traditional ma
     │   ├── train.py
     │   ├── inference.py
     │   └── shap_explanations.ipynb
+    ├── evidence_analysis     # Evidence evaluation
+    │   ├── evidence_factuality.py
+    │   └── evidence_alignment.py
     └── LLM_pipeline/         # LLM-based classification and grammar-based parsing
         ├── pipeline.py
         ├── process_output.py
@@ -203,11 +206,32 @@ python src/baseline_models/inference.py --model bert_base
 python src/baseline_models/inference.py --model bag_of_words
 ```
 
-<!-- ### 4. Analyze evidence polarity
+### 4. LLM Evidence Analysis
+
+#### 4.1 Evidence Factuality
 ```bash
-python src/evidence_analysis/evidence_polarity_classification.py
+python src/evidence_analysis/evidence_factuality.py /path/to/processed_llm_output_file
+```
+This will produce: evidence_factuality_stats.txt, which reports percentage of explanation factuality (traceability) to original reports.
+
+#### 4.2 Evidence Alignment
+There are two methods to assign polarity label to explnations:
+1. Rule-based (regex matching)
+2. Clinical BERT + LR (requires some labelled data for training - not supplied in repo)
+
+To try the rule-based method, no need for additional training data:
+```bash
+python src/evidence_analysis/evidence_alignment.py /path/to/processed_llm_output_file
 ```
 
+To try Clinical BERT + LR, you should have a train file that has labelled columns such as "Abnormality Reasons Polarity" in the explanation sheet. The labels should be based on the semantic of the provided reasons (-1 as normal, 1 as abnormal)
+
+Then,
+```bash
+python src/evidence_analysis/evidence_alignment.py /path/to/processed_llm_output_file --method clinicalbert --train-data /path/to/train_data
+```
+
+<!-- 
 ### 5. Generate plots and evaluation results
 ```bash
 python src/performance_analysis/main.py
@@ -219,7 +243,7 @@ python src/performance_analysis/main.py
 - [x] BoW + Logistic Regression baseline
 - [x] BERT_base + Logistic Regression baseline
 - [x] SHAP explanation visualization for baselines
-- [ ] evidence polarity classification (coming soon)
+- [x] evidence polarity classification 
 
 
 ## Requirements
