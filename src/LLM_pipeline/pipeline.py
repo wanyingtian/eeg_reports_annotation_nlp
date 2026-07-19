@@ -32,21 +32,26 @@ python pipeline.py --num-reports 50 --model mistral --temperature 0.7 --top-k 40
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.metadata
 import json
 import logging
 import multiprocessing as mp
 import os
+import platform
 import re
 import sqlite3
+import subprocess
+import sys
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Generator, Iterable, Optional, Tuple
+from typing import Any, Generator, Iterable, Optional, Tuple
 
 import pandas as pd
-from huggingface_hub import hf_hub_download
 from llama_cpp.llama import Llama, LlamaGrammar
-from llm_models import download_model, get_available_models
+from llm_models import download_model_with_receipt, get_available_models
 
 # --------------------------- Defaults / Constants --------------------------- #
 
@@ -183,12 +188,22 @@ class RunConfig:
     outdir: Path
     dataset_path: Path
     dataset_id: str
+    model_name: str
     temperature: float = DEFAULT_TEMPERATURE
     top_k: int = DEFAULT_TOP_K
     top_p: float = DEFAULT_TOP_P
     max_tokens: int = DEFAULT_MAX_TOKENS
     stop: Optional[Iterable[str]] = DEFAULT_STOP
     comment: str = "LLM pipeline run"
+
+
+@dataclass(frozen=True)
+class LLMCallReceipt:
+    text: str
+    elapsed_seconds: float
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    total_tokens: int | None
 
 
 # ------------------------------ Logging Setup ------------------------------ #
@@ -202,15 +217,89 @@ def setup_logging(verbosity: int) -> None:
     )
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.expanduser().resolve(strict=True).open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def package_version(name: str) -> str:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return "not-installed"
+
+
+def git_receipt() -> dict[str, Any]:
+    try:
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        dirty = bool(
+            subprocess.run(
+                ["git", "status", "--porcelain"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        )
+        return {"revision": revision, "worktree_dirty": dirty}
+    except (OSError, subprocess.CalledProcessError):
+        return {"revision": None, "worktree_dirty": None}
+
+
+def summarize_telemetry(frame: pd.DataFrame) -> dict[str, dict[str, float | int | None]]:
+    columns = [
+        "report_whitespace_words",
+        "classify_elapsed_seconds",
+        "classify_prompt_tokens",
+        "classify_completion_tokens",
+        "explain_elapsed_seconds",
+        "explain_prompt_tokens",
+        "explain_completion_tokens",
+    ]
+    summary: dict[str, dict[str, float | int | None]] = {}
+    for column in columns:
+        source = frame[column] if column in frame.columns else pd.Series(dtype=float)
+        values = pd.to_numeric(source, errors="coerce").dropna()
+        if values.empty:
+            summary[column] = {
+                "count": 0,
+                "mean": None,
+                "median": None,
+                "minimum": None,
+                "maximum": None,
+            }
+        else:
+            summary[column] = {
+                "count": int(values.size),
+                "mean": float(values.mean()),
+                "median": float(values.median()),
+                "minimum": float(values.min()),
+                "maximum": float(values.max()),
+            }
+    return summary
+
+
 # -------------------------- DB / File I/O Utilities ------------------------ #
 
 def fetch_reports(db_path: Path) -> Generator[Tuple[str, str], None, None]:
     """
-    Stream (Hashed_ReportURN, Report) rows from the SQLite database.
-    If the DB still uses 'Hashed ID', rename it to 'Hashed_ReportURN' in-place.
+    Stream (Hashed_ReportURN, Report) rows from SQLite without mutating the source.
+    The legacy ``Hashed ID`` column is selected as an alias in memory.
     """
-    logging.info(f"Connecting to DB: {db_path}")
-    conn = sqlite3.connect(str(db_path))
+    resolved = db_path.expanduser().resolve(strict=True)
+    logging.info(f"Connecting read-only to DB: {resolved.name}")
+    conn = sqlite3.connect(f"{resolved.as_uri()}?mode=ro", uri=True)
     try:
         cursor = conn.cursor()
 
@@ -222,17 +311,8 @@ def fetch_reports(db_path: Path) -> Generator[Tuple[str, str], None, None]:
             id_col = '"Hashed_ReportURN"'
             logging.info("Column already named 'Hashed_ReportURN'; proceeding.")
         elif "Hashed ID" in cols:
-            # Try to rename in place
-            try:
-                logging.info("Renaming 'Hashed ID' -> 'Hashed_ReportURN' in DB...")
-                cursor.execute('ALTER TABLE reports RENAME COLUMN "Hashed ID" TO "Hashed_ReportURN";')
-                conn.commit()
-                id_col = '"Hashed_ReportURN"'
-                logging.info("✓ Renamed and saved to the same database file.")
-            except sqlite3.OperationalError as e:
-                # Older SQLite might not support RENAME COLUMN; fall back to alias
-                logging.warning(f"Could not rename column in-place ({e}). Proceeding with alias.")
-                id_col = '"Hashed ID"'
+            id_col = '"Hashed ID"'
+            logging.warning("Using legacy 'Hashed ID' column without altering the database.")
         else:
             raise RuntimeError("Neither 'Hashed_ReportURN' nor 'Hashed ID' found in 'reports' table.")
 
@@ -342,7 +422,7 @@ def determine_output_path(outdir: Path, dataset_id: str, model: str, num_reports
                 if num_reports == parsed_num_reports:
                     # Ask if user wants to overwrite
                     response = get_user_input(
-                        f"Overwrite the selected file? (yes/no): ",
+                        "Overwrite the selected file? (yes/no): ",
                         ['yes', 'y', 'no', 'n']
                     )
                     if response in ['yes', 'y']:
@@ -461,6 +541,29 @@ def llm_json(
     """
     Invoke the LLM and return the raw text (expected to be JSON per grammar).
     """
+    return llm_json_with_receipt(
+        model=model,
+        prompt=prompt,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        stop=stop,
+        grammar=grammar,
+        top_k=top_k,
+        top_p=top_p,
+    ).text
+
+
+def llm_json_with_receipt(
+    model: Llama,
+    prompt: str,
+    temperature: float,
+    max_tokens: int,
+    stop: Optional[Iterable[str]],
+    grammar: Optional[LlamaGrammar] = None,
+    top_k: Optional[int] = None,
+    top_p: Optional[float] = None,
+) -> LLMCallReceipt:
+    """Invoke the LLM and retain timing and llama.cpp token accounting."""
     kwargs = {
         "grammar": grammar,
         "temperature": temperature,
@@ -473,8 +576,17 @@ def llm_json(
     if top_p is not None:
         kwargs["top_p"] = top_p
 
+    started = time.perf_counter()
     resp = model(prompt, **kwargs)
-    return resp["choices"][0]["text"]
+    elapsed = time.perf_counter() - started
+    usage = resp.get("usage", {})
+    return LLMCallReceipt(
+        text=resp["choices"][0]["text"],
+        elapsed_seconds=elapsed,
+        prompt_tokens=usage.get("prompt_tokens"),
+        completion_tokens=usage.get("completion_tokens"),
+        total_tokens=usage.get("total_tokens"),
+    )
 
 
 
@@ -484,7 +596,21 @@ def process_completed_csv(path: Optional[Path]) -> Tuple[pd.DataFrame, set[str]]
     """
     Load existing results to resume. Returns (df, set_of_hashed_ids).
     """
-    cols = ["Hashed_ReportURN", "Report", "classifications", "explanations"]
+    cols = [
+        "Hashed_ReportURN",
+        "Report",
+        "classifications",
+        "explanations",
+        "report_whitespace_words",
+        "classify_elapsed_seconds",
+        "classify_prompt_tokens",
+        "classify_completion_tokens",
+        "classify_total_tokens",
+        "explain_elapsed_seconds",
+        "explain_prompt_tokens",
+        "explain_completion_tokens",
+        "explain_total_tokens",
+    ]
     base = pd.DataFrame(columns=cols)
     if not path:
         logging.info("No completed CSV supplied; starting fresh.")
@@ -542,6 +668,7 @@ def load_reports_df(
 
 def run_pipeline(
     model: Llama,
+    model_receipt: dict[str, Any],
     df: pd.DataFrame,
     results_df: pd.DataFrame,
     grammar_classify: LlamaGrammar,
@@ -563,7 +690,7 @@ def run_pipeline(
 
         # 1) Classification
         classify_prompt = PROMPT_CLASSIFY + "\n\n" + report
-        classifications = llm_json(
+        classification_call = llm_json_with_receipt(
             model=model,
             prompt=classify_prompt,
             temperature=cfg.temperature,
@@ -573,6 +700,7 @@ def run_pipeline(
             top_k=cfg.top_k,
             top_p=cfg.top_p,
         )
+        classifications = classification_call.text
 
         # 2) Explanations (feed classification JSON verbatim)
         explain_input = (
@@ -583,7 +711,7 @@ def run_pipeline(
             + classifications
             + "\n"
         )
-        explanations = llm_json(
+        explanation_call = llm_json_with_receipt(
             model=model,
             prompt=explain_input,
             temperature=cfg.temperature,
@@ -593,6 +721,7 @@ def run_pipeline(
             top_k=cfg.top_k,
             top_p=cfg.top_p,
         )
+        explanations = explanation_call.text
 
         # Append row
         results_df = pd.concat(
@@ -604,6 +733,15 @@ def run_pipeline(
                             "Hashed_ReportURN": hashed_id,
                             "classifications": classifications,
                             "explanations": explanations,
+                            "report_whitespace_words": len(report.split()),
+                            "classify_elapsed_seconds": classification_call.elapsed_seconds,
+                            "classify_prompt_tokens": classification_call.prompt_tokens,
+                            "classify_completion_tokens": classification_call.completion_tokens,
+                            "classify_total_tokens": classification_call.total_tokens,
+                            "explain_elapsed_seconds": explanation_call.elapsed_seconds,
+                            "explain_prompt_tokens": explanation_call.prompt_tokens,
+                            "explain_completion_tokens": explanation_call.completion_tokens,
+                            "explain_total_tokens": explanation_call.total_tokens,
                         }
                     ]
                 ),
@@ -620,32 +758,82 @@ def run_pipeline(
     atomic_write_csv(results_df, out_results)
     elapsed = time.time() - start
     
-    # Save config as JSON for better structure
+    grammar_classify_path = BASE_DIR / "result_grammar.gbnf"
+    grammar_explain_path = BASE_DIR / "result_grammar_exp.gbnf"
+    dataset_path = cfg.dataset_path.expanduser().resolve(strict=True)
+
+    # Versioned, audit-ready run receipt. The governed path itself is omitted.
     config_data = {
-        "dataset_id": cfg.dataset_id,
-        "dataset_path": str(cfg.dataset_path),
-        "model": os.getenv('MODEL_OVERRIDE', ''),
-        "temperature": cfg.temperature,
-        "top_k": cfg.top_k,
-        "top_p": cfg.top_p,
-        "max_tokens": cfg.max_tokens,
-        "stop_sequences": list(cfg.stop) if cfg.stop else None,
-        "comment": cfg.comment,
-        # "reports_completed": len(results_df),
-        # "elapsed_seconds": elapsed,
-        # "elapsed_minutes": elapsed / 60,
-        "prompts": {
-            "classify": PROMPT_CLASSIFY,
-            "explain": PROMPT_EXPLAIN
+        "schema_version": 2,
+        "created_at_utc": datetime.now(UTC).isoformat(),
+        "dataset": {
+            "id": cfg.dataset_id,
+            "filename": dataset_path.name,
+            "sha256": sha256_file(dataset_path),
         },
-        # "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        "model": model_receipt,
+        "sampling": {
+            "temperature": cfg.temperature,
+            "top_k": cfg.top_k,
+            "top_p": cfg.top_p,
+            "max_tokens": cfg.max_tokens,
+            "stop_sequences": list(cfg.stop) if cfg.stop else None,
+        },
+        "comment": cfg.comment,
+        "reports_completed": len(results_df),
+        "elapsed_seconds": elapsed,
+        "prompts": {
+            "classify": {"sha256": sha256_text(PROMPT_CLASSIFY), "text": PROMPT_CLASSIFY},
+            "explain": {"sha256": sha256_text(PROMPT_EXPLAIN), "text": PROMPT_EXPLAIN},
+        },
+        "grammars": {
+            "classify": {
+                "filename": grammar_classify_path.name,
+                "sha256": sha256_file(grammar_classify_path),
+            },
+            "explain": {
+                "filename": grammar_explain_path.name,
+                "sha256": sha256_file(grammar_explain_path),
+            },
+        },
+        "input_policy": {
+            "report_field": "Report",
+            "context_limit": model_receipt["load_parameters"].get("n_ctx"),
+            "truncation": "none; context-limit errors are surfaced",
+            "classification_chat_template": "raw prompt concatenated with two newlines and report",
+            "explanation_chat_template": "raw prompt plus report and classification JSON",
+        },
+        "telemetry": summarize_telemetry(results_df),
+        "output": {"filename": out_results.name, "sha256": sha256_file(out_results)},
+        "environment": {
+            "python": sys.version.split()[0],
+            "platform": platform.platform(),
+            "packages": {
+                "huggingface-hub": package_version("huggingface-hub"),
+                "llama-cpp-python": package_version("llama-cpp-python"),
+                "pandas": package_version("pandas"),
+            },
+            "git": git_receipt(),
+            "slurm_job_id_present": bool(os.getenv("SLURM_JOB_ID")),
+            "cuda_visible_devices_set": "CUDA_VISIBLE_DEVICES" in os.environ,
+        },
+        "provenance_limits": [
+            "This receipt identifies the executed prompt but does not reconstruct historical prompt-development decisions.",
+            "Dataset checksum and ID do not establish cohort eligibility, patient independence, or ethics coverage.",
+        ],
     }
-    
-    with open(out_config, "w") as f:
-        json.dump(config_data, f, indent=2)
+
+    run_receipt = out_results.with_suffix(".run.json")
+    for destination in (out_config, run_receipt):
+        temporary = destination.with_suffix(destination.suffix + ".tmp")
+        with temporary.open("w", encoding="utf-8") as stream:
+            json.dump(config_data, stream, indent=2)
+            stream.write("\n")
+        temporary.replace(destination)
     
     logging.info(f"Saved results -> {out_results}")
     logging.info(f"Saved config  -> {out_config}")
+    logging.info(f"Saved receipt -> {run_receipt}")
     logging.info(f"Elapsed: {elapsed:.2f}s")
     return results_df
 
@@ -685,7 +873,7 @@ def manager(
         grammar_classify = load_gbnf(BASE_DIR / "result_grammar.gbnf")
         grammar_explain = load_gbnf(BASE_DIR / "result_grammar_exp.gbnf")
     
-        model = download_model(model_name)
+        model, model_receipt = download_model_with_receipt(model_name)
 
         # (Re)load completed and pending
         prior_df, prior_hashes = process_completed_csv(resume_csv)
@@ -696,8 +884,9 @@ def manager(
             logging.info("No pending reports to process. All reports already completed.")
             return
             
-        results_df = run_pipeline(
+        run_pipeline(
             model=model,
+            model_receipt=model_receipt,
             df=pending,
             results_df=prior_df,
             grammar_classify=grammar_classify,
@@ -778,6 +967,7 @@ def main() -> None:
         outdir=args.outdir,
         dataset_path=dataset_path,
         dataset_id=dataset_id,
+        model_name=args.model,
         temperature=args.temperature,
         top_k=args.top_k,
         top_p=args.top_p,

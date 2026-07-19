@@ -1,3 +1,6 @@
+# Legacy compatibility environment for the historical scripts.
+# The canonical revision environment is pyproject.toml + uv.lock; see review/README.md.
+
 # Core data science and ML libraries
 numpy
 pandas

@@ -2,6 +2,25 @@
 
 This project analyzes clinical EEG reports using a combination of traditional machine learning models and LLMs like Mistral via `llama.cpp`. The repository contains the full LLM pipeline and baseline training scripts.
 
+## JBHI revision workflow
+
+The `review/jbhi-02463-revision-toolchain` branch adds an aggregate-only audit
+and evaluation layer for the journal revision. It preserves the historical
+pipeline while adding a current Python 3.11/`uv` environment, tests, immutable
+run receipts, cohort/overlap audits, raw support counts, confusion matrices,
+and bootstrap uncertainty intervals.
+
+```bash
+uv sync
+make verify
+uv run eeg-review --help
+```
+
+Start with [review/README.md](review/README.md) for the governed execution
+boundary and [review/REVIEWER_EXECUTION_MATRIX.md](review/REVIEWER_EXECUTION_MATRIX.md)
+for the reviewer-to-artifact map. No clinical report text, credentials, patient
+keys, or case-level outputs should be committed to this branch.
+
 ## Project Structure
 
 ```
@@ -36,6 +55,9 @@ This project analyzes clinical EEG reports using a combination of traditional ma
 ```
 
 ## Installation
+
+For revision work, use the `uv` workflow above. The following Python 3.10/pip
+instructions are retained for compatibility with the historical pipeline.
 
 1. Ensure Python 3.10 is installed (tested on 3.10.12)
 2. Create virtual environment: 

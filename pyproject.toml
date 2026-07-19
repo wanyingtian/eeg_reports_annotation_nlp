@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eeg-reports-annotation-nlp"
+version = "0.1.0"
+description = "Reproducible EEG report annotation and JBHI review analysis tools"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = {file = "LICENSE"}
+authors = [{name = "Wanying Tian"}]
+dependencies = [
+  "numpy>=1.26,<3",
+  "pandas>=2.2,<3",
+]
+
+[project.optional-dependencies]
+reports = [
+  "matplotlib>=3.8,<4",
+  "openpyxl>=3.1,<4",
+  "pyarrow>=16,<24",
+  "seaborn>=0.13,<1",
+  "xlsxwriter>=3.2,<4",
+]
+baselines = [
+  "joblib>=1.4,<2",
+  "scikit-learn>=1.5,<2",
+  "shap>=0.46,<1",
+  "torch>=2.3,<3",
+  "transformers>=4.44,<5",
+]
+llm = [
+  "huggingface-hub>=0.24,<2",
+  "llama-cpp-python>=0.3,<1",
+  "tqdm>=4.66,<5",
+]
+evidence = [
+  "fuzzywuzzy>=0.18,<1",
+  "python-levenshtein>=0.25,<1",
+  "sentence-transformers>=3,<6",
+  "torch>=2.3,<3",
+  "transformers>=4.44,<5",
+]
+
+[project.scripts]
+eeg-review = "eeg_review.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3,<10",
+  "ruff>=0.9,<1",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["eeg_review*"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

@@ -5,6 +5,7 @@
 **/__pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
 
 outputs/baseline_results/** 
 outputs/evidence_analysis_results/
@@ -22,3 +23,7 @@ full-env.yml
 cleaned-env.yml
 environment.yml
 venv/
+.venv/
+
+# Reviewer-run aggregate receipts (never commit governed run outputs)
+outputs/review/

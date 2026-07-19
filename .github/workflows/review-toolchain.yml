@@ -1,0 +1,29 @@
+name: Review toolchain
+
+on:
+  pull_request:
+  push:
+    branches:
+      - review/jbhi-02463-revision-toolchain
+
+permissions:
+  contents: read
+
+jobs:
+  aggregate-review-tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pinned uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.29"
+          enable-cache: true
+
+      - name: Synchronize locked core environment
+        run: uv sync --locked
+
+      - name: Verify aggregate review toolkit
+        run: make verify
