@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
+from .baseline import run_baseline_cv
 from .metrics import evaluate_predictions
 
 
@@ -47,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     overlap = subparsers.add_parser("overlap", help="Count exact overlap across cohorts")
     overlap.add_argument("--dataset", action="append", type=named_path, required=True)
     overlap.add_argument("--output-dir", type=Path, required=True)
+    overlap.add_argument("--patient-column")
     add_schema_arguments(overlap)
 
     evaluate = subparsers.add_parser("evaluate", help="Evaluate paired four-level predictions")
@@ -65,6 +67,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluate.add_argument("--bootstrap-iterations", type=int, default=2000)
     evaluate.add_argument("--seed", type=int, default=20260718)
+
+    baseline = subparsers.add_parser(
+        "baseline-cv", help="Run leakage-safe OOF evaluation for the submitted baseline families"
+    )
+    baseline.add_argument("--dataset", type=Path, required=True)
+    baseline.add_argument("--output-dir", type=Path, required=True)
+    baseline.add_argument("--model", choices=["bag_of_words", "bert_base"], required=True)
+    baseline.add_argument("--label", action="append", dest="labels")
+    baseline.add_argument("--patient-column")
+    baseline.add_argument("--folds", type=int, default=5)
+    baseline.add_argument("--seed", type=int, default=20260718)
+    baseline.add_argument("--epsilon", type=float, default=0.1)
+    baseline.add_argument("--batch-size", type=int, default=16)
+    add_schema_arguments(baseline)
     return parser
 
 
@@ -93,8 +109,9 @@ def main() -> None:
             table=args.table,
             id_column=args.id_column,
             report_column=args.report_column,
+            patient_column=args.patient_column,
         )
-    else:
+    elif args.command == "evaluate":
         mappings = dict(args.prediction_column or [])
         labels = args.labels or DEFAULT_LABELS
         result = evaluate_predictions(
@@ -110,6 +127,21 @@ def main() -> None:
             fold_column=args.fold_column,
             bootstrap_iterations=args.bootstrap_iterations,
             seed=args.seed,
+        )
+    else:
+        result = run_baseline_cv(
+            args.dataset,
+            args.output_dir,
+            model_name=args.model,
+            table=args.table,
+            id_column=args.id_column,
+            report_column=args.report_column,
+            labels=args.labels or DEFAULT_LABELS,
+            patient_column=args.patient_column,
+            folds=args.folds,
+            seed=args.seed,
+            epsilon=args.epsilon,
+            batch_size=args.batch_size,
         )
     print(json.dumps(result, indent=2, sort_keys=True))
 

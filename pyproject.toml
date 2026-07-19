@@ -25,6 +25,7 @@ reports = [
 ]
 baselines = [
   "joblib>=1.4,<2",
+  "numba>=0.61,<1",
   "scikit-learn>=1.5,<2",
   "shap>=0.46,<1",
   "torch>=2.3,<3",

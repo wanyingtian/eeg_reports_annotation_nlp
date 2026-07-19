@@ -12,7 +12,7 @@ lint:
 	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py
 
 test:
-	$(UV) run pytest
+	$(UV) run --extra baselines pytest
 
 audit-sample:
 	$(UV) run eeg-review audit \

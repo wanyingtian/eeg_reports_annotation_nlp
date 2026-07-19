@@ -179,39 +179,59 @@ def audit_overlap(
     table: str = "reports",
     id_column: str = "Hashed_ReportURN",
     report_column: str = "Report",
+    patient_column: str | None = None,
 ) -> dict[str, Any]:
     if len(datasets) < 2:
         raise ValueError("Overlap audit requires at least two named datasets")
     private_sets: dict[str, dict[str, set[str]]] = {}
     for name, path in datasets.items():
-        frame = load_table(path, [id_column, report_column], table)
+        columns = [id_column, report_column]
+        if patient_column:
+            columns.append(patient_column)
+        frame = load_table(path, columns, table)
         ids = {private_digest(value) for value in frame[id_column].dropna().astype(str)}
         reports = {
             private_digest(normalized)
             for normalized in frame[report_column].map(normalize_report)
             if normalized
         }
-        private_sets[name] = {"identifiers": ids, "reports": reports}
+        patients = (
+            {private_digest(value) for value in frame[patient_column].dropna().astype(str)}
+            if patient_column
+            else set()
+        )
+        private_sets[name] = {"identifiers": ids, "reports": reports, "patients": patients}
 
     comparisons = []
     for left, right in combinations(sorted(datasets), 2):
-        comparisons.append(
-            {
-                "left": left,
-                "right": right,
-                "shared_report_identifiers": len(
-                    private_sets[left]["identifiers"] & private_sets[right]["identifiers"]
-                ),
-                "shared_exact_normalized_reports": len(
-                    private_sets[left]["reports"] & private_sets[right]["reports"]
-                ),
-            }
-        )
+        comparison = {
+            "left": left,
+            "right": right,
+            "shared_report_identifiers": len(
+                private_sets[left]["identifiers"] & private_sets[right]["identifiers"]
+            ),
+            "shared_exact_normalized_reports": len(
+                private_sets[left]["reports"] & private_sets[right]["reports"]
+            ),
+        }
+        if patient_column:
+            comparison["shared_patient_identifiers"] = len(
+                private_sets[left]["patients"] & private_sets[right]["patients"]
+            )
+        comparisons.append(comparison)
     result = {
         "schema_version": 1,
+        "patient_overlap": {
+            "status": "assessed" if patient_column else "not_assessed",
+            "column": patient_column,
+        },
         "comparisons": comparisons,
         "interpretation_limits": [
             "Zero shared report identifiers does not establish patient independence.",
+            (
+                "Patient overlap is interpretable only when the supplied key has stable, "
+                "compatible semantics across cohorts."
+            ),
             (
                 "Exact normalized report matching does not detect paraphrased or templated "
                 "near-duplicates."
@@ -225,7 +245,13 @@ def audit_overlap(
         build_manifest(
             "overlap",
             list(datasets.values()),
-            {"dataset_names": sorted(datasets), "table": table, "id_column": id_column},
+            {
+                "dataset_names": sorted(datasets),
+                "table": table,
+                "id_column": id_column,
+                "report_column": report_column,
+                "patient_column": patient_column,
+            },
         ),
     )
     return result

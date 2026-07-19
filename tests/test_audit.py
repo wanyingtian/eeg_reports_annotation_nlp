@@ -47,10 +47,14 @@ def test_overlap_emits_counts_not_identifiers(tmp_path: Path) -> None:
     right = tmp_path / "right.db"
     make_database(left, [("shared", "Same report", "p1", 1, 1, 1, 1, 1)])
     make_database(right, [("shared", "Same report", "p2", 1, 1, 1, 1, 1)])
-    result = audit_overlap({"left": left, "right": right}, tmp_path / "overlap")
+    result = audit_overlap(
+        {"left": left, "right": right}, tmp_path / "overlap", patient_column="Patient"
+    )
     comparison = result["comparisons"][0]
     assert comparison["shared_report_identifiers"] == 1
     assert comparison["shared_exact_normalized_reports"] == 1
+    assert comparison["shared_patient_identifiers"] == 0
+    assert result["patient_overlap"]["status"] == "assessed"
     rendered = json.dumps(result)
     assert "Same report" not in rendered
     assert 'shared"' not in rendered

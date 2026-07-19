@@ -65,6 +65,7 @@ uv run eeg-review overlap \
   --dataset development=/governed/path/development.db \
   --dataset zoe=/governed/path/zoe.db \
   --dataset maria=/governed/path/maria.db \
+  --patient-column Hashed_PatientURN \
   --output-dir outputs/review/cross-cohort-overlap
 ```
 
@@ -72,7 +73,36 @@ If no patient column exists, omit it. The receipt will explicitly say that
 patient independence was not assessed; a hashed report ID must never be
 presented as proof of a unique patient.
 
-## Phase 2: paired evaluation receipts
+## Phase 2: leakage-safe native baseline receipts
+
+This command preserves the submitted BoW+LR and frozen BERT+LR model families.
+It fits BoW vocabulary inside each fold, uses deterministic stratified folds
+(patient-grouped when a patient column is supplied), exports out-of-fold
+probabilities and fold membership, and explicitly refits the final model on all
+valid development records.
+
+```bash
+uv run --extra baselines eeg-review baseline-cv \
+  --dataset /governed/path/development.db \
+  --model bag_of_words \
+  --patient-column Hashed_PatientURN \
+  --folds 5 \
+  --output-dir outputs/review/development-bow
+
+uv run --extra baselines eeg-review baseline-cv \
+  --dataset /governed/path/development.db \
+  --model bert_base \
+  --patient-column Hashed_PatientURN \
+  --folds 5 \
+  --output-dir outputs/review/development-bert
+```
+
+The BERT route retains `bert-base-uncased`, a frozen final-layer CLS embedding,
+and 512-token end truncation. The receipt counts reports exceeding 512 tokens.
+No model checkpoint is downloaded by core CI. `oof_predictions.csv` contains
+pseudonymous report keys but never report text and must remain governed.
+
+## Phase 3: paired evaluation receipts
 
 Processed predictions must contain one unique report ID and one four-level
 prediction column per requested category. Column names can be mapped without
@@ -107,7 +137,7 @@ The default intervals resample reports. Supply the patient/cluster column to
 obtain cluster-bootstrap intervals. Report-level intervals must not be used to
 claim patient-independent precision.
 
-## Phase 3: instrumented LLM reruns
+## Phase 4: instrumented LLM reruns
 
 The existing `src/LLM_pipeline/pipeline.py` now records the exact GGUF filename,
 Hugging Face snapshot, model-file SHA-256, load parameters, prompts and prompt
@@ -146,5 +176,6 @@ being recorded as a distinct experimental condition.
 7. Have two people review the aggregate release before it leaves governed
    infrastructure.
 
-See `REVIEWER_EXECUTION_MATRIX.md` for the reviewer-to-artifact map and the
-remaining implementation phases.
+See `DATA_CONTRACT.md`, `CLAIM_LEDGER.md`, and
+`REVIEWER_EXECUTION_MATRIX.md` for the input contract, claim gates, and
+reviewer-to-artifact map.

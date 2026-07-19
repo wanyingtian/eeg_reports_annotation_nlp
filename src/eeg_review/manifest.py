@@ -63,7 +63,16 @@ def build_manifest(command: str, inputs: list[Path], parameters: dict[str, Any])
         "git_worktree_dirty": git_worktree_dirty(),
         "python": sys.version.split()[0],
         "platform": platform.platform(),
-        "packages": package_versions(["numpy", "pandas"]),
+        "packages": package_versions(
+            [
+                "numpy",
+                "pandas",
+                "scikit-learn",
+                "torch",
+                "transformers",
+                "llama-cpp-python",
+            ]
+        ),
         "inputs": [
             {
                 "name": path.name,

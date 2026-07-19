@@ -8,14 +8,14 @@ supplies the required inputs. It does not mean the scientific result is known.
 |---|---|---|---|
 | Cohort sizes and class support | `eeg-review audit`; `label_counts.csv` | Authoritative development/Zoe/Maria snapshots | Implemented |
 | Patient independence | `eeg-review audit --patient-column ...` | Patient-level pseudonymous key semantics | Implemented; semantics require custodian confirmation |
-| Development/evaluation leakage | `eeg-review overlap` | All three cohort snapshots | Exact ID/text overlap implemented; semantic near-duplicate phase pending |
+| Development/evaluation leakage | `eeg-review overlap --patient-column ...` | All three cohort snapshots and stable patient key | Exact patient/ID/text overlap implemented; semantic near-duplicate phase pending |
 | Raw four-level and binary counts | `label_counts.csv` | RA and SA label tables | Implemented per supplied label set |
 | Category TP/FP/TN/FN | `eeg-review evaluate`; `metrics.csv` | Paired predictions/reference labels | Implemented |
 | Confidence intervals | Cluster bootstrap in `evaluation_summary.json` | Patient/cluster key | Implemented |
 | Four-level agreement | Certainty-adjusted accuracy, 4x4 matrix, kappa | Paired four-level labels | Implemented |
 | Core agreement | Binary metrics, 2x2 matrix, kappa | Paired four-level labels | Implemented |
 | Favorable and unfavorable results | Complete matrices and unmatched/invalid counts | All model outputs, without cherry-picking | Implemented output contract |
-| Five-fold variability | `eeg-review evaluate --fold-column ...`; `fold_metrics.csv` | Out-of-fold predictions and fold assignment | Implemented; historical trainer must export folds |
+| Five-fold variability | `eeg-review baseline-cv`; `eeg-review evaluate --fold-column ...` | Authorized development data and stable patient key | Leakage-safe OOF folds and explicit full-data refit implemented for submitted BoW/BERT families |
 | Calibration | Probability calibration metrics/curves | Per-class probabilities, not ordinal labels alone | Next analysis phase; terminology guardrail documented |
 | False-negative consequences | FN counts plus governed case-review packet | Clinical reviewer and approved case-review process | Counts implemented; case review is clinical/team work |
 | Stronger LLM comparisons | Named model registry and identical-run matrix | Team-approved models, weights, compute budget | Next inference phase |
@@ -35,11 +35,9 @@ supplies the required inputs. It does not mean the scientific result is known.
 1. Instrument the existing LLM pipeline with immutable prompt, grammar, model,
    tokenizer, context/truncation, token-count, latency, hardware, and failure
    receipts while preserving historical defaults.
-2. Refactor baseline training so every fold exports IDs, predictions,
-   probabilities, seed, preprocessing, fitted thresholds, and fold membership.
-3. Add patient-clustered paired model comparisons, fold summaries, calibration
+2. Add patient-clustered paired model comparisons, fold summaries, calibration
    only where probabilities exist, and multiplicity-aware hypothesis tests.
-4. Add an aggregate claim ledger and deterministic manuscript table/figure
+3. Add deterministic manuscript table/figure
    generation, including null and unfavorable outcomes.
-5. Add a governed clinical error-review export containing pseudonymous case
+4. Add a governed clinical error-review export containing pseudonymous case
    handles only, with no report text leaving the approved environment.
