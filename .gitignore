@@ -27,3 +27,6 @@ venv/
 
 # Reviewer-run aggregate receipts (never commit governed run outputs)
 outputs/review/
+
+# Governed clinical datasets are local inputs only (never commit)
+data/governed/
