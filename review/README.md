@@ -177,5 +177,7 @@ being recorded as a distinct experimental condition.
    infrastructure.
 
 See `DATA_CONTRACT.md`, `CLAIM_LEDGER.md`, and
-`REVIEWER_EXECUTION_MATRIX.md` for the input contract, claim gates, and
+`DATASET_NAMING.md` for the input contract, claim gates, and historical naming
+semantics. The exact candidate submitted-model artifact is recorded under
+`model-receipts/`. See `REVIEWER_EXECUTION_MATRIX.md` for the
 reviewer-to-artifact map.

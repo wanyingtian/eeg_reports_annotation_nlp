@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "recorded_date": "2026-07-20",
+  "purpose": "Candidate exact model artifact for submitted-paper reproduction",
+  "source_code": {
+    "repository_revision": "eeeaad0b956fb89982a29abbd30a6676c2443441",
+    "registry_name": "mistral"
+  },
+  "huggingface": {
+    "repo_id": "TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
+    "filename": "mistral-7b-instruct-v0.2.Q5_K_M.gguf",
+    "revision": "3a6fbf4a41a1d52e415a4958cde6856d34b2db93"
+  },
+  "artifact": {
+    "sha256": "b85cdd596ddd76f3194047b9108a73c74d77ba04bef49255a50fc0cfbda83d32",
+    "size_bytes": 5131409696,
+    "quantization": "Q5_K_M"
+  },
+  "historical_load_parameters": {
+    "n_ctx": 4096,
+    "n_gpu_layers": 30,
+    "verbose": false
+  },
+  "interpretation": "The artifact matches the clean repository configuration. Historical run equivalence still requires comparison with the model checksum and environment on the original analysis machine."
+}
