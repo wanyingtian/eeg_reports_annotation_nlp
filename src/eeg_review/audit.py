@@ -46,13 +46,43 @@ def audit_dataset(
     labels: list[str] | None = None,
     patient_column: str | None = None,
     split_column: str | None = None,
+    row_ranges: list[tuple[int, int]] | None = None,
+    require_complete_labels: bool = False,
 ) -> dict[str, Any]:
     labels = labels or DEFAULT_LABELS
     columns = [id_column, report_column, *labels]
     for optional in (patient_column, split_column):
         if optional and optional not in columns:
             columns.append(optional)
-    frame = load_table(dataset, columns, table)
+    source_frame = load_table(dataset, columns, table)
+    if row_ranges:
+        ordered_ranges = sorted(row_ranges)
+        for index, (start, end) in enumerate(ordered_ranges):
+            if end > len(source_frame):
+                raise ValueError(
+                    f"row range {start}:{end} exceeds source length {len(source_frame)}"
+                )
+            if index and start < ordered_ranges[index - 1][1]:
+                raise ValueError("row ranges must not overlap")
+        candidate_frame = pd.concat(
+            [source_frame.iloc[start:end] for start, end in row_ranges],
+            axis=0,
+        )
+    else:
+        candidate_frame = source_frame
+
+    excluded_incomplete = 0
+    if require_complete_labels:
+        complete = pd.DataFrame(
+            {
+                label: pd.to_numeric(candidate_frame[label], errors="coerce").isin([1, 2, 3, 4])
+                for label in labels
+            }
+        ).all(axis=1)
+        excluded_incomplete = int((~complete).sum())
+        frame = candidate_frame.loc[complete].copy()
+    else:
+        frame = candidate_frame.copy()
 
     identifiers = frame[id_column].astype("string")
     reports = frame[report_column].map(normalize_report)
@@ -65,6 +95,16 @@ def audit_dataset(
         "schema_version": 1,
         "dataset_id": dataset_id,
         "records": int(len(frame)),
+        "selection": {
+            "source_records": int(len(source_frame)),
+            "positional_row_ranges": [list(row_range) for row_range in row_ranges]
+            if row_ranges
+            else None,
+            "candidate_records": int(len(candidate_frame)),
+            "require_complete_labels": require_complete_labels,
+            "excluded_incomplete_labels": excluded_incomplete,
+            "selected_records": int(len(frame)),
+        },
         "identifier": {
             "column": id_column,
             "missing": int(identifiers.isna().sum()),
@@ -166,6 +206,8 @@ def audit_dataset(
             "labels": labels,
             "patient_column": patient_column,
             "split_column": split_column,
+            "row_ranges": row_ranges,
+            "require_complete_labels": require_complete_labels,
         },
     )
     atomic_write_json(output_dir / "run_manifest.json", manifest)

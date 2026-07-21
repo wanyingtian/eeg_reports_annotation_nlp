@@ -57,6 +57,18 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--label", action="append", dest="labels")
     audit.add_argument("--patient-column")
     audit.add_argument("--split-column")
+    audit.add_argument(
+        "--row-range",
+        action="append",
+        type=row_range,
+        dest="row_ranges",
+        help="Half-open positional source range START:END; repeat for disjoint ranges",
+    )
+    audit.add_argument(
+        "--require-complete-labels",
+        action="store_true",
+        help="Exclude a candidate unless all requested labels are valid four-level values",
+    )
     add_schema_arguments(audit)
 
     overlap = subparsers.add_parser("overlap", help="Count exact overlap across cohorts")
@@ -126,6 +138,8 @@ def main() -> None:
             labels=args.labels or DEFAULT_LABELS,
             patient_column=args.patient_column,
             split_column=args.split_column,
+            row_ranges=args.row_ranges,
+            require_complete_labels=args.require_complete_labels,
         )
     elif args.command == "overlap":
         datasets = dict(args.dataset)

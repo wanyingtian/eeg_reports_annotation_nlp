@@ -8,7 +8,7 @@ destination. Null and unfavorable findings use the same gate.
 |---|---|---|
 | “Up to 14%” prompt gain | Frozen prompt versions, sample sizes, unrounded CAA, development/test separation, absolute and relative change | Blocked on historical prompts and outputs |
 | “25% more likely” explanation error | Aligned/misaligned raw counts, report-vs-category unit, risk difference and ratio (or odds ratio), 95% CI and justified test | Blocked on source alignment table |
-| Maria abnormality “more than half” decrease | Unrounded metric values; absolute and relative decrease | Blocked on authoritative result values; rounded 0.57 to 0.31 is about 45.6% relative |
+| Maria BoW abnormality core-to-certainty accuracy decrease | Recovered submitted matrix counts and named effect measure | Aggregate resolved: core `282/499 = 0.565130`, exact four-level `156/499 = 0.312625`; absolute decrease `0.252505` (25.25 percentage points), relative decrease `44.68%`; not “more than half” and not probabilistic calibration |
 | “Near-human” | Annotator roles, independence/adjudication, uncertainty, bounded agreement wording | Clinical/team decision; single-annotator agreement is not ground truth |
 | “Traditional NLP failed” | Complete BoW+LR/BERT+LR configurations, OOF and external results, rare-class support/CIs | Narrow to the tested low-resource configurations |
 | Calibration | OOF/external probabilities, Brier/log loss/ECE and bins | Applicable to probability-bearing baselines, not automatically to generated four-level LLM labels |

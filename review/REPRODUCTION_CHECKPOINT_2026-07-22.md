@@ -76,11 +76,13 @@ The native paper source preserves the submitted 4x4 aggregate confusion
 matrices for all baseline categories. A hash-checked transcription and
 independent collapse of those matrices reproduces all 100/100 submitted
 two-decimal baseline cells, including the 39 that differ from the uploaded Zoe
-CSVs. The Maria figure matrices and uploaded files match cell-for-cell. The Zoe
-matrices do not, but all ten Zoe RA truth-row marginals match exactly. We can
-therefore distinguish the cases precisely: the evaluation cohort and RA labels
-are the same, while the currently uploaded Zoe files contain different saved
-model predictions from the report-level artifacts used for the submission.
+CSVs, all 20/20 certainty-adjusted baseline accuracies in the combined figure,
+and all 40/40 RA-to-baseline values in the four core/certainty kappa grids. The
+Maria figure matrices and uploaded files match cell-for-cell. The Zoe matrices
+do not, but all ten Zoe RA truth-row marginals match exactly. We can therefore
+distinguish the cases precisely: the evaluation cohort and RA labels are the
+same, while the currently uploaded Zoe files contain different saved model
+predictions from the report-level artifacts used for the submission.
 
 This is a bounded artifact-version question, not evidence that the full study
 must be rebuilt. Aggregate submitted metrics and kappa are now auditable;
@@ -94,8 +96,8 @@ patient mapping and custodian confirmation.
 
 ## Work before Wednesday
 
-1. Reconcile the certainty table and prose kappa values against the now-recovered
-   submitted 4x4 baseline matrices.
+1. Reconcile remaining prose kappa claims; the baseline certainty and kappa
+   figure displays now match the recovered submitted 4x4 matrices completely.
 2. Search recovered filenames/code and request only the missing report-level
    Zoe baseline files needed for paired uncertainty and error analysis.
 3. Verify which historical prediction export produced the submitted Zoe

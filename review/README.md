@@ -50,15 +50,18 @@ The audit opens SQLite in read-only mode and emits aggregate JSON/CSV only.
 uv run eeg-review audit \
   --dataset /governed/path/zoe.db \
   --dataset-id zoe-evaluation \
+  --row-range 100:500 \
+  --row-range 1000:2000 \
+  --require-complete-labels \
   --patient-column Hashed_PatientURN \
-  --split-column Split \
   --output-dir outputs/review/zoe-audit
 
 uv run eeg-review audit \
   --dataset /governed/path/maria.db \
   --dataset-id maria-evaluation \
+  --row-range 0:500 \
+  --require-complete-labels \
   --patient-column Hashed_PatientURN \
-  --split-column Split \
   --output-dir outputs/review/maria-audit
 
 uv run eeg-review overlap \
@@ -72,6 +75,18 @@ uv run eeg-review overlap \
 If no patient column exists, omit it. The receipt will explicitly say that
 patient independence was not assessed; a hashed report ID must never be
 presented as proof of a unique patient.
+
+Repeated `--row-range` values are half-open positional ranges in immutable
+source-table order. `--require-complete-labels` then retains only candidates
+with valid levels 1–4 in all five requested labels and records the number
+excluded. Ranges must be in bounds and non-overlapping. For the first 100 Zoe
+development reports, use `--row-range 0:100`.
+
+Apply that complete-case selection to the Reference Annotator database. Do not
+independently complete-case filter the Second Annotator and call the result the
+same study population. To obtain SA support on the exact RA-selected study set,
+run paired evaluation with RA as `--reference` and SA as `--predictions`; the
+four-level matrix row marginals are RA counts and column marginals are SA counts.
 
 ## Phase 2: leakage-safe native baseline receipts
 

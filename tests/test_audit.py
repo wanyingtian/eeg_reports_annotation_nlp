@@ -58,3 +58,56 @@ def test_overlap_emits_counts_not_identifiers(tmp_path: Path) -> None:
     rendered = json.dumps(result)
     assert "Same report" not in rendered
     assert 'shared"' not in rendered
+
+
+def test_audit_applies_disjoint_ranges_and_complete_case_rule(tmp_path: Path) -> None:
+    database = tmp_path / "selected.db"
+    make_database(
+        database,
+        [
+            ("id-0", "zero", "p0", 1, 1, 1, 1, 1),
+            ("id-1", "one", "p1", 2, 2, 2, 2, 2),
+            ("id-2", "two", "p2", 3, 3, 3, 3, 3),
+            ("id-3", "three", "p3", None, 4, 4, 4, 4),
+            ("id-4", "four", "p4", 4, 4, 4, 4, 4),
+            ("id-5", "five", "p5", 1, 1, 1, 1, 1),
+        ],
+    )
+    result = audit_dataset(
+        database,
+        "selected",
+        tmp_path / "selected-audit",
+        row_ranges=[(1, 4), (5, 6)],
+        require_complete_labels=True,
+    )
+    assert result["selection"] == {
+        "source_records": 6,
+        "positional_row_ranges": [[1, 4], [5, 6]],
+        "candidate_records": 4,
+        "require_complete_labels": True,
+        "excluded_incomplete_labels": 1,
+        "selected_records": 3,
+    }
+    assert result["records"] == 3
+    assert result["labels"]["Abnormality"]["four_level"] == {
+        "1": 1,
+        "2": 1,
+        "3": 1,
+        "4": 0,
+    }
+
+
+def test_audit_rejects_overlapping_ranges(tmp_path: Path) -> None:
+    database = tmp_path / "overlap-ranges.db"
+    make_database(database, [("id-0", "zero", "p0", 1, 1, 1, 1, 1)] * 4)
+    try:
+        audit_dataset(
+            database,
+            "overlap-ranges",
+            tmp_path / "overlap-ranges-audit",
+            row_ranges=[(0, 3), (2, 4)],
+        )
+    except ValueError as error:
+        assert str(error) == "row ranges must not overlap"
+    else:
+        raise AssertionError("overlapping ranges should be rejected")
