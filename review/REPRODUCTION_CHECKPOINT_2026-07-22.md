@@ -37,6 +37,9 @@ submitted display.
   private companion paper repository.
 - The exact Mistral-7B-Instruct-v0.2 Q5_K_M model file, revision, and checksum;
   a one-report inference/post-processing run has succeeded on Steven's Mac.
+- The existing `proton-drive` CLI path and remote intake workflow are now
+  documented. A fresh CLI revalidation matched all fourteen remote artifacts
+  to the frozen local intake byte-for-byte; no newer child artifact was found.
 
 No governed report text, report identifier, or case-level output is committed.
 

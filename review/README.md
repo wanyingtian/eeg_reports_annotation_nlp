@@ -42,6 +42,11 @@ On FIR/Alliance, load a supported compiler/CUDA module before installing the
 `llm` group. Record the exact modules and driver in the run receipt; do not
 silently substitute a different model file or quantization.
 
+The private handover share is inventoried and downloaded through the existing
+`proton-drive` CLI, never into tracked paths. See
+[`PROTON_CLI_WORKFLOW.md`](PROTON_CLI_WORKFLOW.md) for the controlled intake
+commands and integrity boundary.
+
 ## Phase 1: read-only cohort receipts
 
 The audit opens SQLite in read-only mode and emits aggregate JSON/CSV only.
