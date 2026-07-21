@@ -2,8 +2,8 @@
 
 ## Meeting and communication record
 
-- Tentative meeting: Wednesday, 2026-07-22, 19:30–20:00 PDT.
-- Wanying (Chris) Tian offered to create the meeting invitation.
+- Confirmed check-in: Wednesday, 2026-07-22, 19:30 PDT.
+- The Monday handover call is complete.
 - Steven's SFU address remains the preferred project correspondence address;
   the private Gmail address is not a project communication channel.
 - The intended next team step is a focused Steven/Chris checkpoint before a
