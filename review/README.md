@@ -112,6 +112,9 @@ editing code.
 uv run eeg-review evaluate \
   --reference /governed/path/zoe_reference.db \
   --predictions /governed/path/mistral_zoe.csv \
+  --reference-range 100:500 \
+  --reference-range 1000:2000 \
+  --require-complete-reference \
   --cluster-column Hashed_PatientURN \
   --fold-column Fold \
   --prediction-column 'Focal Epi=Focal Epi prediction' \
@@ -121,6 +124,16 @@ uv run eeg-review evaluate \
   --prediction-column 'Abnormality=Abnormality prediction' \
   --output-dir outputs/review/zoe-mistral
 ```
+
+The repeated `--reference-range` arguments implement Python-style half-open
+positional selection against the immutable source table. For the historical
+Zoe evaluation, `100:500` plus `1000:2000` yields 1,400 candidates and
+`--require-complete-reference` removes the five rows lacking a complete
+five-label RA reference, leaving 1,395. Maria uses `--reference-range 0:500`
+and the same complete-case rule, leaving 499. Predictions are selected and
+ordered by report ID after this reference selection, so Mistral's 2,000-row
+surface and the baselines' 1,900-row post-development surface use the same
+reference command.
 
 Each run emits:
 

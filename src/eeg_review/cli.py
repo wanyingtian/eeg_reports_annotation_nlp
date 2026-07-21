@@ -23,6 +23,20 @@ def prediction_mapping(value: str) -> tuple[str, str]:
     return reference, prediction
 
 
+def row_range(value: str) -> tuple[int, int]:
+    start_text, separator, end_text = value.partition(":")
+    if not separator:
+        raise argparse.ArgumentTypeError("expected START:END")
+    try:
+        start = int(start_text)
+        end = int(end_text)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("START and END must be integers") from error
+    if start < 0 or end <= start:
+        raise argparse.ArgumentTypeError("range must satisfy 0 <= START < END")
+    return start, end
+
+
 def add_schema_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--table", default="reports")
     parser.add_argument("--id-column", default="Hashed_ReportURN")
@@ -61,6 +75,20 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--label", action="append", dest="labels")
     evaluate.add_argument("--prediction-column", action="append", type=prediction_mapping)
     evaluate.add_argument("--cluster-column")
+    evaluate.add_argument(
+        "--reference-range",
+        action="append",
+        type=row_range,
+        dest="reference_row_ranges",
+        help="Half-open positional source range START:END; repeat for disjoint ranges",
+    )
+    evaluate.add_argument(
+        "--require-complete-reference",
+        action="store_true",
+        help=(
+            "Exclude a candidate unless all requested reference labels are valid four-level values"
+        ),
+    )
     evaluate.add_argument(
         "--fold-column",
         help="Prediction-file column identifying the held-out fold for each row",
@@ -125,6 +153,8 @@ def main() -> None:
             prediction_columns=mappings or None,
             cluster_column=args.cluster_column,
             fold_column=args.fold_column,
+            reference_row_ranges=args.reference_row_ranges,
+            require_complete_reference=args.require_complete_reference,
             bootstrap_iterations=args.bootstrap_iterations,
             seed=args.seed,
         )

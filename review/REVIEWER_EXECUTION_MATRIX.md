@@ -28,7 +28,7 @@ supplies the required inputs. It does not mean the scientific result is known.
 | Clinical workflow comparison | Workflow and escalation description | Vasily/clinical collaborators | Team-authored clinical material |
 | Ethics, consent/waiver, secondary use | Approved statement and document receipt | PI/data custodian/REB records for H18-02728 | Non-code blocker |
 | Proposed-pipeline figure | Reproducible diagram source | Actual authoring source and verified pipeline stages | Manuscript phase |
-| Table/text inconsistencies | Generated table-to-claim ledger | Unrounded authoritative result files | Next reporting phase |
+| Table/text inconsistencies | Generated table-to-claim ledger | Exact Zoe baseline artifacts still needed | Preliminary reproduction isolates 39/200 differing core-table cells to Zoe BoW/BERT; all other cells match |
 
 ## Planned next implementation phases
 

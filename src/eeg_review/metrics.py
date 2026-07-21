@@ -11,6 +11,44 @@ from .io import atomic_write_csv, atomic_write_json, load_table
 from .manifest import build_manifest
 
 
+def select_reference_rows(
+    reference: pd.DataFrame,
+    row_ranges: list[tuple[int, int]] | None,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Apply explicit half-open positional ranges without modifying the source."""
+    source_records = len(reference)
+    if not row_ranges:
+        return reference, {
+            "method": "all_rows",
+            "source_records": source_records,
+            "candidate_records": source_records,
+            "row_ranges": None,
+        }
+
+    previous_end = 0
+    for index, (start, end) in enumerate(row_ranges):
+        if start < 0 or end <= start:
+            raise ValueError(f"Invalid reference range {start}:{end}")
+        if end > source_records:
+            raise ValueError(
+                f"Reference range {start}:{end} exceeds source length {source_records}"
+            )
+        if index and start < previous_end:
+            raise ValueError("Reference ranges must be ordered and non-overlapping")
+        previous_end = end
+
+    selected = pd.concat(
+        [reference.iloc[start:end] for start, end in row_ranges],
+        ignore_index=True,
+    )
+    return selected, {
+        "method": "half_open_positional_ranges",
+        "source_records": source_records,
+        "candidate_records": len(selected),
+        "row_ranges": [{"start": start, "end": end} for start, end in row_ranges],
+    }
+
+
 def cohen_kappa(reference: np.ndarray, prediction: np.ndarray, levels: list[int]) -> float:
     if reference.size == 0:
         return float("nan")
@@ -114,6 +152,8 @@ def evaluate_predictions(
     prediction_columns: dict[str, str] | None = None,
     cluster_column: str | None = None,
     fold_column: str | None = None,
+    reference_row_ranges: list[tuple[int, int]] | None = None,
+    require_complete_reference: bool = False,
     bootstrap_iterations: int = 2000,
     seed: int = 20260718,
 ) -> dict[str, Any]:
@@ -130,6 +170,20 @@ def evaluate_predictions(
     if fold_column:
         prediction_input_columns.append(fold_column)
     reference = load_table(reference_path, reference_columns, reference_table)
+    reference, selection = select_reference_rows(reference, reference_row_ranges)
+    if require_complete_reference:
+        complete = pd.DataFrame(
+            {
+                label: pd.to_numeric(reference[label], errors="coerce").isin([1, 2, 3, 4])
+                for label in labels
+            }
+        ).all(axis=1)
+        selection["complete_reference_required"] = True
+        selection["excluded_incomplete_reference_records"] = int((~complete).sum())
+        reference = reference.loc[complete].reset_index(drop=True)
+    else:
+        selection["complete_reference_required"] = False
+        selection["excluded_incomplete_reference_records"] = 0
     predictions = load_table(predictions_path, prediction_input_columns, prediction_table)
     if reference[id_column].duplicated().any():
         raise ValueError("Reference identifiers are not unique")
@@ -155,6 +209,7 @@ def evaluate_predictions(
         },
         "labels": {},
         "fold_column": fold_column,
+        "reference_selection": selection,
         "interpretation_limits": [],
     }
     if not cluster_column:
@@ -267,6 +322,8 @@ def evaluate_predictions(
                 "prediction_columns": prediction_columns,
                 "cluster_column": cluster_column,
                 "fold_column": fold_column,
+                "reference_row_ranges": reference_row_ranges,
+                "require_complete_reference": require_complete_reference,
                 "bootstrap_iterations": bootstrap_iterations,
                 "seed": seed,
             },
