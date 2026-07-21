@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
 from .baseline import run_baseline_cv
+from .compare import compare_predictions
 from .metrics import evaluate_predictions
 
 
@@ -108,6 +109,34 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--bootstrap-iterations", type=int, default=2000)
     evaluate.add_argument("--seed", type=int, default=20260718)
 
+    compare = subparsers.add_parser(
+        "compare", help="Run paired same-case inference for two prediction surfaces"
+    )
+    compare.add_argument("--reference", type=Path, required=True)
+    compare.add_argument("--predictions-a", type=Path, required=True)
+    compare.add_argument("--predictions-b", type=Path, required=True)
+    compare.add_argument("--model-a-id", required=True)
+    compare.add_argument("--model-b-id", required=True)
+    compare.add_argument("--output-dir", type=Path, required=True)
+    compare.add_argument("--reference-table", default="reports")
+    compare.add_argument("--prediction-a-table", default="classifications")
+    compare.add_argument("--prediction-b-table", default="classifications")
+    compare.add_argument("--id-column", default="Hashed_ReportURN")
+    compare.add_argument("--label", action="append", dest="labels")
+    compare.add_argument("--prediction-a-column", action="append", type=prediction_mapping)
+    compare.add_argument("--prediction-b-column", action="append", type=prediction_mapping)
+    compare.add_argument("--cluster-column")
+    compare.add_argument(
+        "--reference-range",
+        action="append",
+        type=row_range,
+        dest="reference_row_ranges",
+    )
+    compare.add_argument("--require-complete-reference", action="store_true")
+    compare.add_argument("--bootstrap-iterations", type=int, default=2000)
+    compare.add_argument("--seed", type=int, default=20260718)
+    compare.add_argument("--multiplicity", choices=["holm", "none"], default="holm")
+
     baseline = subparsers.add_parser(
         "baseline-cv", help="Run leakage-safe OOF evaluation for the submitted baseline families"
     )
@@ -171,6 +200,28 @@ def main() -> None:
             require_complete_reference=args.require_complete_reference,
             bootstrap_iterations=args.bootstrap_iterations,
             seed=args.seed,
+        )
+    elif args.command == "compare":
+        result = compare_predictions(
+            args.reference,
+            args.predictions_a,
+            args.predictions_b,
+            args.output_dir,
+            model_a_id=args.model_a_id,
+            model_b_id=args.model_b_id,
+            reference_table=args.reference_table,
+            prediction_a_table=args.prediction_a_table,
+            prediction_b_table=args.prediction_b_table,
+            id_column=args.id_column,
+            labels=args.labels or DEFAULT_LABELS,
+            prediction_a_columns=dict(args.prediction_a_column or []) or None,
+            prediction_b_columns=dict(args.prediction_b_column or []) or None,
+            cluster_column=args.cluster_column,
+            reference_row_ranges=args.reference_row_ranges,
+            require_complete_reference=args.require_complete_reference,
+            bootstrap_iterations=args.bootstrap_iterations,
+            seed=args.seed,
+            multiplicity=args.multiplicity,
         )
     else:
         result = run_baseline_cv(

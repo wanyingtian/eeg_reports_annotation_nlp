@@ -165,6 +165,40 @@ The default intervals resample reports. Supply the patient/cluster column to
 obtain cluster-bootstrap intervals. Report-level intervals must not be used to
 claim patient-independent precision.
 
+## Phase 3b: paired same-case comparisons
+
+Do not infer model differences by comparing two independently rounded table
+cells. Align both prediction surfaces to the same reference cases and emit the
+discordant-pair and paired-bootstrap receipt:
+
+```bash
+uv run eeg-review compare \
+  --reference /governed/path/zoe_reference.db \
+  --predictions-a /governed/path/mistral_zoe.xlsx \
+  --predictions-b /governed/path/second_annotator_zoe.db \
+  --model-a-id mistral-7b-submitted \
+  --model-b-id second-annotator \
+  --reference-range 100:500 \
+  --reference-range 1000:2000 \
+  --require-complete-reference \
+  --cluster-column Hashed_PatientURN \
+  --output-dir outputs/review/zoe-mistral-vs-sa
+```
+
+The command emits model-A-minus-model-B differences for core accuracy,
+certainty-adjusted accuracy, and false-negative rate with paired 95% bootstrap
+intervals. It also emits the two discordant-correctness cells and a two-sided
+exact McNemar test for core and exact four-level correctness. Holm correction is
+applied by default across all requested categories and both correctness tests;
+the declared family is recorded in the receipt.
+
+McNemar operates on report pairs and does not account for repeated reports from
+one patient. When a stable patient key exists, the patient-cluster bootstrap is
+the primary inference and McNemar is a report-level sensitivity analysis. When
+no patient key is supplied, both limitations are printed in the result. Exact
+Zoe baseline comparisons must wait for the producing report-level BoW/BERT
+exports; the recovered aggregate matrices are insufficient for paired tests.
+
 ## Phase 4: instrumented LLM reruns
 
 The existing `src/LLM_pipeline/pipeline.py` now records the exact GGUF filename,
