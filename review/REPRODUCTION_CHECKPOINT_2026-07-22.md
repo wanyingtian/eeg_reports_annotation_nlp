@@ -86,23 +86,53 @@ predictions from the report-level artifacts used for the submission.
 
 This is a bounded artifact-version question, not evidence that the full study
 must be rebuilt. Aggregate submitted metrics and kappa are now auditable;
-report-level paired inference, confidence intervals, and error analysis still
-require the exact producing Zoe predictions.
+report-level paired inference against the submitted Zoe baselines and their
+calibration still require the exact producing Zoe predictions.
 
 Report-level bootstrap 95% intervals were generated for all eight comparisons.
 They are explicitly provisional because the supplied databases contain no
 patient/cluster key; patient-clustered intervals remain blocked on governed
 patient mapping and custodian confirmation.
 
+## Reviewer-facing inference receipts now executable
+
+The maintained branch now has two aggregate-only analysis commands that align
+inputs on the same selected reports and bind results to input hashes, command
+settings, seeds, and Git revision:
+
+- `eeg-review compare` reports model-A-minus-model-B differences in binary core
+  accuracy, exact four-level accuracy, and false-negative rate; paired
+  bootstrap intervals; discordant correctness cells; exact McNemar tests; and
+  Holm-adjusted p-values across the declared five-label family.
+- `eeg-review calibrate` reports prevalence, Brier score, log loss, fixed-bin
+  ECE, and bin-level support/event rates for positive-class probabilities.
+
+The paired command was exercised on Mistral versus the Second Annotator in both
+cohorts and on Mistral versus the exact submitted Maria BoW/BERT rows. These
+provisional results retain unfavorable findings: Mistral is below the Second
+Annotator on exact four-level accuracy for nearly every category, and a
+majority-level baseline can have higher raw exact accuracy for rare focal
+epileptiform findings while having zero positive recall and near-zero kappa.
+Accuracy therefore cannot be interpreted without support, recall, kappa, and
+the paired effect.
+
+Calibration was exercised only where the artifact semantics permit it. On the
+exact submitted Maria rows, BERT has lower Brier score and fixed-bin ECE than
+BoW for abnormality and both non-epileptiform categories; the generalized
+epileptiform results are similar, with only 20/499 RA core-positive reports.
+Mistral's generated four-level label is not a probability and is not relabeled
+as calibrated by this analysis.
+
 ## Work before Wednesday
 
-1. Reconcile remaining prose kappa claims; the baseline certainty and kappa
-   figure displays now match the recovered submitted 4x4 matrices completely.
-2. Search recovered filenames/code and request only the missing report-level
+1. Search recovered filenames/code and request only the missing report-level
    Zoe baseline files needed for paired uncertainty and error analysis.
-3. Verify which historical prediction export produced the submitted Zoe
+2. Verify which historical prediction export produced the submitted Zoe
    matrices; the matching RA marginals now rule out a development-set summary
    or a different evaluation selection.
+3. Obtain or define the governed patient key and rerun both paired and
+   calibration intervals by patient cluster; until then, report-bootstrap
+   intervals remain sensitivity analyses.
 4. Preserve a discrepancy ledger with submitted, recomputed, unrounded, and
    rounded values plus artifact hashes.
 5. Prepare a short Vasily-facing execution plan separating tasks already

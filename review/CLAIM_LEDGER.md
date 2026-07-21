@@ -11,7 +11,7 @@ destination. Null and unfavorable findings use the same gate.
 | Maria BoW abnormality core-to-certainty accuracy decrease | Recovered submitted matrix counts and named effect measure | Aggregate resolved: core `282/499 = 0.565130`, exact four-level `156/499 = 0.312625`; absolute decrease `0.252505` (25.25 percentage points), relative decrease `44.68%`; not “more than half” and not probabilistic calibration |
 | “Near-human” | Annotator roles, independence/adjudication, uncertainty, bounded agreement wording | Clinical/team decision; single-annotator agreement is not ground truth |
 | “Traditional NLP failed” | Complete BoW+LR/BERT+LR configurations, OOF and external results, rare-class support/CIs | Narrow to the tested low-resource configurations |
-| Calibration | OOF/external probabilities, Brier/log loss/ECE and bins | Applicable to probability-bearing baselines, not automatically to generated four-level LLM labels |
+| Calibration | OOF/external probabilities, Brier/log loss/ECE and bins | Implemented for the exact submitted Maria BoW/BERT rows; patient-cluster intervals and the exact submitted Zoe prediction rows remain pending. Generated four-level LLM labels are ordinal outputs, not automatically calibrated probabilities |
 | Patient independence | Stable patient-key semantics, cross-split counts, grouped execution | Blocked until custodian confirms the key |
 | Ethics/secondary use | Approved H18-02728 consent/waiver, de-identification and secondary-use language | PI/REB-only evidence |
 
