@@ -8,6 +8,7 @@ from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
 from .baseline import run_baseline_cv
 from .calibration import calibrate_predictions
 from .compare import compare_predictions
+from .error_review import build_error_review_packet
 from .metrics import evaluate_predictions
 
 
@@ -162,6 +163,36 @@ def build_parser() -> argparse.ArgumentParser:
     calibrate.add_argument("--bootstrap-iterations", type=int, default=2000)
     calibrate.add_argument("--seed", type=int, default=20260718)
 
+    error_review = subparsers.add_parser(
+        "error-review", help="Create a governed FN/FP packet for authorized clinical review"
+    )
+    error_review.add_argument("--reference", type=Path, required=True)
+    error_review.add_argument("--predictions", type=Path, required=True)
+    error_review.add_argument("--model-id", required=True)
+    error_review.add_argument("--output-dir", type=Path, required=True)
+    error_review.add_argument("--reference-table", default="reports")
+    error_review.add_argument("--prediction-table", default="classifications")
+    error_review.add_argument("--id-column", default="Hashed_ReportURN")
+    error_review.add_argument("--label", action="append", dest="labels")
+    error_review.add_argument("--prediction-column", action="append", type=prediction_mapping)
+    error_review.add_argument("--cluster-column")
+    error_review.add_argument(
+        "--reference-range", action="append", type=row_range, dest="reference_row_ranges"
+    )
+    error_review.add_argument("--require-complete-reference", action="store_true")
+    error_review.add_argument("--max-per-stratum", type=int, default=25)
+    error_review.add_argument("--seed", type=int, default=20260718)
+    error_review.add_argument(
+        "--handle-salt",
+        required=True,
+        help="Study-controlled salt used only to derive portable case handles",
+    )
+    error_review.add_argument(
+        "--acknowledge-governed-output",
+        action="store_true",
+        help="Required acknowledgement that the case-level output stays governed",
+    )
+
     baseline = subparsers.add_parser(
         "baseline-cv", help="Run leakage-safe OOF evaluation for the submitted baseline families"
     )
@@ -265,6 +296,25 @@ def main() -> None:
             bins=args.bins,
             bootstrap_iterations=args.bootstrap_iterations,
             seed=args.seed,
+        )
+    elif args.command == "error-review":
+        result = build_error_review_packet(
+            args.reference,
+            args.predictions,
+            args.output_dir,
+            model_id=args.model_id,
+            acknowledge_governed_output=args.acknowledge_governed_output,
+            reference_table=args.reference_table,
+            prediction_table=args.prediction_table,
+            id_column=args.id_column,
+            labels=args.labels or DEFAULT_LABELS,
+            prediction_columns=dict(args.prediction_column or []) or None,
+            cluster_column=args.cluster_column,
+            reference_row_ranges=args.reference_row_ranges,
+            require_complete_reference=args.require_complete_reference,
+            max_per_stratum=args.max_per_stratum,
+            seed=args.seed,
+            handle_salt=args.handle_salt,
         )
     else:
         result = run_baseline_cv(

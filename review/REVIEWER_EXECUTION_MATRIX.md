@@ -18,7 +18,7 @@ supplies the required inputs. It does not mean the scientific result is known.
 | Favorable and unfavorable results | Complete matrices, paired effects, discordance, and unmatched/invalid counts | All model outputs, without cherry-picking | Implemented output contract; initial Mistral-vs-SA and Maria-baseline receipts generated privately |
 | Five-fold variability | `eeg-review baseline-cv`; `eeg-review evaluate --fold-column ...` | Authorized development data and stable patient key | Leakage-safe OOF folds and explicit full-data refit implemented for submitted BoW/BERT families |
 | Calibration | `eeg-review calibrate`; Brier, log loss, fixed-bin ECE and bin supports with cluster intervals | Per-class probabilities and patient key; not ordinal labels alone | Implemented; submitted Maria baseline receipts generated privately |
-| False-negative consequences | FN counts plus governed case-review packet | Clinical reviewer and approved case-review process | Counts implemented; case review is clinical/team work |
+| False-negative consequences | `eeg-review error-review`; governed FN/FP worksheet with pseudonymous case handles | Clinical reviewer, approved protocol, and patient key for clustered selection | Packet generator implemented and provisionally exercised; clinical adjudication remains team work |
 | Stronger LLM comparisons | Named model registry and identical-run matrix | Team-approved models, weights, compute budget | Next inference phase |
 | Timing and token characteristics | Per-report telemetry and aggregate run receipt | Authorized rerun on target hardware | Implemented in LLM pipeline |
 | Exact prompt/model reproducibility | Prompt/grammar/model/dataset/output hashes and environment receipt | Submitted prompt version and GGUF file | Implemented for new runs; historical provenance still required |
@@ -40,5 +40,5 @@ supplies the required inputs. It does not mean the scientific result is known.
    patient key; add fold summaries for the exact producing baseline runs.
 3. Add deterministic manuscript table/figure
    generation, including null and unfavorable outcomes.
-4. Add a governed clinical error-review export containing pseudonymous case
-   handles only, with no report text leaving the approved environment.
+4. Obtain clinical-team approval for the implemented governed error-review
+   protocol, then review the sampled cases inside the approved environment.

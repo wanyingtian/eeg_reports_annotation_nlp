@@ -54,7 +54,13 @@ def package_versions(names: list[str]) -> dict[str, str]:
     return versions
 
 
-def build_manifest(command: str, inputs: list[Path], parameters: dict[str, Any]) -> dict[str, Any]:
+def build_manifest(
+    command: str,
+    inputs: list[Path],
+    parameters: dict[str, Any],
+    *,
+    privacy_boundary: str = "aggregate outputs only; no report text or row identifiers emitted",
+) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "created_at_utc": datetime.now(UTC).isoformat(),
@@ -81,5 +87,5 @@ def build_manifest(command: str, inputs: list[Path], parameters: dict[str, Any])
             for path in inputs
         ],
         "parameters": parameters,
-        "privacy_boundary": "aggregate outputs only; no report text or row identifiers emitted",
+        "privacy_boundary": privacy_boundary,
     }

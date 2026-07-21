@@ -235,6 +235,37 @@ rows are currently confirmed as the exact submitted prediction artifacts; Zoe
 baseline calibration remains artifact-version-specific until the producing
 rows are recovered.
 
+## Phase 3d: governed clinical error-review packet
+
+False-negative and false-positive consequences require authorized clinical
+judgment. The tool can prepare a reproducible case-review worksheet, but it
+does not read or export report text and it does not adjudicate the Reference
+Annotator as clinical truth:
+
+```bash
+uv run --extra reports eeg-review error-review \
+  --reference /governed/path/zoe_reference.db \
+  --predictions /governed/path/mistral_zoe.xlsx \
+  --model-id mistral-7b-submitted \
+  --reference-range 100:500 \
+  --reference-range 1000:2000 \
+  --require-complete-reference \
+  --cluster-column Hashed_PatientURN \
+  --max-per-stratum 25 \
+  --handle-salt STUDY_CONTROLLED_SALT \
+  --acknowledge-governed-output \
+  --output-dir /governed/path/error-review/zoe-mistral
+```
+
+The explicit acknowledgement is mandatory because the worksheet is a
+case-level governed artifact even though source report and patient identifiers
+are replaced by deterministic case handles. Sampling is stratified by label
+and RA-relative core false-negative/false-positive direction. When a patient
+key is available, distinct patient clusters are preferred before additional
+reports are selected. Keep the packet inside the approved environment and use
+[`CLINICAL_ERROR_REVIEW_PROTOCOL.md`](CLINICAL_ERROR_REVIEW_PROTOCOL.md) before
+clinical review.
+
 ## Phase 4: instrumented LLM reruns
 
 The existing `src/LLM_pipeline/pipeline.py` now records the exact GGUF filename,
