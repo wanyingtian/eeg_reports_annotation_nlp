@@ -70,10 +70,22 @@ explain the broader discrepancies.
 This pattern rules out a general cohort-selection, RA-reference, label-collapse,
 or current metric-formula problem: every Maria value and every human/Mistral
 value reproduces. The unresolved values are isolated to the two Zoe baseline
-columns. The uploaded Zoe inference CSVs therefore do not appear to be the exact
-artifacts used for those manuscript columns, or the manuscript used a distinct
-development/CV surface for Zoe. This is a bounded artifact-provenance question,
-not evidence that the full study must be rebuilt.
+columns.
+
+The native paper source preserves the submitted 4x4 aggregate confusion
+matrices for all baseline categories. A hash-checked transcription and
+independent collapse of those matrices reproduces all 100/100 submitted
+two-decimal baseline cells, including the 39 that differ from the uploaded Zoe
+CSVs. The Maria figure matrices and uploaded files match cell-for-cell. The Zoe
+matrices do not, but all ten Zoe RA truth-row marginals match exactly. We can
+therefore distinguish the cases precisely: the evaluation cohort and RA labels
+are the same, while the currently uploaded Zoe files contain different saved
+model predictions from the report-level artifacts used for the submission.
+
+This is a bounded artifact-version question, not evidence that the full study
+must be rebuilt. Aggregate submitted metrics and kappa are now auditable;
+report-level paired inference, confidence intervals, and error analysis still
+require the exact producing Zoe predictions.
 
 Report-level bootstrap 95% intervals were generated for all eight comparisons.
 They are explicitly provisional because the supplied databases contain no
@@ -82,13 +94,13 @@ patient mapping and custodian confirmation.
 
 ## Work before Wednesday
 
-1. Reconcile the commented core/certainty table, the rendered figures, and the
-   prose kappa values against maintained aggregate calculations.
-2. Search recovered filenames/code and request only the missing Zoe baseline
-   fold/development artifacts needed to identify the 39 cells.
-3. Verify whether the submitted Zoe baseline values were five-fold development
-   summaries, external-evaluation values from another run, or a table assembly
-   error.
+1. Reconcile the certainty table and prose kappa values against the now-recovered
+   submitted 4x4 baseline matrices.
+2. Search recovered filenames/code and request only the missing report-level
+   Zoe baseline files needed for paired uncertainty and error analysis.
+3. Verify which historical prediction export produced the submitted Zoe
+   matrices; the matching RA marginals now rule out a development-set summary
+   or a different evaluation selection.
 4. Preserve a discrepancy ledger with submitted, recomputed, unrounded, and
    rounded values plus artifact hashes.
 5. Prepare a short Vasily-facing execution plan separating tasks already
@@ -96,11 +108,11 @@ patient mapping and custodian confirmation.
 
 ## Questions for Chris if the artifact search does not resolve them
 
-1. Which exact files generated the Zoe BoW+LR and BERT+LR columns in
-   `tab:core_zoe_vs_maria` and the combined-performance figure?
-2. Were those Zoe values computed from five-fold predictions on the first 100
-   development reports, from the 1,395 external evaluation reports, or from a
-   different saved run?
+1. Which exact report-level files generated the Zoe BoW+LR and BERT+LR columns
+   in `tab:core_zoe_vs_maria` and the confusion-matrix figures?
+2. Which saved inference run produced those 1,395-report prediction counts? The
+   source figures confirm the expanded evaluation set rather than a 100-report
+   development summary.
 3. Are fold assignments, out-of-fold predictions, fitted vectorizers/models, or
    earlier `zoe_inference_results_*` versions still present on the BDH machine?
 4. Was any manual table assembly or post-processing step applied after
