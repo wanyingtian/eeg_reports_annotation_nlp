@@ -12,9 +12,10 @@ supplies the required inputs. It does not mean the scientific result is known.
 | Raw four-level and binary counts | `label_counts.csv` | RA and SA label tables | Implemented per supplied label set |
 | Category TP/FP/TN/FN | `eeg-review evaluate`; `metrics.csv` | Paired predictions/reference labels | Implemented |
 | Confidence intervals | Cluster bootstrap in `evaluation_summary.json` | Patient/cluster key | Implemented |
+| Paired model differences | `eeg-review compare`; paired effect CIs, discordant counts, exact McNemar, Holm adjustment | Two same-case prediction surfaces; patient key for primary clustered inference | Implemented; report-level McNemar is a sensitivity analysis |
 | Four-level agreement | Certainty-adjusted accuracy, 4x4 matrix, kappa | Paired four-level labels | Implemented |
 | Core agreement | Binary metrics, 2x2 matrix, kappa | Paired four-level labels | Implemented |
-| Favorable and unfavorable results | Complete matrices and unmatched/invalid counts | All model outputs, without cherry-picking | Implemented output contract |
+| Favorable and unfavorable results | Complete matrices, paired effects, discordance, and unmatched/invalid counts | All model outputs, without cherry-picking | Implemented output contract; initial Mistral-vs-SA and Maria-baseline receipts generated privately |
 | Five-fold variability | `eeg-review baseline-cv`; `eeg-review evaluate --fold-column ...` | Authorized development data and stable patient key | Leakage-safe OOF folds and explicit full-data refit implemented for submitted BoW/BERT families |
 | Calibration | Probability calibration metrics/curves | Per-class probabilities, not ordinal labels alone | Next analysis phase; terminology guardrail documented |
 | False-negative consequences | FN counts plus governed case-review packet | Clinical reviewer and approved case-review process | Counts implemented; case review is clinical/team work |
@@ -28,15 +29,15 @@ supplies the required inputs. It does not mean the scientific result is known.
 | Clinical workflow comparison | Workflow and escalation description | Vasily/clinical collaborators | Team-authored clinical material |
 | Ethics, consent/waiver, secondary use | Approved statement and document receipt | PI/data custodian/REB records for H18-02728 | Non-code blocker |
 | Proposed-pipeline figure | Reproducible diagram source | Actual authoring source and verified pipeline stages | Manuscript phase |
-| Table/text inconsistencies | Generated table-to-claim ledger | Exact Zoe baseline artifacts still needed | Preliminary reproduction isolates 39/200 differing core-table cells to Zoe BoW/BERT; all other cells match |
+| Table/text inconsistencies | Generated table-to-claim ledger | Exact Zoe baseline report rows still needed | Submitted aggregate matrices recover all baseline displays; current Zoe CSVs are a different prediction version, while Maria and all other result families match |
 
 ## Planned next implementation phases
 
 1. Instrument the existing LLM pipeline with immutable prompt, grammar, model,
    tokenizer, context/truncation, token-count, latency, hardware, and failure
    receipts while preserving historical defaults.
-2. Add patient-clustered paired model comparisons, fold summaries, calibration
-   only where probabilities exist, and multiplicity-aware hypothesis tests.
+2. Rerun the implemented paired model comparison with the governed patient key;
+   add fold summaries and calibration only where probabilities exist.
 3. Add deterministic manuscript table/figure
    generation, including null and unfavorable outcomes.
 4. Add a governed clinical error-review export containing pseudonymous case
