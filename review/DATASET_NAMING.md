@@ -53,3 +53,37 @@ team.
 5. Record report-author, reference annotator, secondary annotator, and clinical
    reviewer as separate provenance fields; do not encode those roles only in a
    filename.
+
+## Historical result-analysis selection
+
+Chris Tian's 2026-07-20 source account clarifies that model inference and paper
+evaluation selection were separate steps. Models attempted the requested
+contiguous report ranges in database order. The later, unpublished
+result-analysis code selected only positions with the relevant human
+annotations; the authoritative databases and model outputs did not contain an
+`include` flag.
+
+For the paper-era materials currently recovered:
+
+- Zoe Mistral output has 2,000 rows. The source selection was `[0:500]` plus
+  `[1000:2000]`; five unusable cases left 1,495 reports. The first 100 were used
+  for development, leaving 1,395 for evaluation. Read-only cross-annotator
+  checks find exactly 100/100 development rows and 1,395/1,400 evaluation-
+  candidate rows with complete LD and SG annotations; annotation completeness
+  therefore reproduces the paper counts, subject to confirmation from the
+  historical exclusion code.
+- Zoe baseline inference output has 1,900 rows and has been verified to match
+  Mistral/source rows `[100:2000]`. On this shifted output, the corresponding
+  evaluation candidate slices are `[0:400]` plus `[900:1900]`, before removal
+  of the same five unusable cases.
+- Maria Mistral and baseline outputs each have 500 aligned rows. The source
+  selection was `[0:500]`; one unusable case left 499 evaluation reports.
+
+Do not add selection columns to, reorder, or otherwise repair these historical
+files. Recover the original analysis code unchanged, freeze it, and express any
+modernized selection manifest as a derived governed artifact with source hash,
+coordinate system, and transformation receipt.
+
+See
+[`provenance/2026-07-20-chris-tian-meeting-source-note.md`](provenance/2026-07-20-chris-tian-meeting-source-note.md)
+for the source/verification boundary and remaining evidence requests.
