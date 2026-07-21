@@ -133,12 +133,41 @@ the historical exclusion implementation, but it must remain labelled as a
 reconstruction until the result-analysis source confirms whether readability
 or corruption checks were also applied explicitly.
 
+## Result-analysis source recovered after the meeting
+
+Chris subsequently uploaded four Python files: `main.py`,
+`result_preprocessing.py`, `analysis_functions.py`, and `plotting.py`. Exact
+copies and their SHA-256 checksums are preserved under
+`historical/result_analysis/2026-07-20/`.
+
+The recovered `clean_ground_truth_by_index_range` implementation confirms the
+selection mechanism described in the meeting. It extracts the seven columns
+`Hashed ID`, `Report`, and the five four-level labels with positional half-open
+slices, concatenates the slices, and calls `dropna()` across those columns.
+`align_model_with_ground_truth` then filters and reorders each model output by
+the retained `Hashed ID` values. This reproduces the observed 1,495 Zoe and 499
+Maria annotation-complete totals without writing selection state into any
+source file.
+
+The uploaded `main.py` is a clean-repository/sample adaptation, not the exact
+historical invocation: both author branches point to the Zoe ten-report sample,
+use `(0, 10)`, and contain placeholder relative paths. The source therefore
+confirms the selection and alignment functions, while the meeting/email account
+still supplies the full-study ranges. A maintained adapter must set those paths
+and coordinate systems explicitly and validate every expected row count.
+
+An audit also found that the historical core-label conversion mutates model
+data frames in place before a later nominal four-level kappa calculation. The
+submitted results must be checked against immutable copies before that pathway
+is relied upon; the original source remains unchanged.
+
 ## Remaining historical evidence to recover unchanged
 
-- the result-analysis and plotting scripts/notebooks, with their original path
-  assumptions intact;
-- the exact logic that identified and removed the five Zoe and one Maria
-  unusable cases, including which failure reason applied to each;
+- the exact full-study invocation/configuration and any notebooks not included
+  in the recovered four-file result-analysis snapshot;
+- any separate logic that classified the failure reason for the five Zoe and
+  one Maria rows (the recovered selection function excludes them through
+  annotation-completeness `dropna()`);
 - the authoritative Mistral sheet/processed artifact used where classification
   and explanation exports disagree;
 - raw Mistral outputs, prompts, grammars, run configuration, logs, and model
