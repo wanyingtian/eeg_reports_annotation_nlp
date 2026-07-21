@@ -69,6 +69,7 @@ DEFAULT_TOP_K = 40
 DEFAULT_TOP_P = 0.95
 DEFAULT_MAX_TOKENS = 3000
 DEFAULT_STOP: Optional[Iterable[str]] = None
+MAX_WORKER_RESTARTS = 3
 
 # Prompts (kept as provided)
 PROMPT_CLASSIFY = r"""
@@ -840,6 +841,44 @@ def run_pipeline(
 
 # --------------------------- Crash-Resistant Runner ------------------------- #
 
+def worker_target(
+    resume_csv: Optional[Path],
+    num_reports: int,
+    dataset_path: Path,
+    model_name: str,
+    out_results: Path,
+    out_config: Path,
+    cfg: RunConfig,
+) -> None:
+    """Run one supervised inference attempt in a spawn-safe worker process."""
+    grammar_classify = load_gbnf(BASE_DIR / "result_grammar.gbnf")
+    grammar_explain = load_gbnf(BASE_DIR / "result_grammar_exp.gbnf")
+
+    model, model_receipt = download_model_with_receipt(model_name)
+
+    # (Re)load completed and pending.
+    prior_df, prior_hashes = process_completed_csv(resume_csv)
+    logging.info(f"Initial completed count: {len(prior_hashes)}")
+    pending = load_reports_df(dataset_path, num_reports, prior_hashes)
+
+    if len(pending) == 0:
+        logging.info("No pending reports to process. All reports already completed.")
+        return
+
+    run_pipeline(
+        model=model,
+        model_receipt=model_receipt,
+        df=pending,
+        results_df=prior_df,
+        grammar_classify=grammar_classify,
+        grammar_explain=grammar_explain,
+        out_results=out_results,
+        out_config=out_config,
+        cfg=cfg,
+        flush_every=5,
+    )
+
+
 def manager(
     num_reports: int,
     completed_csv: Optional[Path],
@@ -868,40 +907,22 @@ def manager(
     # existing_df, completed_hashes = process_completed_csv(effective_completed_csv)
     # logging.info(f"Initial completed count: {len(completed_hashes)}")
 
-    # inner worker target
-    def worker_target(resume_csv: Optional[Path]) -> None:
-        grammar_classify = load_gbnf(BASE_DIR / "result_grammar.gbnf")
-        grammar_explain = load_gbnf(BASE_DIR / "result_grammar_exp.gbnf")
-    
-        model, model_receipt = download_model_with_receipt(model_name)
-
-        # (Re)load completed and pending
-        prior_df, prior_hashes = process_completed_csv(resume_csv)
-        logging.info(f"Initial completed count: {len(prior_hashes)}")
-        pending = load_reports_df(dataset_path, num_reports, prior_hashes)
-        
-        if len(pending) == 0:
-            logging.info("No pending reports to process. All reports already completed.")
-            return
-            
-        run_pipeline(
-            model=model,
-            model_receipt=model_receipt,
-            df=pending,
-            results_df=prior_df,
-            grammar_classify=grammar_classify,
-            grammar_explain=grammar_explain,
-            out_results=out_results,
-            out_config=out_config,
-            cfg=cfg,
-            flush_every=5,
-        )
-
     # run loop
     resume_path = effective_completed_csv
     crashes = 0
     while True:
-        proc = mp.Process(target=worker_target, args=(resume_path,))
+        proc = mp.Process(
+            target=worker_target,
+            args=(
+                resume_path,
+                num_reports,
+                dataset_path,
+                model_name,
+                out_results,
+                out_config,
+                cfg,
+            ),
+        )
         proc.start()
         proc.join()
 
@@ -910,7 +931,12 @@ def manager(
             break
 
         crashes += 1
-        logging.error(f"Worker crashed (exit {proc.exitcode}). Restarting (attempt {crashes})...")
+        logging.error(
+            "Worker crashed (exit %s): failure %s of %s.",
+            proc.exitcode,
+            crashes,
+            MAX_WORKER_RESTARTS,
+        )
         # Find latest CSV in our naming scheme to resume
         latest = latest_file_csv(cfg.outdir, dataset_id, model_name, num_reports,version)
         resume_path = latest if latest else effective_completed_csv
@@ -919,6 +945,13 @@ def manager(
         with open(crash_log, "a") as f:
             ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             f.write(f"[{ts}] Crash #{crashes}, exit={proc.exitcode}, resume={resume_path}\n")
+
+        if crashes >= MAX_WORKER_RESTARTS:
+            raise RuntimeError(
+                f"Worker failed {crashes} consecutive times; refusing an unbounded restart loop. "
+                "Inspect the final traceback and crash_report.txt before resuming."
+            )
+        logging.info("Restarting worker with the latest available partial CSV.")
 
 
 # ----------------------------------- CLI ----------------------------------- #

@@ -148,20 +148,45 @@ CSV output contains per-report telemetry. Each result CSV has a same-stem
 receipts; the historical version-config JSON is also retained for compatibility.
 
 ```bash
-uv sync --extra llm
+uv sync --extra llm --extra reports
 uv run python src/LLM_pipeline/pipeline.py \
-  --num-reports 1395 \
-  --dataset-id zoe-evaluation \
-  --dataset-path /governed/path/zoe_evaluation.db \
+  --num-reports 2000 \
+  --dataset-id zoe-historical-source \
+  --dataset-path /governed/path/zoe_reports_LD_2000.db \
   --model mistral \
   --temperature 0 \
-  --outdir outputs/pipeline_output/zoe-revision
+  --top-k 40 \
+  --top-p 0.95 \
+  --max-tokens 3000 \
+  --outdir /governed/path/runs/zoe-historical-source
+
+uv run python src/LLM_pipeline/process_output.py \
+  raw_zoe-historical-source_mistral_2000_v1_run1.csv \
+  --input-dir /governed/path/runs/zoe-historical-source \
+  --outdir /governed/path/runs/zoe-historical-source/processed
 ```
 
-Before a full rerun, use a small governed smoke sample to validate CUDA,
-grammar parsing, receipt creation, and output permissions. Do not select a new
-model or prompt version through the interactive resume menu unless the run is
-being recorded as a distinct experimental condition.
+The historical Zoe source surface is 2,000 ordered rows. Do **not** run
+`--num-reports 1395` against the full database: that would take the first 1,395
+rows, mix development and evaluation positions, and omit part of the second
+historical slice. Run/retain the 2,000-row output, then apply the documented
+governed analysis selection. The LD and SG databases have identical report-ID
+and report-text order, so one model run per report-author cohort is sufficient;
+the human-label copy is selected later during evaluation.
+
+The submitted-candidate Mistral registry entry is pinned to Hugging Face
+revision `3a6fbf4a41a1d52e415a4958cde6856d34b2db93`. The run receipt must report
+model SHA-256
+`b85cdd596ddd76f3194047b9108a73c74d77ba04bef49255a50fc0cfbda83d32`;
+stop if it does not.
+
+Before a full rerun, use `--num-reports 1` with a fresh governed dataset ID and
+output directory to validate CUDA/Metal, grammar parsing, receipt creation,
+post-processing, and output permissions. The worker is compatible with
+spawn-based macOS multiprocessing and stops after three consecutive crashes;
+inspect `crash_report.txt` before manually resuming. Do not select a new model
+or prompt version through the interactive resume menu unless the run is being
+recorded as a distinct experimental condition.
 
 ## Non-negotiable run rules
 
@@ -180,4 +205,6 @@ See `DATA_CONTRACT.md`, `CLAIM_LEDGER.md`, and
 `DATASET_NAMING.md` for the input contract, claim gates, and historical naming
 semantics. The exact candidate submitted-model artifact is recorded under
 `model-receipts/`. See `REVIEWER_EXECUTION_MATRIX.md` for the
-reviewer-to-artifact map.
+reviewer-to-artifact map. The recovered result-analysis source and a read-only
+audit of its assumptions are preserved under
+`../historical/result_analysis/2026-07-20/`.

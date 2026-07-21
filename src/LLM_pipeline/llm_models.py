@@ -27,6 +27,7 @@ MODEL_CONFIGS = {
     "mistral": {
         "repo_id": "TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
         "filename": "mistral-7b-instruct-v0.2.Q5_K_M.gguf",
+        "revision": "3a6fbf4a41a1d52e415a4958cde6856d34b2db93",
     },
     "deepseek": {
         "repo_id": "TheBloke/deepseek-llm-7b-base-GGUF",
@@ -67,11 +68,18 @@ def download_model_with_receipt(model_name: str) -> tuple[Llama, dict]:
 
     cfg = MODEL_CONFIGS[model_name]
     logging.info(f"Downloading model {model_name}...")
-    model_path = Path(hf_hub_download(repo_id=cfg["repo_id"], filename=cfg["filename"]))
+    model_path = Path(
+        hf_hub_download(
+            repo_id=cfg["repo_id"],
+            filename=cfg["filename"],
+            revision=cfg.get("revision"),
+        )
+    )
     receipt = {
         "registry_name": model_name,
         "repo_id": cfg["repo_id"],
         "filename": cfg["filename"],
+        "requested_revision": cfg.get("revision"),
         "huggingface_snapshot": model_path.parent.name,
         "sha256": sha256_file(model_path),
         "size_bytes": model_path.stat().st_size,
