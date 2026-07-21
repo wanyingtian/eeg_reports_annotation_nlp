@@ -199,6 +199,37 @@ no patient key is supplied, both limitations are printed in the result. Exact
 Zoe baseline comparisons must wait for the producing report-level BoW/BERT
 exports; the recovered aggregate matrices are insufficient for paired tests.
 
+## Phase 3c: probability calibration for baselines
+
+Calibration is evaluated only for models that emit an actual positive-class
+probability. The recovered BoW/BERT files use `Prob_<category>` for the
+estimated probability of core-positive levels 3–4:
+
+```bash
+uv run eeg-review calibrate \
+  --reference /governed/path/maria_reference.db \
+  --predictions /governed/path/maria_inference_results_bert_base.csv \
+  --model-id bert-lr-submitted \
+  --reference-range 0:500 \
+  --require-complete-reference \
+  --cluster-column Hashed_PatientURN \
+  --bins 10 \
+  --output-dir outputs/review/maria-bert-calibration
+```
+
+The aggregate receipt contains Brier score, log loss, fixed-width expected
+calibration error, bin counts, mean predicted probability, observed event rate,
+and cluster-bootstrap intervals. The bin count and boundaries are part of the
+run manifest because ECE is binning-dependent. Empty bins remain explicit.
+
+Do not apply this command or the word “calibration” to Mistral's generated
+four-level category as though it were a probability. LLM confidence-level
+agreement is an ordinal/exact-agreement analysis unless the authors separately
+define and validate a probabilistic mapping. Only Maria's recovered baseline
+rows are currently confirmed as the exact submitted prediction artifacts; Zoe
+baseline calibration remains artifact-version-specific until the producing
+rows are recovered.
+
 ## Phase 4: instrumented LLM reruns
 
 The existing `src/LLM_pipeline/pipeline.py` now records the exact GGUF filename,

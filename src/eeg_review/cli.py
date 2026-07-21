@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
 from .baseline import run_baseline_cv
+from .calibration import calibrate_predictions
 from .compare import compare_predictions
 from .metrics import evaluate_predictions
 
@@ -137,6 +138,30 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--seed", type=int, default=20260718)
     compare.add_argument("--multiplicity", choices=["holm", "none"], default="holm")
 
+    calibrate = subparsers.add_parser(
+        "calibrate", help="Evaluate binary probability calibration for probability-bearing models"
+    )
+    calibrate.add_argument("--reference", type=Path, required=True)
+    calibrate.add_argument("--predictions", type=Path, required=True)
+    calibrate.add_argument("--model-id", required=True)
+    calibrate.add_argument("--output-dir", type=Path, required=True)
+    calibrate.add_argument("--reference-table", default="reports")
+    calibrate.add_argument("--prediction-table", default="classifications")
+    calibrate.add_argument("--id-column", default="Hashed_ReportURN")
+    calibrate.add_argument("--label", action="append", dest="labels")
+    calibrate.add_argument("--probability-column", action="append", type=prediction_mapping)
+    calibrate.add_argument("--cluster-column")
+    calibrate.add_argument(
+        "--reference-range",
+        action="append",
+        type=row_range,
+        dest="reference_row_ranges",
+    )
+    calibrate.add_argument("--require-complete-reference", action="store_true")
+    calibrate.add_argument("--bins", type=int, default=10)
+    calibrate.add_argument("--bootstrap-iterations", type=int, default=2000)
+    calibrate.add_argument("--seed", type=int, default=20260718)
+
     baseline = subparsers.add_parser(
         "baseline-cv", help="Run leakage-safe OOF evaluation for the submitted baseline families"
     )
@@ -222,6 +247,24 @@ def main() -> None:
             bootstrap_iterations=args.bootstrap_iterations,
             seed=args.seed,
             multiplicity=args.multiplicity,
+        )
+    elif args.command == "calibrate":
+        result = calibrate_predictions(
+            args.reference,
+            args.predictions,
+            args.output_dir,
+            model_id=args.model_id,
+            reference_table=args.reference_table,
+            prediction_table=args.prediction_table,
+            id_column=args.id_column,
+            labels=args.labels or DEFAULT_LABELS,
+            probability_columns=dict(args.probability_column or []) or None,
+            cluster_column=args.cluster_column,
+            reference_row_ranges=args.reference_row_ranges,
+            require_complete_reference=args.require_complete_reference,
+            bins=args.bins,
+            bootstrap_iterations=args.bootstrap_iterations,
+            seed=args.seed,
         )
     else:
         result = run_baseline_cv(
