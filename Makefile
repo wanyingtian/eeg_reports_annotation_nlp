@@ -1,6 +1,6 @@
 UV ?= uv
 
-.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt
+.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt study-status
 
 sync:
 	$(UV) sync
@@ -9,7 +9,7 @@ sync-all:
 	$(UV) sync --extra reports --extra baselines --extra llm --extra evidence
 
 lint:
-	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py
+	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/study_job.py
 
 test:
 	$(UV) run --extra baselines pytest
@@ -25,3 +25,7 @@ verify: lint test audit-sample
 verify-llm-receipt:
 	$(UV) sync --extra llm
 	PYTHONPATH=src/LLM_pipeline $(UV) run python scripts/smoke_inference_receipt.py
+
+study-status:
+	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed run directory" && exit 2)
+	$(UV) run --extra reports --extra baselines --extra llm python scripts/study_job.py status --run-dir "$(RUN_DIR)"

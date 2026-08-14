@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -38,26 +40,99 @@ def _splitter(folds: int, seed: int, groups: pd.Series | None):
     return StratifiedGroupKFold(n_splits=folds, shuffle=True, random_state=seed), groups
 
 
-def _bert_embeddings(reports: list[str], batch_size: int) -> tuple[np.ndarray, dict[str, Any]]:
+def _reports_digest(reports: list[str]) -> str:
+    digest = hashlib.sha256()
+    for report in reports:
+        encoded = report.encode("utf-8")
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+    return digest.hexdigest()
+
+
+def _atomic_save_numpy(path: Path, value: np.ndarray) -> None:
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("wb") as stream:
+        np.save(stream, value, allow_pickle=False)
+    temporary.replace(path)
+
+
+def _bert_embeddings(
+    reports: list[str],
+    batch_size: int,
+    cache_dir: Path | None = None,
+) -> tuple[np.ndarray, dict[str, Any]]:
     import torch
     from transformers import AutoModel, AutoTokenizer
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     tokenizer = AutoTokenizer.from_pretrained(BERT_CHECKPOINT)
     model = AutoModel.from_pretrained(BERT_CHECKPOINT).to(device)
     model.eval()
     token_lengths = [len(tokenizer(text, truncation=False)["input_ids"]) for text in reports]
+    report_digest = _reports_digest(reports)
+    cache_manifest_path: Path | None = None
+    if cache_dir is not None:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_manifest_path = cache_dir / "embedding_cache.json"
+        expected_cache = {
+            "schema_version": 1,
+            "checkpoint": BERT_CHECKPOINT,
+            "report_digest": report_digest,
+            "records": len(reports),
+            "batch_size": batch_size,
+        }
+        if cache_manifest_path.exists():
+            observed = json.loads(cache_manifest_path.read_text(encoding="utf-8"))
+            for key, value in expected_cache.items():
+                if observed.get(key) != value:
+                    raise ValueError(
+                        f"BERT embedding cache mismatch for {key}: "
+                        f"expected {value!r}, found {observed.get(key)!r}"
+                    )
+        else:
+            atomic_write_json(cache_manifest_path, {**expected_cache, "completed_batches": []})
+
     batches: list[np.ndarray] = []
+    completed_batches: list[str] = []
     with torch.no_grad():
         for start in range(0, len(reports), batch_size):
-            encoded = tokenizer(
-                reports[start : start + batch_size],
-                return_tensors="pt",
-                truncation=True,
-                padding=True,
-                max_length=512,
-            ).to(device)
-            batches.append(model(**encoded).last_hidden_state[:, 0, :].cpu().numpy())
+            end = min(start + batch_size, len(reports))
+            chunk_name = f"batch_{start:06d}_{end:06d}.npy"
+            chunk_path = cache_dir / chunk_name if cache_dir is not None else None
+            if chunk_path is not None and chunk_path.exists():
+                chunk = np.load(chunk_path, allow_pickle=False)
+                if chunk.shape != (end - start, 768):
+                    raise ValueError(f"Unexpected cached BERT batch shape in {chunk_path}")
+            else:
+                encoded = tokenizer(
+                    reports[start:end],
+                    return_tensors="pt",
+                    truncation=True,
+                    padding=True,
+                    max_length=512,
+                ).to(device)
+                chunk = model(**encoded).last_hidden_state[:, 0, :].cpu().numpy()
+                if chunk_path is not None:
+                    _atomic_save_numpy(chunk_path, chunk)
+            batches.append(chunk)
+            completed_batches.append(chunk_name)
+            if cache_manifest_path is not None:
+                atomic_write_json(
+                    cache_manifest_path,
+                    {
+                        "schema_version": 1,
+                        "checkpoint": BERT_CHECKPOINT,
+                        "report_digest": report_digest,
+                        "records": len(reports),
+                        "batch_size": batch_size,
+                        "completed_batches": completed_batches,
+                    },
+                )
     return np.concatenate(batches), {
         "checkpoint": BERT_CHECKPOINT,
         "pooling": "final_hidden_state_CLS",
@@ -65,6 +140,8 @@ def _bert_embeddings(reports: list[str], batch_size: int) -> tuple[np.ndarray, d
         "max_length": 512,
         "truncation": "tokenizer default: truncate sequence end",
         "device": str(device),
+        "report_digest": report_digest,
+        "embedding_cache": str(cache_dir) if cache_dir is not None else None,
         "token_length": {
             "minimum": int(min(token_lengths)),
             "median": float(np.median(token_lengths)),
@@ -89,6 +166,7 @@ def run_baseline_cv(
     seed: int = 20260718,
     epsilon: float = 0.1,
     batch_size: int = 16,
+    embedding_cache_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Generate leakage-safe OOF receipts and explicitly refitted native baselines."""
     if model_name not in {"bag_of_words", "bert_base"}:
@@ -118,7 +196,9 @@ def run_baseline_cv(
     bert_matrix: np.ndarray | None = None
     representation: dict[str, Any]
     if model_name == "bert_base":
-        bert_matrix, representation = _bert_embeddings(reports.tolist(), batch_size)
+        bert_matrix, representation = _bert_embeddings(
+            reports.tolist(), batch_size, embedding_cache_dir
+        )
     else:
         representation = {"kind": "raw_count_BoW", **BOW_PARAMETERS}
 
@@ -146,10 +226,10 @@ def run_baseline_cv(
             "core_absent": int(counts.get(0, 0)),
             "core_present": int(counts.get(1, 0)),
         }
-        if len(counts) < 2 or min(counts.values()) < folds:
+        if len(counts) < 2:
             label_summary.update(
                 status="skipped",
-                reason="each core class must contain at least one record per requested fold",
+                reason="a binary final fit requires both core classes",
             )
             summary["labels"][label] = label_summary
             continue
@@ -165,23 +245,27 @@ def run_baseline_cv(
         )
         probabilities = np.full(len(frame), np.nan)
         assignments = np.full(len(frame), np.nan)
+        cv_eligible = min(counts.values()) >= folds
+        if cv_eligible:
+            for fold_index, (train, test) in enumerate(
+                splitter.split(split_input, y_array, split_groups), start=1
+            ):
+                classifier = LogisticRegression(max_iter=1000, random_state=seed)
+                if model_name == "bag_of_words":
+                    from sklearn.feature_extraction.text import CountVectorizer
 
-        for fold_index, (train, test) in enumerate(
-            splitter.split(split_input, y_array, split_groups), start=1
-        ):
-            classifier = LogisticRegression(max_iter=1000, random_state=seed)
-            if model_name == "bag_of_words":
-                from sklearn.feature_extraction.text import CountVectorizer
-
-                estimator = Pipeline(
-                    [("vectorizer", CountVectorizer(**BOW_PARAMETERS)), ("classifier", classifier)]
-                )
-            else:
-                estimator = classifier
-            estimator.fit(split_input[train], y_array[train])
-            positions = valid_positions[test]
-            probabilities[positions] = estimator.predict_proba(split_input[test])[:, 1]
-            assignments[positions] = fold_index
+                    estimator = Pipeline(
+                        [
+                            ("vectorizer", CountVectorizer(**BOW_PARAMETERS)),
+                            ("classifier", classifier),
+                        ]
+                    )
+                else:
+                    estimator = classifier
+                estimator.fit(split_input[train], y_array[train])
+                positions = valid_positions[test]
+                probabilities[positions] = estimator.predict_proba(split_input[test])[:, 1]
+                assignments[positions] = fold_index
 
         final_classifier = LogisticRegression(max_iter=1000, random_state=seed)
         if model_name == "bag_of_words":
@@ -208,11 +292,17 @@ def run_baseline_cv(
         oof[f"{label} probability"] = probabilities
         oof[f"{label} fold"] = pd.Series(assignments, dtype="Int64")
         label_summary.update(
-            status="completed",
+            status="completed" if cv_eligible else "external_fit_only",
             oof_records=int(np.isfinite(probabilities).sum()),
             final_fit_records=int(valid.sum()),
             model_artifact=str(model_path.relative_to(output_dir)),
         )
+        if not cv_eligible:
+            label_summary["reason"] = (
+                "five-fold stratification unavailable because the minority core class "
+                f"has {min(counts.values())} records; final external-inference model was "
+                "fit on all valid development records"
+            )
         summary["labels"][label] = label_summary
 
     atomic_write_csv(output_dir / "oof_predictions.csv", oof)
@@ -230,7 +320,119 @@ def run_baseline_cv(
             "folds": folds,
             "seed": seed,
             "epsilon": epsilon,
+            "embedding_cache_dir": str(embedding_cache_dir)
+            if embedding_cache_dir is not None
+            else None,
             "logistic_regression": {"max_iter": 1000, "random_state": seed},
+            "representation": representation,
+        },
+    )
+    manifest["privacy_boundary"] = (
+        "case-level output contains pseudonymous report identifiers but no report text; "
+        "keep inside the authorized analysis environment"
+    )
+    atomic_write_json(output_dir / "run_manifest.json", manifest)
+    return summary
+
+
+def run_baseline_predict(
+    dataset: Path,
+    baseline_dir: Path,
+    output_dir: Path,
+    *,
+    model_name: str,
+    table: str = "reports",
+    id_column: str = "Hashed_ReportURN",
+    report_column: str = "Report",
+    labels: list[str] | None = None,
+    epsilon: float = 0.1,
+    batch_size: int = 16,
+    embedding_cache_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Apply the explicitly refitted native baseline to a frozen external cohort."""
+    if model_name not in {"bag_of_words", "bert_base"}:
+        raise ValueError("model_name must be bag_of_words or bert_base")
+    labels = labels or DEFAULT_LABELS
+    baseline_dir = baseline_dir.expanduser().resolve(strict=True)
+    summary_path = baseline_dir / "baseline_summary.json"
+    if not summary_path.exists():
+        raise FileNotFoundError(f"Missing baseline summary: {summary_path}")
+
+    training_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    if training_summary.get("model") != model_name:
+        raise ValueError(
+            f"Baseline model mismatch: expected {model_name}, "
+            f"found {training_summary.get('model')}"
+        )
+
+    frame = load_table(dataset, [id_column, report_column], table)
+    identifiers = frame[id_column].astype("string")
+    if identifiers.isna().any() or identifiers.duplicated().any():
+        raise ValueError("Baseline inference requires complete, unique report identifiers")
+    reports = frame[report_column].fillna("").astype(str)
+
+    if model_name == "bert_base":
+        representation_input, representation = _bert_embeddings(
+            reports.tolist(), batch_size, embedding_cache_dir
+        )
+    else:
+        representation_input = reports.to_numpy()
+        representation = {"kind": "raw_count_BoW", **BOW_PARAMETERS}
+
+    from joblib import load
+
+    predictions = pd.DataFrame({id_column: identifiers})
+    model_paths: list[Path] = []
+    label_summary: dict[str, Any] = {}
+    for label in labels:
+        training_label = training_summary.get("labels", {}).get(label, {})
+        if training_label.get("status") not in {"completed", "external_fit_only"}:
+            label_summary[label] = {
+                "status": "skipped",
+                "reason": training_label.get("reason", "training label was not completed"),
+            }
+            continue
+        relative_model = training_label.get("model_artifact")
+        if not relative_model:
+            raise ValueError(f"Missing model artifact receipt for {label}")
+        model_path = (baseline_dir / relative_model).resolve(strict=True)
+        model_paths.append(model_path)
+        estimator = load(model_path)
+        probabilities = estimator.predict_proba(representation_input)[:, 1]
+        predictions[f"{label} prediction"] = probability_to_level(probabilities, epsilon)
+        predictions[f"{label} probability"] = probabilities
+        label_summary[label] = {
+            "status": "completed",
+            "records": int(len(frame)),
+            "model_artifact": str(model_path.relative_to(baseline_dir)),
+        }
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    atomic_write_csv(output_dir / "predictions.csv", predictions)
+    summary: dict[str, Any] = {
+        "schema_version": 1,
+        "model": model_name,
+        "records": int(len(frame)),
+        "training_records": int(training_summary.get("records", 0)),
+        "epsilon": epsilon,
+        "representation": representation,
+        "labels": label_summary,
+    }
+    atomic_write_json(output_dir / "prediction_summary.json", summary)
+    manifest = build_manifest(
+        "baseline-predict",
+        [dataset, summary_path, *model_paths],
+        {
+            "model": model_name,
+            "table": table,
+            "id_column": id_column,
+            "report_column": report_column,
+            "labels": labels,
+            "epsilon": epsilon,
+            "batch_size": batch_size,
+            "embedding_cache_dir": str(embedding_cache_dir)
+            if embedding_cache_dir is not None
+            else None,
             "representation": representation,
         },
     )

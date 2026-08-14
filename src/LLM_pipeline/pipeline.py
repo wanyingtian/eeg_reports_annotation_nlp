@@ -782,7 +782,15 @@ def run_pipeline(
         },
         "comment": cfg.comment,
         "reports_completed": len(results_df),
+        # A resumed run can contain rows produced by several worker attempts.
+        # Keep the legacy field for compatibility, but label its scope and
+        # separately report the accumulated model-call time from all rows.
         "elapsed_seconds": elapsed,
+        "attempt_elapsed_seconds": elapsed,
+        "inference_seconds_total": float(
+            pd.to_numeric(results_df["classify_elapsed_seconds"], errors="coerce").sum()
+            + pd.to_numeric(results_df["explain_elapsed_seconds"], errors="coerce").sum()
+        ),
         "prompts": {
             "classify": {"sha256": sha256_text(PROMPT_CLASSIFY), "text": PROMPT_CLASSIFY},
             "explain": {"sha256": sha256_text(PROMPT_EXPLAIN), "text": PROMPT_EXPLAIN},
@@ -849,6 +857,7 @@ def worker_target(
     out_results: Path,
     out_config: Path,
     cfg: RunConfig,
+    flush_every: int,
 ) -> None:
     """Run one supervised inference attempt in a spawn-safe worker process."""
     grammar_classify = load_gbnf(BASE_DIR / "result_grammar.gbnf")
@@ -862,8 +871,7 @@ def worker_target(
     pending = load_reports_df(dataset_path, num_reports, prior_hashes)
 
     if len(pending) == 0:
-        logging.info("No pending reports to process. All reports already completed.")
-        return
+        logging.info("No pending reports to process. Finalizing the existing result receipt.")
 
     run_pipeline(
         model=model,
@@ -875,7 +883,7 @@ def worker_target(
         out_results=out_results,
         out_config=out_config,
         cfg=cfg,
-        flush_every=5,
+        flush_every=flush_every,
     )
 
 
@@ -886,16 +894,36 @@ def manager(
     dataset_path: Path,
     model_name: str,
     cfg: RunConfig,
+    output_csv: Optional[Path] = None,
+    resume_output: bool = False,
+    flush_every: int = 5,
 ) -> None:
     """
     Supervises the run. If a worker crashes, it restarts and resumes from the
     latest versioned CSV.
     """
-    # Determine output paths and whether to use existing file as completed CSV
-    out_results, out_config, auto_completed_csv = determine_output_path(
-        cfg.outdir, dataset_id, model_name, num_reports
-    )
-    version = parse_filename(out_results.name).get("version", 1)
+    if flush_every < 1:
+        raise ValueError("flush_every must be at least 1")
+
+    # An explicit output path is the non-interactive contract used by the
+    # resumable study supervisor. The legacy smart-versioning UI remains the
+    # default for interactive/manual runs.
+    if output_csv is not None:
+        out_results = output_csv.expanduser().resolve()
+        ensure_outdir(out_results.parent)
+        out_config = out_results.with_suffix(".config.json")
+        auto_completed_csv = out_results if resume_output and out_results.exists() else None
+        if out_results.exists() and not (resume_output or completed_csv):
+            raise FileExistsError(
+                f"Explicit output already exists: {out_results}. "
+                "Use --resume-output or --completed-csv to continue it."
+            )
+        version = None
+    else:
+        out_results, out_config, auto_completed_csv = determine_output_path(
+            cfg.outdir, dataset_id, model_name, num_reports
+        )
+        version = parse_filename(out_results.name).get("version", 1)
     
     # Priority: explicit --completed-csv > auto-detected from versioning > None
     effective_completed_csv = completed_csv or auto_completed_csv
@@ -921,6 +949,7 @@ def manager(
                 out_results,
                 out_config,
                 cfg,
+                flush_every,
             ),
         )
         proc.start()
@@ -938,8 +967,13 @@ def manager(
             MAX_WORKER_RESTARTS,
         )
         # Find latest CSV in our naming scheme to resume
-        latest = latest_file_csv(cfg.outdir, dataset_id, model_name, num_reports,version)
-        resume_path = latest if latest else effective_completed_csv
+        if output_csv is not None:
+            resume_path = out_results if out_results.exists() else effective_completed_csv
+        else:
+            latest = latest_file_csv(
+                cfg.outdir, dataset_id, model_name, num_reports, version
+            )
+            resume_path = latest if latest else effective_completed_csv
         # Write crash breadcrumb
         crash_log = cfg.outdir / "crash_report.txt"
         with open(crash_log, "a") as f:
@@ -970,6 +1004,26 @@ def parse_args() -> argparse.Namespace:
         help="Model to use (GGUF). If not provided, defaults to 'mistral'.",
     )
     p.add_argument("--outdir", type=Path, default=DEFAULT_OUTDIR, help="Optional: Directory to write outputs. Defaults to ./outputs/pipeline_output")
+    p.add_argument(
+        "--output-csv",
+        type=Path,
+        default=None,
+        help=(
+            "Explicit non-interactive output CSV. Intended for supervised jobs; "
+            "bypasses the legacy version-selection prompts."
+        ),
+    )
+    p.add_argument(
+        "--resume-output",
+        action="store_true",
+        help="Resume --output-csv in place when it already exists.",
+    )
+    p.add_argument(
+        "--flush-every",
+        type=int,
+        default=5,
+        help="Atomically checkpoint after this many new reports (default: 5).",
+    )
     p.add_argument("--comment", type=str, default="LLM pipeline run", help="Optional: comment to save in config.")
     # sampling controls
     p.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="Optional: Sampling temperature (0 for greedy). Defaults to 0.")
@@ -1019,6 +1073,9 @@ def main() -> None:
         dataset_path=dataset_path,
         model_name=args.model,
         cfg=cfg,
+        output_csv=args.output_csv,
+        resume_output=args.resume_output,
+        flush_every=args.flush_every,
     )
 
 

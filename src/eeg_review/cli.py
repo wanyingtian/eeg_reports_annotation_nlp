@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
-from .baseline import run_baseline_cv
+from .baseline import run_baseline_cv, run_baseline_predict
 from .calibration import calibrate_predictions
 from .compare import compare_predictions
 from .error_review import build_error_review_packet
@@ -205,7 +205,24 @@ def build_parser() -> argparse.ArgumentParser:
     baseline.add_argument("--seed", type=int, default=20260718)
     baseline.add_argument("--epsilon", type=float, default=0.1)
     baseline.add_argument("--batch-size", type=int, default=16)
+    baseline.add_argument("--embedding-cache-dir", type=Path)
     add_schema_arguments(baseline)
+
+    baseline_predict = subparsers.add_parser(
+        "baseline-predict",
+        help="Apply a refitted native baseline to a frozen external cohort",
+    )
+    baseline_predict.add_argument("--dataset", type=Path, required=True)
+    baseline_predict.add_argument("--baseline-dir", type=Path, required=True)
+    baseline_predict.add_argument("--output-dir", type=Path, required=True)
+    baseline_predict.add_argument(
+        "--model", choices=["bag_of_words", "bert_base"], required=True
+    )
+    baseline_predict.add_argument("--label", action="append", dest="labels")
+    baseline_predict.add_argument("--epsilon", type=float, default=0.1)
+    baseline_predict.add_argument("--batch-size", type=int, default=16)
+    baseline_predict.add_argument("--embedding-cache-dir", type=Path)
+    add_schema_arguments(baseline_predict)
     return parser
 
 
@@ -316,7 +333,7 @@ def main() -> None:
             seed=args.seed,
             handle_salt=args.handle_salt,
         )
-    else:
+    elif args.command == "baseline-cv":
         result = run_baseline_cv(
             args.dataset,
             args.output_dir,
@@ -330,6 +347,21 @@ def main() -> None:
             seed=args.seed,
             epsilon=args.epsilon,
             batch_size=args.batch_size,
+            embedding_cache_dir=args.embedding_cache_dir,
+        )
+    else:
+        result = run_baseline_predict(
+            args.dataset,
+            args.baseline_dir,
+            args.output_dir,
+            model_name=args.model,
+            table=args.table,
+            id_column=args.id_column,
+            report_column=args.report_column,
+            labels=args.labels or DEFAULT_LABELS,
+            epsilon=args.epsilon,
+            batch_size=args.batch_size,
+            embedding_cache_dir=args.embedding_cache_dir,
         )
     print(json.dumps(result, indent=2, sort_keys=True))
 
