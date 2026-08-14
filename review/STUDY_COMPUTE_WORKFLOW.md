@@ -170,3 +170,19 @@ The comparison reports shared rows, exact four-level classifications, binary
 core decisions, and exact explanation-reason lists. It does not treat expected
 cross-backend numerical variation as a change to the historical source of
 record.
+
+## Refresh the aggregate result ledger
+
+At any checkpoint, consolidate every completed evaluation, calibration, and
+paired-comparison receipt in the run without reading case-level inputs:
+
+```sh
+uv run python scripts/study_job.py ledger \
+  --run-dir data/governed/study-runs/jbhi-native-20260814
+```
+
+The command writes long-form CSV tables, a combined JSON ledger, source hashes,
+and its own run manifest under `<run>/products/aggregate-ledger/`. Ledger rows
+retain unrounded values, confidence bounds, interval units, bootstrap counts,
+and available numerators/denominators. The result is aggregate-only but should
+still be reviewed before external release.

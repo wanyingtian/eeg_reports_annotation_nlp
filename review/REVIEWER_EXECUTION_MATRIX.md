@@ -29,7 +29,7 @@ supplies the required inputs. It does not mean the scientific result is known.
 | Clinical workflow comparison | Workflow and escalation description | Vasily/clinical collaborators | Team-authored clinical material |
 | Ethics, consent/waiver, secondary use | Approved statement and document receipt | PI/data custodian/REB records for H18-02728 | Non-code blocker |
 | Proposed-pipeline figure | Reproducible diagram source | Actual authoring source and verified pipeline stages | Manuscript phase |
-| Table/text inconsistencies | Generated table-to-claim ledger | Exact Zoe baseline report rows still needed | Submitted aggregate matrices recover all baseline displays; current Zoe CSVs are a different prediction version, while Maria and all other result families match |
+| Table/text inconsistencies | `study_job.py ledger`; source-hashed long-form result tables for the table-to-claim ledger | Exact Zoe baseline report rows still needed | Aggregate ledger implemented and exercised; submitted aggregate matrices recover all baseline displays, but current Zoe CSVs remain a different prediction version |
 
 ## Planned next implementation phases
 

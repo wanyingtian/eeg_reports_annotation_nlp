@@ -1068,6 +1068,25 @@ def compare_runs(left: Path, right: Path, output: Path) -> dict[str, Any]:
     return result
 
 
+def write_result_ledger(run_dir: Path) -> dict[str, Any]:
+    from eeg_review.ledger import build_result_ledger
+
+    analysis = run_dir / "products/analysis"
+
+    def discover(filename: str) -> dict[str, Path]:
+        return {
+            path.parent.name: path
+            for path in sorted(analysis.glob(f"*/{filename}"))
+        }
+
+    return build_result_ledger(
+        run_dir / "products/aggregate-ledger",
+        evaluations=discover("evaluation_summary.json"),
+        calibrations=discover("calibration_summary.json"),
+        comparisons=discover("paired_comparison_summary.json"),
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -1095,6 +1114,8 @@ def parse_args() -> argparse.Namespace:
     compare.add_argument("--left", type=Path, required=True)
     compare.add_argument("--right", type=Path, required=True)
     compare.add_argument("--output", type=Path, required=True)
+    ledger = commands.add_parser("ledger")
+    ledger.add_argument("--run-dir", type=Path, required=True)
     return parser.parse_args()
 
 
@@ -1114,13 +1135,16 @@ def main() -> None:
         stop_run(args.run_dir.expanduser().resolve(strict=True), args.timeout)
     elif args.command == "manifest":
         write_transfer_manifest(args.run_dir.expanduser().resolve(strict=True))
-    else:
+    elif args.command == "compare":
         result = compare_runs(
             args.left.expanduser().resolve(strict=True),
             args.right.expanduser().resolve(strict=True),
             args.output.expanduser().resolve(),
         )
         print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        result = write_result_ledger(args.run_dir.expanduser().resolve(strict=True))
+        print(json.dumps(result["row_counts"], indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

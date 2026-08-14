@@ -9,6 +9,7 @@ from .baseline import run_baseline_cv, run_baseline_predict
 from .calibration import calibrate_predictions
 from .compare import compare_predictions
 from .error_review import build_error_review_packet
+from .ledger import build_result_ledger
 from .metrics import evaluate_predictions
 
 
@@ -223,6 +224,15 @@ def build_parser() -> argparse.ArgumentParser:
     baseline_predict.add_argument("--batch-size", type=int, default=16)
     baseline_predict.add_argument("--embedding-cache-dir", type=Path)
     add_schema_arguments(baseline_predict)
+
+    ledger = subparsers.add_parser(
+        "result-ledger",
+        help="Consolidate aggregate analysis receipts without reading case-level data",
+    )
+    ledger.add_argument("--evaluation", action="append", type=named_path, default=[])
+    ledger.add_argument("--calibration", action="append", type=named_path, default=[])
+    ledger.add_argument("--comparison", action="append", type=named_path, default=[])
+    ledger.add_argument("--output-dir", type=Path, required=True)
     return parser
 
 
@@ -349,7 +359,7 @@ def main() -> None:
             batch_size=args.batch_size,
             embedding_cache_dir=args.embedding_cache_dir,
         )
-    else:
+    elif args.command == "baseline-predict":
         result = run_baseline_predict(
             args.dataset,
             args.baseline_dir,
@@ -362,6 +372,16 @@ def main() -> None:
             epsilon=args.epsilon,
             batch_size=args.batch_size,
             embedding_cache_dir=args.embedding_cache_dir,
+        )
+    else:
+        named_inputs = [*args.evaluation, *args.calibration, *args.comparison]
+        if len(named_inputs) != len({name for name, _path in named_inputs}):
+            parser.error("analysis names must be unique across all ledger inputs")
+        result = build_result_ledger(
+            args.output_dir,
+            evaluations=dict(args.evaluation),
+            calibrations=dict(args.calibration),
+            comparisons=dict(args.comparison),
         )
     print(json.dumps(result, indent=2, sort_keys=True))
 

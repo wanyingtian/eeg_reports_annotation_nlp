@@ -15,6 +15,11 @@ destination. Null and unfavorable findings use the same gate.
 | Patient independence | Stable patient-key semantics, cross-split counts, grouped execution | Blocked until custodian confirms the key |
 | Ethics/secondary use | Approved H18-02728 consent/waiver, de-identification and secondary-use language | PI/REB-only evidence |
 
-Each eventual machine-readable ledger row should additionally bind the input
-checksums, Git revision, command, seed, output path, analysis population,
-numerator/denominator, unrounded value, display value, and reviewer ID.
+The machine-readable result ledger is generated with
+`scripts/study_job.py ledger`. It binds each available unrounded estimate and
+confidence interval to the aggregate source receipt's SHA-256, analysis ID,
+population size, interval unit, bootstrap count, and available
+numerator/denominator. Its own run manifest records the Git revision and input
+hashes. Manuscript destination, display rounding, reviewer-comment ID, and
+claim-clearance status remain deliberate authoring decisions and are not
+inferred by the generator.

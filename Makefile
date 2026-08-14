@@ -1,6 +1,6 @@
 UV ?= uv
 
-.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt study-status
+.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt study-status study-ledger
 
 sync:
 	$(UV) sync
@@ -29,3 +29,7 @@ verify-llm-receipt:
 study-status:
 	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed run directory" && exit 2)
 	$(UV) run --extra reports --extra baselines --extra llm python scripts/study_job.py status --run-dir "$(RUN_DIR)"
+
+study-ledger:
+	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed run directory" && exit 2)
+	$(UV) run --extra reports --extra baselines --extra llm python scripts/study_job.py ledger --run-dir "$(RUN_DIR)"
