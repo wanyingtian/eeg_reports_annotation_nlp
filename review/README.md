@@ -38,6 +38,13 @@ The same locked core verification runs in GitHub Actions. The workflow has
 read-only repository permissions and does not run models or access governed
 data.
 
+The portable, resumable full-study supervisor is documented in
+[`STUDY_COMPUTE_WORKFLOW.md`](STUDY_COMPUTE_WORKFLOW.md). The first aggregate
+checkpoint from its native macOS execution is recorded in
+[`NATIVE_REPRODUCTION_ACTIVE_CHECKPOINT_2026-08-14.md`](NATIVE_REPRODUCTION_ACTIVE_CHECKPOINT_2026-08-14.md).
+That checkpoint distinguishes preserved historical results from fresh native
+refits and does not contain report text or case identifiers.
+
 On FIR/Alliance, load a supported compiler/CUDA module before installing the
 `llm` group. Record the exact modules and driver in the run receipt; do not
 silently substitute a different model file or quantization.
