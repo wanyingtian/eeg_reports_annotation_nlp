@@ -54,7 +54,9 @@ silently substitute a different model file or quantization.
 The private handover share is inventoried and downloaded through the existing
 `proton-drive` CLI, never into tracked paths. See
 [`PROTON_CLI_WORKFLOW.md`](PROTON_CLI_WORKFLOW.md) for the controlled intake
-commands and integrity boundary.
+and return commands and integrity boundary. The completed laptop run was
+round-trip verified after return to the private Steven-Chris share; see
+[`PROTON_RETURN_RECEIPT_2026-08-15.md`](PROTON_RETURN_RECEIPT_2026-08-15.md).
 
 ## Phase 1: read-only cohort receipts
 
