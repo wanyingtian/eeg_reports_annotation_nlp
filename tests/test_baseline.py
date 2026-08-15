@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from eeg_review.baseline import run_baseline_cv, run_baseline_predict
+from eeg_review.baseline import (
+    run_baseline_cv,
+    run_baseline_oof_evaluation,
+    run_baseline_predict,
+)
 
 
 def test_bow_cv_exports_oof_receipt_and_refitted_model(tmp_path: Path) -> None:
@@ -68,6 +72,21 @@ def test_bow_cv_exports_oof_receipt_and_refitted_model(tmp_path: Path) -> None:
     assert predictions["Abnormality probability"].between(0, 1).all()
     assert predictions["Abnormality prediction"].isin([1, 2, 3, 4]).all()
 
+    oof_result = run_baseline_oof_evaluation(
+        database,
+        output,
+        tmp_path / "oof-evaluation",
+        model_name="bag_of_words",
+        labels=["Abnormality"],
+        patient_column="Patient",
+        bootstrap_iterations=20,
+        seed=7,
+    )
+    abnormality = oof_result["labels"]["Abnormality"]
+    assert abnormality["point_estimates"]["n"] == 12
+    assert abnormality["fold_variability"]["core_accuracy"]["folds"] == 2
+    assert (tmp_path / "oof-evaluation" / "fold_metrics.csv").exists()
+
 
 def test_low_support_label_keeps_external_fit_without_inventing_folds(
     tmp_path: Path,
@@ -105,6 +124,7 @@ def test_low_support_label_keeps_external_fit_without_inventing_folds(
     oof = pd.read_csv(output / "oof_predictions.csv")
     assert oof["Gen Epi probability"].isna().all()
     assert oof["Gen Epi fold"].isna().all()
+    assert oof["Gen Epi prediction"].isna().all()
 
     prediction_output = tmp_path / "prediction"
     prediction = run_baseline_predict(
@@ -117,3 +137,14 @@ def test_low_support_label_keeps_external_fit_without_inventing_folds(
     assert prediction["labels"]["Gen Epi"]["status"] == "completed"
     external = pd.read_csv(prediction_output / "predictions.csv")
     assert external["Gen Epi probability"].between(0, 1).all()
+
+    oof_result = run_baseline_oof_evaluation(
+        database,
+        output,
+        tmp_path / "oof-evaluation",
+        model_name="bag_of_words",
+        labels=["Gen Epi"],
+        bootstrap_iterations=20,
+    )
+    assert "Gen Epi" not in oof_result["labels"]
+    assert oof_result["unavailable_labels"]["Gen Epi"]["status"] == "external_fit_only"

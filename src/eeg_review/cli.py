@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
-from .baseline import run_baseline_cv, run_baseline_predict
+from .baseline import run_baseline_cv, run_baseline_oof_evaluation, run_baseline_predict
 from .calibration import calibrate_predictions
 from .compare import compare_predictions
 from .error_review import build_error_review_packet
@@ -225,6 +225,22 @@ def build_parser() -> argparse.ArgumentParser:
     baseline_predict.add_argument("--embedding-cache-dir", type=Path)
     add_schema_arguments(baseline_predict)
 
+    baseline_oof = subparsers.add_parser(
+        "baseline-oof-evaluate",
+        help="Evaluate each completed label's own out-of-fold assignments",
+    )
+    baseline_oof.add_argument("--dataset", type=Path, required=True)
+    baseline_oof.add_argument("--baseline-dir", type=Path, required=True)
+    baseline_oof.add_argument("--output-dir", type=Path, required=True)
+    baseline_oof.add_argument(
+        "--model", choices=["bag_of_words", "bert_base"], required=True
+    )
+    baseline_oof.add_argument("--label", action="append", dest="labels")
+    baseline_oof.add_argument("--patient-column")
+    baseline_oof.add_argument("--bootstrap-iterations", type=int, default=2000)
+    baseline_oof.add_argument("--seed", type=int, default=20260718)
+    add_schema_arguments(baseline_oof)
+
     ledger = subparsers.add_parser(
         "result-ledger",
         help="Consolidate aggregate analysis receipts without reading case-level data",
@@ -372,6 +388,19 @@ def main() -> None:
             epsilon=args.epsilon,
             batch_size=args.batch_size,
             embedding_cache_dir=args.embedding_cache_dir,
+        )
+    elif args.command == "baseline-oof-evaluate":
+        result = run_baseline_oof_evaluation(
+            args.dataset,
+            args.baseline_dir,
+            args.output_dir,
+            model_name=args.model,
+            table=args.table,
+            id_column=args.id_column,
+            labels=args.labels or DEFAULT_LABELS,
+            patient_column=args.patient_column,
+            bootstrap_iterations=args.bootstrap_iterations,
+            seed=args.seed,
         )
     else:
         named_inputs = [*args.evaluation, *args.calibration, *args.comparison]

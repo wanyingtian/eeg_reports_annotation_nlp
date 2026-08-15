@@ -339,7 +339,16 @@ def stages_for(run_dir: Path) -> list[Stage]:
         ]
         if prediction_suffix:
             command.extend(mappings("--prediction-column", prediction_suffix))
-        return Stage(name, command, (output / "evaluation_summary.json",))
+        return Stage(
+            name,
+            command,
+            (
+                output / "evaluation_summary.json",
+                output / "metrics.csv",
+                output / "confusion_matrices.json",
+                output / "run_manifest.json",
+            ),
+        )
 
     def compare(
         name: str,
@@ -422,7 +431,11 @@ def stages_for(run_dir: Path) -> list[Stage]:
             command.extend(
                 ["--embedding-cache-dir", str(run_dir / "cache/bert/development")]
             )
-        return Stage(name, command, (output / "baseline_summary.json",))
+        return Stage(
+            name,
+            command,
+            (output / "baseline_summary.json", output / "oof_predictions.csv"),
+        )
 
     def baseline_predict(model: str, cohort: str) -> Stage:
         name = f"baseline_{model}_predict_{cohort}"
@@ -444,6 +457,33 @@ def stages_for(run_dir: Path) -> list[Stage]:
         if model == "bert":
             command.extend(["--embedding-cache-dir", str(run_dir / f"cache/bert/{cohort}")])
         return Stage(name, command, (output / "predictions.csv",))
+
+    def baseline_oof(model: str) -> Stage:
+        name = f"baseline_{model}_oof_evaluate"
+        output = products / "analysis" / name
+        command = [
+            *review,
+            "baseline-oof-evaluate",
+            "--dataset",
+            str(inputs / "zoe_development_100.db"),
+            "--baseline-dir",
+            str(products / "baselines" / model / "development"),
+            "--model",
+            "bag_of_words" if model == "bow" else "bert_base",
+            "--output-dir",
+            str(output),
+            *common_id,
+        ]
+        return Stage(
+            name,
+            command,
+            (
+                output / "evaluation_summary.json",
+                output / "metrics.csv",
+                output / "fold_metrics.csv",
+                output / "run_manifest.json",
+            ),
+        )
 
     def llm(cohort: str, target: int) -> Stage:
         name = f"llm_{cohort}_inference"
@@ -588,7 +628,7 @@ def stages_for(run_dir: Path) -> list[Stage]:
             ]
         )
 
-    stages.append(baseline_cv("bow"))
+    stages.extend([baseline_cv("bow"), baseline_oof("bow")])
     for cohort, reference in [
         ("zoe", "zoe_evaluation_1400.db"),
         ("maria", "maria_evaluation_500.db"),
@@ -670,7 +710,7 @@ def stages_for(run_dir: Path) -> list[Stage]:
         ]
     )
 
-    stages.append(baseline_cv("bert"))
+    stages.extend([baseline_cv("bert"), baseline_oof("bert")])
     for cohort, reference in [
         ("zoe", "zoe_evaluation_1400.db"),
         ("maria", "maria_evaluation_500.db"),
@@ -706,6 +746,9 @@ def stage_is_complete(run_dir: Path, stage: Stage) -> bool:
         return False
     payload = json.loads(marker.read_text(encoding="utf-8"))
     expected = payload.get("outputs", [])
+    receipted_paths = {run_dir / item["path"] for item in expected}
+    if not set(stage.required).issubset(receipted_paths):
+        return False
     for item in expected:
         path = run_dir / item["path"]
         if not path.exists() or sha256_file(path) != item["sha256"]:
@@ -766,6 +809,7 @@ class Supervisor:
                     "hostname": socket.gethostname(),
                     "platform": platform.platform(),
                     "python": sys.version.split()[0],
+                    "repository_revision_at_start": git_revision(),
                     "started_at_utc": utc_now(),
                 },
             )
@@ -780,6 +824,7 @@ class Supervisor:
                     status="running",
                     started_at_utc=utc_now(),
                     command=stage.command,
+                    repository_revision_at_start=git_revision(),
                 )
                 atomic_json(self.run_dir / "state.json", state)
                 log_path = self.run_dir / "logs" / f"{stage.name}.log"
@@ -995,11 +1040,15 @@ def write_transfer_manifest(run_dir: Path) -> dict[str, Any]:
                 "sensitivity": sensitivity(path, run_dir),
             }
         )
+    job = json.loads((run_dir / "job.json").read_text(encoding="utf-8"))
+    generation_revision = git_revision()
     payload = {
         "schema_version": 1,
         "created_at_utc": utc_now(),
         "study_id": "jbhi-02463-2026-native-reproduction",
-        "repository_revision": git_revision(),
+        "repository_revision": job.get("repository_revision"),
+        "job_repository_revision": job.get("repository_revision"),
+        "manifest_generation_repository_revision": generation_revision,
         "transfer_rule": (
             "Transfer only through an approved governed channel. Preserve relative paths; "
             "verify every SHA-256 before resuming on another machine."

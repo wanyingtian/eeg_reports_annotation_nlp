@@ -1,5 +1,9 @@
 # Native reproduction active checkpoint - 2026-08-14
 
+> Superseded by
+> [`NATIVE_REPRODUCTION_FINAL_CHECKPOINT_2026-08-15.md`](NATIVE_REPRODUCTION_FINAL_CHECKPOINT_2026-08-15.md).
+> This file is retained as the time-stamped active-run record.
+
 ## Status and scope
 
 The governed native reproduction was initialized from repository commit

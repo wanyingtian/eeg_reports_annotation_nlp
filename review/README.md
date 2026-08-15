@@ -39,11 +39,13 @@ read-only repository permissions and does not run models or access governed
 data.
 
 The portable, resumable full-study supervisor is documented in
-[`STUDY_COMPUTE_WORKFLOW.md`](STUDY_COMPUTE_WORKFLOW.md). The first aggregate
-checkpoint from its native macOS execution is recorded in
-[`NATIVE_REPRODUCTION_ACTIVE_CHECKPOINT_2026-08-14.md`](NATIVE_REPRODUCTION_ACTIVE_CHECKPOINT_2026-08-14.md).
-That checkpoint distinguishes preserved historical results from fresh native
-refits and does not contain report text or case identifiers.
+[`STUDY_COMPUTE_WORKFLOW.md`](STUDY_COMPUTE_WORKFLOW.md). The completed native
+macOS execution is recorded in
+[`NATIVE_REPRODUCTION_FINAL_CHECKPOINT_2026-08-15.md`](NATIVE_REPRODUCTION_FINAL_CHECKPOINT_2026-08-15.md).
+It documents completion, hardware/runtime, fresh-to-historical agreement,
+baseline OOF variability, explanation quality, publication implications, and
+the remaining patient/clinical/ethics gates without report text or case
+identifiers. The earlier active checkpoint is retained as operational history.
 
 On FIR/Alliance, load a supported compiler/CUDA module before installing the
 `llm` group. Record the exact modules and driver in the run receipt; do not
@@ -128,6 +130,20 @@ The BERT route retains `bert-base-uncased`, a frozen final-layer CLS embedding,
 and 512-token end truncation. The receipt counts reports exceeding 512 tokens.
 No model checkpoint is downloaded by core CI. `oof_predictions.csv` contains
 pseudonymous report keys but never report text and must remain governed.
+
+Evaluate each completed label's own OOF assignments with:
+
+```bash
+uv run --extra baselines eeg-review baseline-oof-evaluate \
+  --dataset /governed/path/development.db \
+  --baseline-dir outputs/review/development-bow \
+  --model bag_of_words \
+  --patient-column Hashed_PatientURN \
+  --output-dir outputs/review/development-bow-oof
+```
+
+The evaluator preserves unavailable labels as unavailable. It never converts a
+missing OOF probability into a thresholded class.
 
 ## Phase 3: paired evaluation receipts
 

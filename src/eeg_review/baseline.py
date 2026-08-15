@@ -11,6 +11,7 @@ import pandas as pd
 from .audit import DEFAULT_LABELS
 from .io import atomic_write_csv, atomic_write_json, load_table
 from .manifest import build_manifest
+from .metrics import bootstrap_intervals, metric_values
 
 BERT_CHECKPOINT = "bert-base-uncased"
 BOW_PARAMETERS = {
@@ -285,9 +286,10 @@ def run_baseline_cv(
         dump(final_estimator, model_path)
 
         predicted_levels = np.full(len(frame), np.nan)
-        predicted_levels[valid_positions] = probability_to_level(
-            probabilities[valid_positions], epsilon
-        )
+        if cv_eligible:
+            predicted_levels[valid_positions] = probability_to_level(
+                probabilities[valid_positions], epsilon
+            )
         oof[f"{label} prediction"] = pd.Series(predicted_levels, dtype="Int64")
         oof[f"{label} probability"] = probabilities
         oof[f"{label} fold"] = pd.Series(assignments, dtype="Int64")
@@ -332,6 +334,173 @@ def run_baseline_cv(
         "keep inside the authorized analysis environment"
     )
     atomic_write_json(output_dir / "run_manifest.json", manifest)
+    return summary
+
+
+def run_baseline_oof_evaluation(
+    dataset: Path,
+    baseline_dir: Path,
+    output_dir: Path,
+    *,
+    model_name: str,
+    table: str = "reports",
+    id_column: str = "Hashed_ReportURN",
+    labels: list[str] | None = None,
+    patient_column: str | None = None,
+    bootstrap_iterations: int = 2000,
+    seed: int = 20260718,
+) -> dict[str, Any]:
+    """Evaluate each label's own OOF assignments without inventing unavailable folds."""
+    if model_name not in {"bag_of_words", "bert_base"}:
+        raise ValueError("model_name must be bag_of_words or bert_base")
+    labels = labels or DEFAULT_LABELS
+    baseline_dir = baseline_dir.expanduser().resolve(strict=True)
+    training_summary_path = baseline_dir / "baseline_summary.json"
+    oof_path = baseline_dir / "oof_predictions.csv"
+    training = json.loads(training_summary_path.read_text(encoding="utf-8"))
+    if training.get("model") != model_name:
+        raise ValueError("Baseline summary does not match the requested model")
+
+    reference_columns = [id_column, *labels]
+    if patient_column:
+        reference_columns.append(patient_column)
+    reference = load_table(dataset, reference_columns, table)
+    oof_columns = [id_column]
+    for label in labels:
+        oof_columns.extend(
+            [f"{label} prediction", f"{label} probability", f"{label} fold"]
+        )
+    oof = pd.read_csv(oof_path, usecols=oof_columns)
+    if reference[id_column].duplicated().any() or oof[id_column].duplicated().any():
+        raise ValueError("OOF evaluation requires unique report identifiers")
+    merged = reference.merge(oof, on=id_column, how="inner", validate="one_to_one")
+
+    summary: dict[str, Any] = {
+        "schema_version": 1,
+        "model": model_name,
+        "reference_records": int(len(reference)),
+        "prediction_records": int(len(oof)),
+        "matched_records": int(len(merged)),
+        "bootstrap": {
+            "iterations": bootstrap_iterations,
+            "seed": seed,
+            "unit": "cluster" if patient_column else "report",
+            "cluster_column_supplied": bool(patient_column),
+        },
+        "labels": {},
+        "unavailable_labels": {},
+        "interpretation_limits": [],
+    }
+    if not patient_column:
+        summary["interpretation_limits"].append(
+            "No patient/cluster column supplied; confidence intervals resample reports and "
+            "do not establish patient independence."
+        )
+
+    metric_rows: list[dict[str, Any]] = []
+    fold_rows: list[dict[str, Any]] = []
+    for offset, label in enumerate(labels):
+        training_label = training.get("labels", {}).get(label, {})
+        if training_label.get("status") != "completed":
+            summary["unavailable_labels"][label] = {
+                "status": training_label.get("status", "unavailable"),
+                "reason": training_label.get("reason", "OOF predictions unavailable"),
+                "oof_records": int(training_label.get("oof_records", 0)),
+            }
+            continue
+
+        reference_level = pd.to_numeric(merged[label], errors="coerce")
+        prediction_level = pd.to_numeric(
+            merged[f"{label} prediction"], errors="coerce"
+        )
+        folds = pd.to_numeric(merged[f"{label} fold"], errors="coerce")
+        valid = (
+            reference_level.isin([1, 2, 3, 4])
+            & prediction_level.isin([1, 2, 3, 4])
+            & folds.notna()
+        )
+        ref_values = reference_level[valid].to_numpy(dtype=int)
+        pred_values = prediction_level[valid].to_numpy(dtype=int)
+        if not len(ref_values):
+            raise ValueError(f"No valid OOF predictions for completed label {label}")
+        clusters = (
+            merged.loc[valid, patient_column].astype(str).to_numpy()
+            if patient_column
+            else None
+        )
+        if patient_column and merged.loc[valid, patient_column].isna().any():
+            raise ValueError(f"Missing patient identifiers for {label}")
+        point = metric_values(ref_values, pred_values)
+        intervals = bootstrap_intervals(
+            ref_values,
+            pred_values,
+            clusters,
+            iterations=bootstrap_iterations,
+            seed=seed + offset,
+        )
+        fold_values: dict[str, list[float]] = {}
+        for fold, positions in merged.loc[valid].groupby(f"{label} fold").groups.items():
+            fold_reference = pd.to_numeric(
+                merged.loc[positions, label], errors="raise"
+            ).to_numpy(dtype=int)
+            fold_prediction = pd.to_numeric(
+                merged.loc[positions, f"{label} prediction"], errors="raise"
+            ).to_numpy(dtype=int)
+            values = metric_values(fold_reference, fold_prediction)
+            for metric, value in values.items():
+                fold_rows.append(
+                    {"label": label, "fold": int(fold), "metric": metric, "value": value}
+                )
+                if metric not in {"tn", "fp", "fn", "tp", "n"} and np.isfinite(value):
+                    fold_values.setdefault(metric, []).append(float(value))
+        variability = {
+            metric: {
+                "folds": len(values),
+                "mean": float(np.mean(values)),
+                "standard_deviation": float(np.std(values, ddof=1))
+                if len(values) > 1
+                else 0.0,
+            }
+            for metric, values in fold_values.items()
+        }
+        summary["labels"][label] = {
+            "excluded_invalid_or_missing_pairs": int((~valid).sum()),
+            "point_estimates": point,
+            "confidence_intervals_95": intervals,
+            "fold_variability": variability,
+        }
+        for metric, estimate in point.items():
+            interval = intervals.get(metric, {"low": None, "high": None})
+            metric_rows.append(
+                {
+                    "label": label,
+                    "metric": metric,
+                    "estimate": estimate,
+                    "ci_low": interval["low"],
+                    "ci_high": interval["high"],
+                }
+            )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    atomic_write_json(output_dir / "evaluation_summary.json", summary)
+    atomic_write_csv(output_dir / "metrics.csv", pd.DataFrame(metric_rows))
+    atomic_write_csv(output_dir / "fold_metrics.csv", pd.DataFrame(fold_rows))
+    atomic_write_json(
+        output_dir / "run_manifest.json",
+        build_manifest(
+            "baseline-oof-evaluate",
+            [dataset, training_summary_path, oof_path],
+            {
+                "model": model_name,
+                "table": table,
+                "id_column": id_column,
+                "labels": labels,
+                "patient_column": patient_column,
+                "bootstrap_iterations": bootstrap_iterations,
+                "seed": seed,
+            },
+        ),
+    )
     return summary
 
 

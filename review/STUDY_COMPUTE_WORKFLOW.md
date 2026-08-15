@@ -7,6 +7,10 @@ hardware. The run can be stopped between or during stages, resumed without
 repeating completed work, and moved to a Linux/NVIDIA host through an approved
 governed transfer channel.
 
+The first complete native execution finished on 2026-08-15 with all 40 stages
+valid. Its scientific and quality audit is recorded in
+[`NATIVE_REPRODUCTION_FINAL_CHECKPOINT_2026-08-15.md`](NATIVE_REPRODUCTION_FINAL_CHECKPOINT_2026-08-15.md).
+
 The source material is the controlled thesis compute-environment snapshot. It
 contains report text and pseudonymous case identifiers and must not be committed
 to Git or transferred through an unapproved channel.
@@ -108,19 +112,24 @@ The job covers all currently executable planned products:
 2. historical Mistral evaluation, paired second-annotator comparisons, and
    bootstrap intervals;
 3. historical Maria BoW/BERT evaluation and calibration;
-4. fresh five-fold BoW+LR development, Zoe/Maria inference, evaluation, and
-   calibration;
+4. fresh five-fold BoW+LR development, per-label OOF evaluation with fold
+   variability, Zoe/Maria inference, evaluation, and calibration;
 5. fresh 2,000-report Zoe and 500-report Maria Mistral inference, processing,
    evaluation, historical comparison, second-annotator comparison, and governed
    clinical error-review samples; and
-6. fresh five-fold BERT+LR development with resumable embeddings, Zoe/Maria
-   inference, evaluation, and calibration.
+6. fresh five-fold BERT+LR development with resumable embeddings, per-label OOF
+   evaluation, Zoe/Maria inference, evaluation, and calibration.
 
 Five-fold out-of-fold estimates are emitted only when both core classes contain
 at least five development examples. If support is smaller, the receipt reports
 the limitation and no out-of-fold value is invented; a final model is still fit
 on all valid development reports for the separately identified external-cohort
 analysis.
+
+Use `eeg-review baseline-oof-evaluate` to summarize each completed label's own
+OOF assignments with report- or patient-cluster bootstrap intervals and every
+fold metric. A label marked `external_fit_only` remains unavailable in the OOF
+receipt; missing probabilities are never thresholded into a class.
 
 The exact producing Zoe baseline row exports remain absent from the handover.
 The submitted aggregate matrices and the available historical Zoe exports are
@@ -138,7 +147,10 @@ uv run python scripts/study_job.py manifest \
 
 Copy the entire run directory through an approved governed channel, preserving
 relative paths. Verify every file against `transfer-manifest.json` before
-resuming. Clone the exact repository revision recorded in `job.json`. Model
+resuming. The manifest distinguishes the immutable job-start revision from the
+revision that generated the manifest. Clone the exact repository revision
+recorded in `job.json` to reproduce the original stage graph, or use the later
+revision only as an explicitly recorded toolchain update. Model
 weights are not included in the run directory; the pinned receipt identifies
 the exact public artifact and its SHA-256.
 

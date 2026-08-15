@@ -683,6 +683,8 @@ def run_pipeline(
     Iterate over reports, call LLM, and append results. Flush to disk regularly.
     """
     start = time.time()
+    execution_started_at_utc = datetime.now(UTC).isoformat()
+    execution_git = git_receipt()
     logging.info(f"Starting pipeline on {len(df)} reports; existing {len(results_df)} completed.")
 
     for idx, row in df.iterrows():
@@ -767,6 +769,7 @@ def run_pipeline(
     config_data = {
         "schema_version": 2,
         "created_at_utc": datetime.now(UTC).isoformat(),
+        "execution_started_at_utc": execution_started_at_utc,
         "dataset": {
             "id": cfg.dataset_id,
             "filename": dataset_path.name,
@@ -822,7 +825,8 @@ def run_pipeline(
                 "llama-cpp-python": package_version("llama-cpp-python"),
                 "pandas": package_version("pandas"),
             },
-            "git": git_receipt(),
+            "git": execution_git,
+            "receipt_write_git": git_receipt(),
             "slurm_job_id_present": bool(os.getenv("SLURM_JOB_ID")),
             "cuda_visible_devices_set": "CUDA_VISIBLE_DEVICES" in os.environ,
         },
