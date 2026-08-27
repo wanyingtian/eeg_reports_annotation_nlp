@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "status": "template-unreceipted",
+  "model": {
+    "upstream_repo_id": null,
+    "upstream_revision": null,
+    "gguf_filename": null,
+    "gguf_sha256": null,
+    "size_bytes": null,
+    "quantization": null,
+    "license": null
+  },
+  "runtime": {
+    "llama_cpp_revision": null,
+    "llama_cpp_python_version": null,
+    "chat_template": null,
+    "n_ctx": null,
+    "n_gpu_layers": null,
+    "temperature": null,
+    "top_k": null,
+    "top_p": null,
+    "seed": null,
+    "max_tokens": null,
+    "hardware": null,
+    "operating_system": null
+  },
+  "prompt": {
+    "id": null,
+    "sha256": null,
+    "grammar_sha256": null,
+    "development_population": null,
+    "reference_outcomes_inspected_during_selection": null,
+    "frozen_before_final_evaluation": null,
+    "stopping_rule": null
+  },
+  "cohorts": [],
+  "outputs": {
+    "prediction_surface_sha256_by_cohort": {},
+    "invalid_count_by_cohort": {},
+    "unfinished_count_by_cohort": {},
+    "aggregate_receipt_sha256_by_cohort": {}
+  },
+  "privacy_boundary": "No report text, patient key, model weight, or case-level output is committed."
+}

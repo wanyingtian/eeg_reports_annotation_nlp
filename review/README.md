@@ -47,6 +47,12 @@ baseline OOF variability, explanation quality, publication implications, and
 the remaining patient/clinical/ethics gates without report text or case
 identifiers. The earlier active checkpoint is retained as operational history.
 
+Any post-submission model proposed as a stronger comparator must use
+[`CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md`](CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md)
+and the empty receipt under `model-receipts/`. A rendered aggregate report is
+not a substitute for its model, prompt, grammar, cohort, prediction, and
+selection-history receipts.
+
 On FIR/Alliance, load a supported compiler/CUDA module before installing the
 `llm` group. Record the exact modules and driver in the run receipt; do not
 silently substitute a different model file or quantization.
