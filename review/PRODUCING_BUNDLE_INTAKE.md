@@ -33,7 +33,8 @@ parsed into typed Python records by `eeg_review.intake`.
 The contract fixes:
 
 - upstream repository, revision, model artifact checksum, byte size,
-  quantization, and license;
+  quantization, license label, authoritative terms URL, and a non-legal
+  provenance notice;
 - inference engine version/revision, hardware, sampling parameters, and the
   exact chat-template mode and artifact when one was applied;
 - prompt, grammar, and prompt-selection-history artifacts and checksums;
@@ -42,6 +43,73 @@ The contract fixes:
   prediction-expected arithmetic; and
 - the keyed prediction surface, canonical label mapping, invalid count, and
   unfinished count for every cohort.
+
+## Multi-parent provenance DAG
+
+Version 3 embeds a typed ancestry graph in the existing intake contract. It
+does not create another canonical repository and it does not redistribute a
+model artifact. The graph uses hierarchical technical identifiers rooted at:
+
+```text
+jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g
+```
+
+Run and integration descendants use identifiers such as:
+
+```text
+.../integration/jbhi-revision-toolchain@<commit>
+.../evaluation/<cohort-manifest-hash>
+.../run/<receipt-id>
+.../result/<aggregate-receipt-id>
+```
+
+The integrated configuration has four independently receipted scientific
+parent types:
+
+1. `upstream_weights_quantization`: Google's MedGemma release and the exact
+   Unsloth GGUF artifact, revision, quantization, byte size, and SHA-256;
+2. `producing_configuration`: the external v5g source bundle, prompt, grammar,
+   wrapper, selection history, predictions, and manifests received through
+   governed intake;
+3. `inherited_evaluation_framework`: Wanying Tian's repository revision, the
+   submitted Mistral study, and its historical cohort and metric semantics;
+4. `integration`: Steven Bergner's independent reproduction and the exact
+   comparator-intake branch revision used to admit the bundle.
+
+No ambiguous `owner` field is accepted. Assertions instead use the bounded
+roles `originator`, `contributor`, `custodian`, `maintainer`, `received_from`,
+and `scientific_governance`. Each assertion records its scope, confirmation
+state, revision, and optional evidence-artifact hash. Pending or unconfirmed
+states remain explicit; a frozen contract cannot silently omit a parent
+revision or every role assertion for a root parent. Frozen node and role
+revisions must be immutable 40- or 64-hex digests. The v5g template records
+Vasily Vakorin as the pending originator and transfer source until the exact
+producing bundle confirms that assertion.
+
+The admission state is monotonic and machine-checked:
+
+```text
+external_pending_intake
+  -> external_receipted
+  -> validated_pending_author_admission
+  -> author_group_admitted
+  -> integrated
+```
+
+Before exact receipt, validation, and author-group admission, v5g remains an
+external producing bundle. After admission it becomes an integrated
+configuration node of the shared harness. Integration records ancestry; the
+contract explicitly states that it does not transfer ownership.
+
+Distribution states are recorded separately: ancestry receipts may be
+`receipt_only`, non-sensitive source/configuration may be
+`source_config_publishable`, keyed outputs are `outputs_governed`, and model
+weights are `weights_not_redistributed`. Completed contracts, report and
+patient keys, manifests, and keyed predictions remain in authorized storage.
+
+The existing license field is preserved. MedGemma receipts also reference the
+official [Google HAI-DEF Terms of Use](https://developers.google.com/health-ai-developer-foundations/terms).
+This is provenance metadata only; the contract makes no legal conclusion.
 
 `invalid_records` and `unfinished_records` are disjoint. Their sum must equal
 the number of keyed rows that do not contain all five valid four-level labels;
@@ -95,7 +163,8 @@ uv run eeg-review comparison-readiness \
 ```
 
 This command computes no accuracy, agreement, confidence interval, or model
-ranking. It reports whether each pair has:
+ranking. It carries each layer's provenance graph/root and admission state
+into the aggregate readiness receipt, then reports whether each pair has:
 
 - a valid producing bundle in both layers;
 - the same cohort and report-key namespace;
@@ -113,6 +182,8 @@ or report-level bootstrap from becoming the primary analysis.
 ## Current decision gates
 
 - exact MedGemma producing model artifact and quantization;
+- exact Google upstream and Unsloth distribution revisions, artifact hash,
+  ancestry roles, and admission receipt;
 - runtime/build receipt and exact chat template;
 - exact prompt, grammar, and wrapper behavior;
 - prompt-development history and the status of each attempted variant;

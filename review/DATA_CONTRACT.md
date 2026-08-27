@@ -26,6 +26,13 @@ duplicate key counts without exporting the keys themselves. A file-level
 contract is not analysis-ready unless the manifest and prediction report-key
 sets are exactly identical.
 
+The same contract records the comparator's multi-parent ancestry. A frozen
+contract must name every root parent revision and carry explicit bounded role
+assertions. The public branch may contain the schema and unreceipted template;
+completed ancestry receipts, internal filenames, governed manifests, keyed
+predictions, and patient mappings remain with the authorized bundle. Recording
+an integration parent does not transfer ownership.
+
 ## Output classes
 
 - Aggregate JSON/CSV may leave the governed environment only after the local

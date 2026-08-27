@@ -53,10 +53,14 @@ def build_comparison_readiness(
         validation = validations.get(expected)
         intake = intakes.get(expected)
         identity_matches = bool(intake and intake.evidence_layer == expected)
+        provenance = validation.get("provenance_validation", {}) if validation else {}
         layers[expected.value] = {
             "provided": validation is not None,
             "contract_sha256": validation.get("contract_sha256") if validation else None,
             "contract_evidence_layer_matches": identity_matches,
+            "provenance_graph_id": provenance.get("graph_id"),
+            "provenance_root_node_id": provenance.get("root_node_id"),
+            "provenance_admission_status": provenance.get("admission_status"),
             "ready_for_analysis": bool(
                 validation and validation.get("ready_for_analysis", False) and identity_matches
             ),

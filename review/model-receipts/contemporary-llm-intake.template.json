@@ -1,7 +1,270 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "status": "template_unreceipted",
   "evidence_layer": "post_submission_medgemma",
+  "provenance": {
+    "graph_id": "jbhi-02463/comparator/medgemma-27b-text-it",
+    "root_node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g",
+    "admission": {
+      "status": "external_pending_intake",
+      "producing_bundle_received": false,
+      "validated": false,
+      "author_group_admitted": false,
+      "integrated": false,
+      "transition_receipt": {
+        "path": null,
+        "sha256": null
+      }
+    },
+    "nodes": [
+      {
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/weights/google-medgemma-27b-text-it@pending",
+        "node_type": "upstream_weights_quantization",
+        "status": "external_pending_intake",
+        "repository_id": "google/medgemma-27b-text-it",
+        "revision": null,
+        "artifact": {
+          "path": null,
+          "sha256": null
+        },
+        "parents": [],
+        "distribution_status": "weights_not_redistributed"
+      },
+      {
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/weights/unsloth-gguf@334fbf6811c963d223f6ac107a459347353f068d",
+        "node_type": "upstream_weights_quantization",
+        "status": "external_receipted",
+        "repository_id": "unsloth/medgemma-27b-text-it-GGUF",
+        "revision": "334fbf6811c963d223f6ac107a459347353f068d",
+        "artifact": {
+          "path": null,
+          "sha256": null
+        },
+        "parents": [
+          "jbhi-02463/comparator/medgemma-27b-text-it/weights/google-medgemma-27b-text-it@pending"
+        ],
+        "distribution_status": "weights_not_redistributed"
+      },
+      {
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/producing-bundle/pending",
+        "node_type": "producing_configuration",
+        "status": "external_pending_intake",
+        "repository_id": null,
+        "revision": null,
+        "artifact": {
+          "path": null,
+          "sha256": null
+        },
+        "parents": [
+          "jbhi-02463/comparator/medgemma-27b-text-it/weights/unsloth-gguf@334fbf6811c963d223f6ac107a459347353f068d"
+        ],
+        "distribution_status": "receipt_only"
+      },
+      {
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/evaluation/pending-cohort-manifest-hash",
+        "node_type": "inherited_evaluation_framework",
+        "status": "source_of_record",
+        "repository_id": "github.com/wanyingtian/eeg_reports_annotation_nlp",
+        "revision": "eeeaad0b956fb89982a29abbd30a6676c2443441",
+        "artifact": {
+          "path": null,
+          "sha256": null
+        },
+        "parents": [],
+        "distribution_status": "source_config_publishable"
+      },
+      {
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/integration/jbhi-revision-toolchain@b4bf41c6dab76fdb1038e916681df5beb35cc7ba",
+        "node_type": "integration",
+        "status": "integrated",
+        "repository_id": "github.com/wanyingtian/eeg_reports_annotation_nlp",
+        "revision": "b4bf41c6dab76fdb1038e916681df5beb35cc7ba",
+        "artifact": {
+          "path": null,
+          "sha256": null
+        },
+        "parents": [
+          "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/evaluation/pending-cohort-manifest-hash"
+        ],
+        "distribution_status": "source_config_publishable"
+      },
+      {
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g",
+        "node_type": "integrated_configuration",
+        "status": "external_pending_intake",
+        "repository_id": "github.com/wanyingtian/eeg_reports_annotation_nlp",
+        "revision": null,
+        "artifact": {
+          "path": null,
+          "sha256": null
+        },
+        "parents": [
+          "jbhi-02463/comparator/medgemma-27b-text-it/weights/unsloth-gguf@334fbf6811c963d223f6ac107a459347353f068d",
+          "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/producing-bundle/pending",
+          "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/evaluation/pending-cohort-manifest-hash",
+          "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/integration/jbhi-revision-toolchain@b4bf41c6dab76fdb1038e916681df5beb35cc7ba"
+        ],
+        "distribution_status": "receipt_only"
+      },
+      {
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/run/pending-receipt-id",
+        "node_type": "run",
+        "status": "external_pending_intake",
+        "repository_id": null,
+        "revision": null,
+        "artifact": {
+          "path": null,
+          "sha256": null
+        },
+        "parents": [
+          "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g"
+        ],
+        "distribution_status": "outputs_governed"
+      },
+      {
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/result/pending-aggregate-receipt-id",
+        "node_type": "result",
+        "status": "external_pending_intake",
+        "repository_id": null,
+        "revision": null,
+        "artifact": {
+          "path": null,
+          "sha256": null
+        },
+        "parents": [
+          "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/run/pending-receipt-id"
+        ],
+        "distribution_status": "outputs_governed"
+      }
+    ],
+    "role_assertions": [
+      {
+        "assertion_id": "google-upstream-originator",
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/weights/google-medgemma-27b-text-it@pending",
+        "role": "originator",
+        "party": "Google",
+        "status": "confirmed",
+        "scope": "upstream MedGemma weights and model release",
+        "revision": null,
+        "evidence_artifact": {
+          "path": null,
+          "sha256": null
+        }
+      },
+      {
+        "assertion_id": "unsloth-gguf-maintainer",
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/weights/unsloth-gguf@334fbf6811c963d223f6ac107a459347353f068d",
+        "role": "maintainer",
+        "party": "Unsloth",
+        "status": "confirmed",
+        "scope": "GGUF conversion and distribution artifact",
+        "revision": "334fbf6811c963d223f6ac107a459347353f068d",
+        "evidence_artifact": {
+          "path": null,
+          "sha256": null
+        }
+      },
+      {
+        "assertion_id": "v5g-originator",
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/producing-bundle/pending",
+        "role": "originator",
+        "party": "Vasily Vakorin",
+        "status": "pending",
+        "scope": "v5g producing configuration, subject to exact bundle receipt",
+        "revision": null,
+        "evidence_artifact": {
+          "path": null,
+          "sha256": null
+        }
+      },
+      {
+        "assertion_id": "v5g-received-from",
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/producing-bundle/pending",
+        "role": "received_from",
+        "party": "Vasily Vakorin",
+        "status": "pending",
+        "scope": "external producing bundle transfer into governed intake",
+        "revision": null,
+        "evidence_artifact": {
+          "path": null,
+          "sha256": null
+        }
+      },
+      {
+        "assertion_id": "evaluation-framework-originator",
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/evaluation/pending-cohort-manifest-hash",
+        "role": "originator",
+        "party": "Wanying Tian",
+        "status": "confirmed",
+        "scope": "original repository implementation and submitted evaluation framework",
+        "revision": "eeeaad0b956fb89982a29abbd30a6676c2443441",
+        "evidence_artifact": {
+          "path": null,
+          "sha256": null
+        }
+      },
+      {
+        "assertion_id": "integration-contributor",
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/integration/jbhi-revision-toolchain@b4bf41c6dab76fdb1038e916681df5beb35cc7ba",
+        "role": "contributor",
+        "party": "Steven Bergner",
+        "status": "confirmed",
+        "scope": "independent reproduction and comparator-intake integration",
+        "revision": "b4bf41c6dab76fdb1038e916681df5beb35cc7ba",
+        "evidence_artifact": {
+          "path": null,
+          "sha256": null
+        }
+      },
+      {
+        "assertion_id": "integration-maintainer",
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/integration/jbhi-revision-toolchain@b4bf41c6dab76fdb1038e916681df5beb35cc7ba",
+        "role": "maintainer",
+        "party": "Steven Bergner",
+        "status": "confirmed",
+        "scope": "shared revision branch intake and validation tooling",
+        "revision": "b4bf41c6dab76fdb1038e916681df5beb35cc7ba",
+        "evidence_artifact": {
+          "path": null,
+          "sha256": null
+        }
+      },
+      {
+        "assertion_id": "scientific-governance-pending",
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g",
+        "role": "scientific_governance",
+        "party": "Vasily Vakorin",
+        "status": "pending",
+        "scope": "author-group admission and scientific governance of the comparator",
+        "revision": null,
+        "evidence_artifact": {
+          "path": null,
+          "sha256": null
+        }
+      },
+      {
+        "assertion_id": "governed-output-custodian",
+        "node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/result/pending-aggregate-receipt-id",
+        "role": "custodian",
+        "party": null,
+        "status": "unconfirmed",
+        "scope": "governed keyed predictions and case-level outputs",
+        "revision": null,
+        "evidence_artifact": {
+          "path": null,
+          "sha256": null
+        }
+      }
+    ],
+    "distribution_status": {
+      "ancestry_receipt": "receipt_only",
+      "source_configuration": "receipt_only",
+      "outputs": "outputs_governed",
+      "weights": "weights_not_redistributed"
+    },
+    "integration_transfers_ownership": false,
+    "scientific_governance_note": "Before validated author-group admission, v5g remains an external producing bundle. Integration records lineage and does not transfer ownership."
+  },
   "model_identity": {
     "upstream_repo_id": null,
     "upstream_revision": null,
@@ -11,7 +274,9 @@
     },
     "size_bytes": null,
     "quantization": null,
-    "license": null
+    "license": "HAI-DEF Terms of Use (reference only)",
+    "license_terms_url": "https://developers.google.com/health-ai-developer-foundations/terms",
+    "license_notice": "Licensing metadata is recorded for traceability only; this receipt makes no legal conclusion."
   },
   "runtime": {
     "engine": null,

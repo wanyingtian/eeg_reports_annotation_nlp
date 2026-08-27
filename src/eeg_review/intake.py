@@ -39,6 +39,60 @@ class ArtifactIdentity:
 
 
 @dataclass(frozen=True)
+class ProvenanceNode:
+    node_id: str | None
+    node_type: str | None
+    status: str | None
+    repository_id: str | None
+    revision: str | None
+    artifact: ArtifactIdentity
+    parents: tuple[str, ...]
+    distribution_status: str | None
+
+
+@dataclass(frozen=True)
+class RoleAssertion:
+    assertion_id: str | None
+    node_id: str | None
+    role: str | None
+    party: str | None
+    status: str | None
+    scope: str | None
+    revision: str | None
+    evidence_artifact: ArtifactIdentity
+
+
+@dataclass(frozen=True)
+class AdmissionState:
+    status: str | None
+    producing_bundle_received: bool | None
+    validated: bool | None
+    author_group_admitted: bool | None
+    integrated: bool | None
+    transition_receipt: ArtifactIdentity
+
+
+@dataclass(frozen=True)
+class DistributionStatus:
+    ancestry_receipt: str | None
+    source_configuration: str | None
+    outputs: str | None
+    weights: str | None
+
+
+@dataclass(frozen=True)
+class ProvenanceGraph:
+    graph_id: str | None
+    root_node_id: str | None
+    admission: AdmissionState
+    nodes: tuple[ProvenanceNode, ...]
+    role_assertions: tuple[RoleAssertion, ...]
+    distribution_status: DistributionStatus
+    integration_transfers_ownership: bool | None
+    scientific_governance_note: str | None
+
+
+@dataclass(frozen=True)
 class ModelIdentity:
     upstream_repo_id: str | None
     upstream_revision: str | None
@@ -46,6 +100,8 @@ class ModelIdentity:
     size_bytes: int | None
     quantization: str | None
     license: str | None
+    license_terms_url: str | None
+    license_notice: str | None
 
 
 @dataclass(frozen=True)
@@ -140,6 +196,7 @@ class ComparatorIntake:
     schema_version: int
     status: str | None
     evidence_layer: EvidenceLayer | None
+    provenance: ProvenanceGraph
     model_identity: ModelIdentity
     runtime: RuntimeIdentity
     prompt: PromptIdentity
@@ -167,6 +224,9 @@ def _tabular(value: Any, *, default_table: str) -> TabularArtifact:
 
 
 def parse_intake(payload: dict[str, Any]) -> ComparatorIntake:
+    provenance = _mapping(payload.get("provenance"))
+    admission = _mapping(provenance.get("admission"))
+    distribution = _mapping(provenance.get("distribution_status"))
     model = _mapping(payload.get("model_identity"))
     runtime = _mapping(payload.get("runtime"))
     template = _mapping(runtime.get("chat_template"))
@@ -178,6 +238,48 @@ def parse_intake(payload: dict[str, Any]) -> ComparatorIntake:
         layer = EvidenceLayer(layer_value) if layer_value is not None else None
     except (TypeError, ValueError):
         layer = None
+
+    nodes: list[ProvenanceNode] = []
+    raw_nodes = provenance.get("nodes")
+    if isinstance(raw_nodes, list):
+        for raw_node in raw_nodes:
+            node = _mapping(raw_node)
+            raw_parents = node.get("parents")
+            parents = (
+                tuple(parent for parent in raw_parents if isinstance(parent, str))
+                if isinstance(raw_parents, list)
+                else ()
+            )
+            nodes.append(
+                ProvenanceNode(
+                    node_id=node.get("node_id"),
+                    node_type=node.get("node_type"),
+                    status=node.get("status"),
+                    repository_id=node.get("repository_id"),
+                    revision=node.get("revision"),
+                    artifact=_artifact(node.get("artifact")),
+                    parents=parents,
+                    distribution_status=node.get("distribution_status"),
+                )
+            )
+
+    role_assertions: list[RoleAssertion] = []
+    raw_assertions = provenance.get("role_assertions")
+    if isinstance(raw_assertions, list):
+        for raw_assertion in raw_assertions:
+            assertion = _mapping(raw_assertion)
+            role_assertions.append(
+                RoleAssertion(
+                    assertion_id=assertion.get("assertion_id"),
+                    node_id=assertion.get("node_id"),
+                    role=assertion.get("role"),
+                    party=assertion.get("party"),
+                    status=assertion.get("status"),
+                    scope=assertion.get("scope"),
+                    revision=assertion.get("revision"),
+                    evidence_artifact=_artifact(assertion.get("evidence_artifact")),
+                )
+            )
 
     cohorts: list[CohortContract] = []
     raw_cohorts = payload.get("cohorts")
@@ -222,6 +324,28 @@ def parse_intake(payload: dict[str, Any]) -> ComparatorIntake:
         schema_version=payload.get("schema_version", 0),
         status=payload.get("status"),
         evidence_layer=layer,
+        provenance=ProvenanceGraph(
+            graph_id=provenance.get("graph_id"),
+            root_node_id=provenance.get("root_node_id"),
+            admission=AdmissionState(
+                status=admission.get("status"),
+                producing_bundle_received=admission.get("producing_bundle_received"),
+                validated=admission.get("validated"),
+                author_group_admitted=admission.get("author_group_admitted"),
+                integrated=admission.get("integrated"),
+                transition_receipt=_artifact(admission.get("transition_receipt")),
+            ),
+            nodes=tuple(nodes),
+            role_assertions=tuple(role_assertions),
+            distribution_status=DistributionStatus(
+                ancestry_receipt=distribution.get("ancestry_receipt"),
+                source_configuration=distribution.get("source_configuration"),
+                outputs=distribution.get("outputs"),
+                weights=distribution.get("weights"),
+            ),
+            integration_transfers_ownership=provenance.get("integration_transfers_ownership"),
+            scientific_governance_note=provenance.get("scientific_governance_note"),
+        ),
         model_identity=ModelIdentity(
             upstream_repo_id=model.get("upstream_repo_id"),
             upstream_revision=model.get("upstream_revision"),
@@ -229,6 +353,8 @@ def parse_intake(payload: dict[str, Any]) -> ComparatorIntake:
             size_bytes=model.get("size_bytes"),
             quantization=model.get("quantization"),
             license=model.get("license"),
+            license_terms_url=model.get("license_terms_url"),
+            license_notice=model.get("license_notice"),
         ),
         runtime=RuntimeIdentity(
             engine=runtime.get("engine"),
@@ -370,6 +496,15 @@ def _is_sha256(value: Any) -> bool:
         isinstance(value, str)
         and len(value) == 64
         and all(character in "0123456789abcdefABCDEF" for character in value)
+    )
+
+
+def _is_immutable_revision(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    candidate = value.removeprefix("sha256:")
+    return len(candidate) in {40, 64} and all(
+        character in "0123456789abcdefABCDEF" for character in candidate
     )
 
 
@@ -735,6 +870,19 @@ def _inspect_identity_artifacts(
         artifacts["runtime.chat_template.artifact"] = intake.runtime.chat_template.artifact
     if intake.grammar.mode != "none":
         artifacts["grammar.artifact"] = intake.grammar.artifact
+    provenance = intake.provenance
+    if provenance.admission.transition_receipt.path:
+        artifacts["provenance.admission.transition_receipt"] = (
+            provenance.admission.transition_receipt
+        )
+    for index, node in enumerate(provenance.nodes):
+        if node.artifact.path:
+            artifacts[f"provenance.nodes[{index}].artifact"] = node.artifact
+    for index, assertion in enumerate(provenance.role_assertions):
+        if assertion.evidence_artifact.path:
+            artifacts[f"provenance.role_assertions[{index}].evidence_artifact"] = (
+                assertion.evidence_artifact
+            )
 
     receipt: dict[str, Any] = {}
     for field, artifact in artifacts.items():
@@ -774,6 +922,455 @@ def _inspect_identity_artifacts(
     return receipt
 
 
+_PROVENANCE_NODE_TYPES = {
+    "upstream_weights_quantization",
+    "producing_configuration",
+    "inherited_evaluation_framework",
+    "integration",
+    "integrated_configuration",
+    "run",
+    "result",
+}
+_PROVENANCE_NODE_STATUSES = {
+    "external_pending_intake",
+    "external_receipted",
+    "validated_pending_author_admission",
+    "author_group_admitted",
+    "integrated",
+    "source_of_record",
+}
+_PROVENANCE_ROLES = {
+    "originator",
+    "contributor",
+    "custodian",
+    "maintainer",
+    "received_from",
+    "scientific_governance",
+}
+_ROLE_STATUSES = {"confirmed", "pending", "unconfirmed"}
+_DISTRIBUTION_STATUSES = {
+    "receipt_only",
+    "source_config_publishable",
+    "outputs_governed",
+    "weights_not_redistributed",
+}
+_ADMISSION_STATES = {
+    "external_pending_intake": (False, False, False, False),
+    "external_receipted": (True, False, False, False),
+    "validated_pending_author_admission": (True, True, False, False),
+    "author_group_admitted": (True, True, True, False),
+    "integrated": (True, True, True, True),
+}
+_REQUIRED_ROOT_PARENT_TYPES = {
+    "upstream_weights_quantization",
+    "producing_configuration",
+    "inherited_evaluation_framework",
+    "integration",
+}
+
+
+def _find_forbidden_owner_fields(value: Any, prefix: str = "") -> list[str]:
+    found: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            field = f"{prefix}.{key}" if prefix else str(key)
+            if key == "owner":
+                found.append(field)
+            found.extend(_find_forbidden_owner_fields(child, field))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            found.extend(_find_forbidden_owner_fields(child, f"{prefix}[{index}]"))
+    return found
+
+
+def _validate_provenance(issues: list[ValidationIssue], intake: ComparatorIntake) -> dict[str, Any]:
+    graph = intake.provenance
+    frozen = intake.status in {"frozen", "source_of_record"}
+    _required_text(issues, "provenance.graph_id", graph.graph_id)
+    _required_text(issues, "provenance.root_node_id", graph.root_node_id)
+    if isinstance(graph.graph_id, str) and not graph.graph_id.startswith("jbhi-02463/comparator/"):
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "provenance.graph_id",
+                "must use the hierarchical jbhi-02463/comparator/... namespace",
+            )
+        )
+
+    distribution = graph.distribution_status
+    for field, value in (
+        ("ancestry_receipt", distribution.ancestry_receipt),
+        ("source_configuration", distribution.source_configuration),
+        ("outputs", distribution.outputs),
+        ("weights", distribution.weights),
+    ):
+        if value not in _DISTRIBUTION_STATUSES:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"provenance.distribution_status.{field}",
+                    "must name an explicit bounded distribution state",
+                )
+            )
+    expected_distribution = {
+        "ancestry_receipt": "receipt_only",
+        "outputs": "outputs_governed",
+        "weights": "weights_not_redistributed",
+    }
+    for field, expected in expected_distribution.items():
+        if getattr(distribution, field) != expected:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"provenance.distribution_status.{field}",
+                    f"must be '{expected}'",
+                )
+            )
+    if distribution.source_configuration not in {"receipt_only", "source_config_publishable"}:
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "provenance.distribution_status.source_configuration",
+                "must be receipt_only or source_config_publishable",
+            )
+        )
+
+    _required_bool(
+        issues,
+        "provenance.integration_transfers_ownership",
+        graph.integration_transfers_ownership,
+    )
+    if graph.integration_transfers_ownership is not False:
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "provenance.integration_transfers_ownership",
+                "integration records scientific lineage and does not transfer ownership",
+            )
+        )
+    _required_text(
+        issues, "provenance.scientific_governance_note", graph.scientific_governance_note
+    )
+
+    admission = graph.admission
+    if admission.status not in _ADMISSION_STATES:
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "provenance.admission.status",
+                "must name an explicit producing-bundle admission state",
+            )
+        )
+    for field, value in (
+        ("producing_bundle_received", admission.producing_bundle_received),
+        ("validated", admission.validated),
+        ("author_group_admitted", admission.author_group_admitted),
+        ("integrated", admission.integrated),
+    ):
+        _required_bool(issues, f"provenance.admission.{field}", value)
+    observed_state = (
+        admission.producing_bundle_received,
+        admission.validated,
+        admission.author_group_admitted,
+        admission.integrated,
+    )
+    if (
+        admission.status in _ADMISSION_STATES
+        and observed_state != _ADMISSION_STATES[admission.status]
+    ):
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "provenance.admission",
+                "admission booleans must match the declared monotonic status transition",
+            )
+        )
+    if frozen:
+        if admission.status != "integrated":
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    "provenance.admission.status",
+                    "a frozen analysis contract requires validated, author-admitted integration",
+                )
+            )
+        _validate_artifact_identity(
+            issues,
+            "provenance.admission.transition_receipt",
+            admission.transition_receipt,
+        )
+
+    if not graph.nodes:
+        issues.append(
+            ValidationIssue(IssueSeverity.BLOCKER, "provenance.nodes", "at least one is required")
+        )
+    node_ids = [node.node_id for node in graph.nodes if node.node_id]
+    if len(node_ids) != len(set(node_ids)):
+        issues.append(
+            ValidationIssue(IssueSeverity.BLOCKER, "provenance.nodes", "node IDs must be unique")
+        )
+    nodes_by_id = {node.node_id: node for node in graph.nodes if node.node_id}
+    root = nodes_by_id.get(graph.root_node_id)
+    if graph.root_node_id and root is None:
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "provenance.root_node_id",
+                "must identify a declared provenance node",
+            )
+        )
+    if root is not None and root.node_type != "integrated_configuration":
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "provenance.root_node_id",
+                "must identify the integrated_configuration node",
+            )
+        )
+
+    for index, node in enumerate(graph.nodes):
+        prefix = f"provenance.nodes[{index}]"
+        _required_text(issues, f"{prefix}.node_id", node.node_id)
+        if (
+            isinstance(graph.graph_id, str)
+            and isinstance(node.node_id, str)
+            and not node.node_id.startswith(f"{graph.graph_id}/")
+        ):
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"{prefix}.node_id",
+                    "must be a descendant of provenance.graph_id",
+                )
+            )
+        if node.node_type not in _PROVENANCE_NODE_TYPES:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"{prefix}.node_type",
+                    "must be a bounded provenance node type",
+                )
+            )
+        if node.status not in _PROVENANCE_NODE_STATUSES:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"{prefix}.status",
+                    "must be an explicit provenance state",
+                )
+            )
+        if node.distribution_status not in _DISTRIBUTION_STATUSES:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"{prefix}.distribution_status",
+                    "must be an explicit distribution state",
+                )
+            )
+        if frozen:
+            _required_text(issues, f"{prefix}.revision", node.revision)
+            if node.revision is not None and not _is_immutable_revision(node.revision):
+                issues.append(
+                    ValidationIssue(
+                        IssueSeverity.BLOCKER,
+                        f"{prefix}.revision",
+                        "must be an immutable 40- or 64-hex revision digest",
+                    )
+                )
+        if node.node_type in {"upstream_weights_quantization", "producing_configuration"}:
+            _validate_artifact_identity(
+                issues, f"{prefix}.artifact", node.artifact, required=frozen
+            )
+        elif node.artifact.sha256 is not None:
+            _validate_artifact_identity(issues, f"{prefix}.artifact", node.artifact)
+        for parent in node.parents:
+            if parent == node.node_id:
+                issues.append(
+                    ValidationIssue(
+                        IssueSeverity.BLOCKER,
+                        f"{prefix}.parents",
+                        "a node cannot be its own parent",
+                    )
+                )
+            elif parent not in nodes_by_id:
+                issues.append(
+                    ValidationIssue(
+                        IssueSeverity.BLOCKER,
+                        f"{prefix}.parents",
+                        "every parent must identify a declared node",
+                    )
+                )
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(node_id: str) -> None:
+        if node_id in visiting:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    "provenance.nodes",
+                    "parent relationships must form an acyclic graph",
+                )
+            )
+            return
+        if node_id in visited:
+            return
+        visiting.add(node_id)
+        node = nodes_by_id[node_id]
+        for parent in node.parents:
+            if parent in nodes_by_id:
+                visit(parent)
+        visiting.remove(node_id)
+        visited.add(node_id)
+
+    for node_id in nodes_by_id:
+        visit(node_id)
+
+    assertions_by_node: dict[str, list[RoleAssertion]] = {}
+    assertion_ids: list[str] = []
+    for index, assertion in enumerate(graph.role_assertions):
+        prefix = f"provenance.role_assertions[{index}]"
+        _required_text(issues, f"{prefix}.assertion_id", assertion.assertion_id)
+        if assertion.assertion_id:
+            assertion_ids.append(assertion.assertion_id)
+        _required_text(issues, f"{prefix}.node_id", assertion.node_id)
+        if assertion.node_id not in nodes_by_id:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"{prefix}.node_id",
+                    "must identify a declared provenance node",
+                )
+            )
+        if assertion.role not in _PROVENANCE_ROLES:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"{prefix}.role",
+                    "must be a bounded provenance role; ambiguous ownership is not used",
+                )
+            )
+        if assertion.status not in _ROLE_STATUSES:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"{prefix}.status",
+                    "must be confirmed, pending, or unconfirmed",
+                )
+            )
+        if frozen:
+            _required_text(issues, f"{prefix}.party", assertion.party)
+            _required_text(issues, f"{prefix}.scope", assertion.scope)
+            _required_text(issues, f"{prefix}.revision", assertion.revision)
+            if assertion.revision is not None and not _is_immutable_revision(assertion.revision):
+                issues.append(
+                    ValidationIssue(
+                        IssueSeverity.BLOCKER,
+                        f"{prefix}.revision",
+                        "must be an immutable 40- or 64-hex revision digest",
+                    )
+                )
+        if assertion.evidence_artifact.sha256 is not None:
+            _validate_artifact_identity(
+                issues, f"{prefix}.evidence_artifact", assertion.evidence_artifact
+            )
+        if assertion.node_id:
+            assertions_by_node.setdefault(assertion.node_id, []).append(assertion)
+    if len(assertion_ids) != len(set(assertion_ids)):
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "provenance.role_assertions",
+                "assertion IDs must be unique",
+            )
+        )
+
+    if frozen and root is not None:
+        parent_types: set[str] = set()
+        for parent_id in root.parents:
+            parent = nodes_by_id.get(parent_id)
+            if parent is None:
+                continue
+            if parent.node_type:
+                parent_types.add(parent.node_type)
+            _required_text(
+                issues,
+                f"provenance.parent_revision[{parent_id}]",
+                parent.revision,
+            )
+            if not assertions_by_node.get(parent_id):
+                issues.append(
+                    ValidationIssue(
+                        IssueSeverity.BLOCKER,
+                        f"provenance.role_assertions[{parent_id}]",
+                        "every frozen root parent requires at least one explicit role assertion",
+                    )
+                )
+        missing_parent_types = _REQUIRED_ROOT_PARENT_TYPES - parent_types
+        if missing_parent_types:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    "provenance.root_node_id",
+                    "root is missing required scientific parents: "
+                    + ", ".join(sorted(missing_parent_types)),
+                )
+            )
+        root_roles = {
+            assertion.role for assertion in assertions_by_node.get(root.node_id or "", [])
+        }
+        if "scientific_governance" not in root_roles:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    "provenance.role_assertions",
+                    "the frozen integrated configuration requires scientific_governance",
+                )
+            )
+        producing_parents = [
+            nodes_by_id[parent_id]
+            for parent_id in root.parents
+            if parent_id in nodes_by_id
+            and nodes_by_id[parent_id].node_type == "producing_configuration"
+        ]
+        for parent in producing_parents:
+            roles = {
+                assertion.role for assertion in assertions_by_node.get(parent.node_id or "", [])
+            }
+            for required_role in ("originator", "received_from"):
+                if required_role not in roles:
+                    issues.append(
+                        ValidationIssue(
+                            IssueSeverity.BLOCKER,
+                            f"provenance.role_assertions[{parent.node_id}]",
+                            "producing configuration requires an explicit "
+                            f"{required_role} assertion",
+                        )
+                    )
+
+    return {
+        "graph_id": graph.graph_id,
+        "root_node_id": graph.root_node_id,
+        "admission_status": admission.status,
+        "node_count": len(graph.nodes),
+        "role_assertion_count": len(graph.role_assertions),
+        "root_parent_types": (
+            sorted(
+                {
+                    nodes_by_id[parent].node_type
+                    for parent in root.parents
+                    if parent in nodes_by_id and nodes_by_id[parent].node_type
+                }
+            )
+            if root is not None
+            else []
+        ),
+        "distribution_status": asdict(distribution),
+        "integration_transfers_ownership": graph.integration_transfers_ownership,
+    }
+
+
 def validate_intake(
     contract_path: Path,
     *,
@@ -781,11 +1378,23 @@ def validate_intake(
     check_files: bool = False,
 ) -> dict[str, Any]:
     contract_path = contract_path.expanduser().resolve(strict=True)
-    intake = load_intake(contract_path)
+    with contract_path.open(encoding="utf-8") as stream:
+        payload = json.load(stream)
+    if not isinstance(payload, dict):
+        raise ValueError("Intake contract must be a JSON object")
+    intake = parse_intake(payload)
     issues: list[ValidationIssue] = []
-    if intake.schema_version != 2:
+    for field in _find_forbidden_owner_fields(payload):
         issues.append(
-            ValidationIssue(IssueSeverity.BLOCKER, "schema_version", "schema version 2 is required")
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                field,
+                "ambiguous owner fields are prohibited; use bounded provenance roles",
+            )
+        )
+    if intake.schema_version != 3:
+        issues.append(
+            ValidationIssue(IssueSeverity.BLOCKER, "schema_version", "schema version 3 is required")
         )
     if intake.evidence_layer is None:
         issues.append(
@@ -818,10 +1427,27 @@ def validate_intake(
         ("model_identity.upstream_revision", model.upstream_revision),
         ("model_identity.quantization", model.quantization),
         ("model_identity.license", model.license),
+        ("model_identity.license_terms_url", model.license_terms_url),
+        ("model_identity.license_notice", model.license_notice),
     ):
         _required_text(issues, field, value)
     _required_number(issues, "model_identity.size_bytes", model.size_bytes, integer=True)
     _validate_artifact_identity(issues, "model_identity.artifact", model.artifact)
+    if (
+        isinstance(model.license_terms_url, str)
+        and intake.evidence_layer == EvidenceLayer.POST_SUBMISSION_MEDGEMMA
+        and model.license_terms_url
+        != "https://developers.google.com/health-ai-developer-foundations/terms"
+    ):
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "model_identity.license_terms_url",
+                "MedGemma contracts must reference the official HAI-DEF terms URL",
+            )
+        )
+
+    provenance_receipt = _validate_provenance(issues, intake)
 
     runtime = intake.runtime
     for field, value in (
@@ -1027,6 +1653,7 @@ def validate_intake(
         "status": intake.status,
         "ready_for_analysis": not blockers and check_files,
         "files_checked": check_files,
+        "provenance_validation": provenance_receipt,
         "population_arithmetic": population_receipts,
         "artifact_validation": artifact_receipt,
         "key_validation": key_receipts,

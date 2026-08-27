@@ -26,10 +26,14 @@ Before a comparator can support a manuscript claim, preserve:
 6. one unique pseudonymous report key and five four-level outputs per model,
    plus every invalid, missing, and unfinished result; and
 7. LD/SG roles, stable patient-key semantics when available, and the approved
-   boundary for exporting aggregate receipts.
+   boundary for exporting aggregate receipts; and
+8. the multi-parent provenance DAG: Google/Unsloth weights, the external
+   producing configuration, the inherited submitted-study framework, and the
+   exact integration revision, with bounded role assertions and distribution
+   states.
 
 Use `review/model-receipts/contemporary-llm-intake.template.json` as the
-transfer checklist. Its version-2 structure has a JSON Schema and a typed
+transfer checklist. Its version-3 structure has a JSON Schema and a typed
 aggregate-only validator; see
 `review/PRODUCING_BUNDLE_INTAKE.md`. Null fields mean the comparator remains
 unreceipted.

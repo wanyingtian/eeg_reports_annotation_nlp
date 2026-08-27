@@ -26,7 +26,11 @@ aggregate-only gates in
 [review/PRODUCING_BUNDLE_INTAKE.md](review/PRODUCING_BUNDLE_INTAKE.md). They
 keep submitted Mistral, reproduced Mistral, and post-submission MedGemma as
 three distinct evidence layers and prevent silent key-set reduction before a
-paired analysis.
+paired analysis. The same contract carries a multi-parent provenance DAG for
+upstream weights, the external producing configuration, the inherited
+evaluation framework, and the exact integration revision. It records bounded
+scientific roles and distribution states without an ownership field or model-
+weight redistribution.
 
 ## Project Structure
 

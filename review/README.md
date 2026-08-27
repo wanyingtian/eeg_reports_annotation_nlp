@@ -54,7 +54,10 @@ and the typed gates in
 contains only the schema, validator, and unreceipted template under
 `model-receipts/`; completed contracts and keyed artifacts stay governed. A
 rendered aggregate report is not a substitute for model, prompt, grammar,
-cohort, prediction, and selection-history receipts.
+cohort, prediction, selection-history, and ancestry receipts. Version 3 keeps
+the Google/Unsloth artifact, external producing configuration, historical
+evaluation framework, and integration branch as distinct DAG parents. It uses
+bounded contribution and governance roles rather than an ownership field.
 
 On FIR/Alliance, load a supported compiler/CUDA module before installing the
 `llm` group. Record the exact modules and driver in the run receipt; do not
