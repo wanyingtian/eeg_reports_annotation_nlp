@@ -57,6 +57,7 @@ try:
     from eeg_review.logprob_adapter import (
         JSON_KEY_TO_LABEL,
         PROBABILITY_COLUMNS,
+        extract_binary_core_positive_probabilities,
         extract_core_positive_probabilities,
     )
 except ModuleNotFoundError:
@@ -67,6 +68,7 @@ except ModuleNotFoundError:
     from eeg_review.logprob_adapter import (
         JSON_KEY_TO_LABEL,
         PROBABILITY_COLUMNS,
+        extract_binary_core_positive_probabilities,
         extract_core_positive_probabilities,
     )
 
@@ -88,6 +90,8 @@ DEFAULT_MAX_TOKENS = 3000
 DEFAULT_STOP: Optional[Iterable[str]] = None
 CLASSIFICATION_LOGPROBS = 64
 MAX_WORKER_RESTARTS = 3
+HISTORICAL_FOUR_LEVEL_MODE = "historical_four_level"
+BINARY_CORE_ADAPTER_MODE = "binary_core_certainty_adapter"
 
 # Prompts (kept as provided)
 PROMPT_CLASSIFY = r"""
@@ -144,6 +148,25 @@ Please provide the answers ONLY in the following JSON format:
 }
 Do not include any additional explanations or comments in the output.
 """
+
+PROMPT_CLASSIFY_BINARY_CORE = (
+    PROMPT_CLASSIFY.replace(
+        "(options: 1 = Confident no, 2 = Low confidence no, 3 = Low confidence yes, "
+        "4 = Confident yes)",
+        "(binary options: 1 = No / core absent, 4 = Yes / core present)",
+    )
+    .replace(
+        "Err on the side of confident decisions. Use 1 or 4 whenever possible. Only use 2 or 3 "
+        "if there is strong, unavoidable ambiguity.\nChoose 2 or 3 sparingly, only when "
+        "absolutely necessary.",
+        "Make only the binary core decision at this stage. Certainty is assigned later by the "
+        "preregistered token-probability mapping. Use only 1 or 4.",
+    )
+    .replace("marked as normal (1 or 2)", "marked as core absent (1)")
+    .replace("must also be marked as normal (1 or 2)", "must also be marked as core absent (1)")
+    .replace("marked as abnormal (3 or 4)", "marked as core present (4)")
+    .replace("must also be marked as abnormal (3 or 4)", "must also be marked as core present (4)")
+)
 
 PROMPT_EXPLAIN = r"""
 Read the following EEG Report and the corresponding classification output carefully. Your task is to generate a machine-readable JSON output that provides explanations for each classification by identifying and extracting verbatim phrases from the EEG report that contributed to each decision.
@@ -215,6 +238,7 @@ class RunConfig:
     stop: Optional[Iterable[str]] = DEFAULT_STOP
     comment: str = "LLM pipeline run"
     capture_classification_logprobs: bool = False
+    classification_mode: str = HISTORICAL_FOUR_LEVEL_MODE
 
 
 @dataclass(frozen=True)
@@ -619,7 +643,10 @@ def llm_json_with_receipt(
 # ------------------------------ Core Pipeline ------------------------------ #
 
 def process_completed_csv(
-    path: Optional[Path], *, capture_classification_logprobs: bool = False
+    path: Optional[Path],
+    *,
+    capture_classification_logprobs: bool = False,
+    classification_mode: str = HISTORICAL_FOUR_LEVEL_MODE,
 ) -> Tuple[pd.DataFrame, set[str]]:
     """
     Load existing results to resume. Returns (df, set_of_hashed_ids).
@@ -641,6 +668,8 @@ def process_completed_csv(
     ]
     if capture_classification_logprobs:
         cols.extend(PROBABILITY_COLUMNS)
+    if classification_mode == BINARY_CORE_ADAPTER_MODE:
+        cols.append("adaptation_classification_mode")
     base = pd.DataFrame(columns=cols)
     if not path:
         logging.info("No completed CSV supplied; starting fresh.")
@@ -655,9 +684,17 @@ def process_completed_csv(
         for c in cols:
             if c not in df.columns:
                 df[c] = pd.NA
+        if classification_mode == BINARY_CORE_ADAPTER_MODE:
+            modes = set(df["adaptation_classification_mode"].dropna().astype(str))
+            if modes != {BINARY_CORE_ADAPTER_MODE}:
+                raise ValueError(
+                    "Binary-core adaptation can resume only a CSV carrying the same mode marker"
+                )
         completed = set(df["Hashed_ReportURN"].dropna().astype(str))
         logging.info(f"Loaded {len(completed)} completed reports from {path}")
         return df[cols].copy(), completed
+    except ValueError:
+        raise
     except Exception as e:
         logging.error(f"Failed to read completed CSV: {e}")
         return base, set()
@@ -714,6 +751,17 @@ def run_pipeline(
     start = time.time()
     execution_started_at_utc = datetime.now(UTC).isoformat()
     execution_git = git_receipt()
+    if cfg.classification_mode not in {HISTORICAL_FOUR_LEVEL_MODE, BINARY_CORE_ADAPTER_MODE}:
+        raise ValueError(f"Unsupported classification mode: {cfg.classification_mode}")
+    if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE and not (
+        cfg.capture_classification_logprobs
+    ):
+        raise ValueError("Binary-core adaptation requires classification log-probability capture")
+    classification_prompt = (
+        PROMPT_CLASSIFY_BINARY_CORE
+        if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE
+        else PROMPT_CLASSIFY
+    )
     logging.info(f"Starting pipeline on {len(df)} reports; existing {len(results_df)} completed.")
 
     for idx, row in df.iterrows():
@@ -721,7 +769,7 @@ def run_pipeline(
         report = str(row["Report"])
 
         # 1) Classification
-        classify_prompt = PROMPT_CLASSIFY + "\n\n" + report
+        classify_prompt = classification_prompt + "\n\n" + report
         classification_call = llm_json_with_receipt(
             model=model,
             prompt=classify_prompt,
@@ -734,14 +782,18 @@ def run_pipeline(
             logprobs=CLASSIFICATION_LOGPROBS if cfg.capture_classification_logprobs else None,
         )
         classifications = classification_call.text
-        classification_probabilities = (
-            extract_core_positive_probabilities(
+        if cfg.capture_classification_logprobs:
+            extractor = (
+                extract_binary_core_positive_probabilities
+                if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE
+                else extract_core_positive_probabilities
+            )
+            classification_probabilities = extractor(
                 classifications,
                 classification_call.logprobs,
             )
-            if cfg.capture_classification_logprobs
-            else {}
-        )
+        else:
+            classification_probabilities = {}
 
         # 2) Explanations (feed classification JSON verbatim)
         explain_input = (
@@ -787,6 +839,11 @@ def run_pipeline(
                                 f"Prob_{label}": probability
                                 for label, probability in classification_probabilities.items()
                             },
+                            **(
+                                {"adaptation_classification_mode": cfg.classification_mode}
+                                if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE
+                                else {}
+                            ),
                         }
                     ]
                 ),
@@ -803,7 +860,11 @@ def run_pipeline(
     atomic_write_csv(results_df, out_results)
     elapsed = time.time() - start
     
-    grammar_classify_path = BASE_DIR / "result_grammar.gbnf"
+    grammar_classify_path = BASE_DIR / (
+        "result_grammar_binary_core.gbnf"
+        if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE
+        else "result_grammar.gbnf"
+    )
     grammar_explain_path = BASE_DIR / "result_grammar_exp.gbnf"
     dataset_path = cfg.dataset_path.expanduser().resolve(strict=True)
 
@@ -827,12 +888,18 @@ def run_pipeline(
         },
         "calibration_instrumentation": {
             "enabled": cfg.capture_classification_logprobs,
+            "classification_mode": cfg.classification_mode,
             "completion_logprobs_requested": (
                 CLASSIFICATION_LOGPROBS if cfg.capture_classification_logprobs else None
             ),
             "feature_definition": (
-                "P(level in {3,4}) normalized over explicit grammar-constrained level-token "
-                "alternatives {1,2,3,4}"
+                (
+                    "P(core present token 4) normalized over explicit binary grammar-token "
+                    "alternatives {1,4}"
+                    if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE
+                    else "P(level in {3,4}) normalized over explicit grammar-constrained "
+                    "level-token alternatives {1,2,3,4}"
+                )
                 if cfg.capture_classification_logprobs
                 else None
             ),
@@ -868,7 +935,10 @@ def run_pipeline(
             + pd.to_numeric(results_df["explain_elapsed_seconds"], errors="coerce").sum()
         ),
         "prompts": {
-            "classify": {"sha256": sha256_text(PROMPT_CLASSIFY), "text": PROMPT_CLASSIFY},
+            "classify": {
+                "sha256": sha256_text(classification_prompt),
+                "text": classification_prompt,
+            },
             "explain": {"sha256": sha256_text(PROMPT_EXPLAIN), "text": PROMPT_EXPLAIN},
         },
         "grammars": {
@@ -937,7 +1007,14 @@ def worker_target(
     flush_every: int,
 ) -> None:
     """Run one supervised inference attempt in a spawn-safe worker process."""
-    grammar_classify = load_gbnf(BASE_DIR / "result_grammar.gbnf")
+    grammar_classify = load_gbnf(
+        BASE_DIR
+        / (
+            "result_grammar_binary_core.gbnf"
+            if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE
+            else "result_grammar.gbnf"
+        )
+    )
     grammar_explain = load_gbnf(BASE_DIR / "result_grammar_exp.gbnf")
 
     model, model_receipt = download_model_with_receipt(
@@ -949,6 +1026,7 @@ def worker_target(
     prior_df, prior_hashes = process_completed_csv(
         resume_csv,
         capture_classification_logprobs=cfg.capture_classification_logprobs,
+        classification_mode=cfg.classification_mode,
     )
     logging.info(f"Initial completed count: {len(prior_hashes)}")
     pending = load_reports_df(dataset_path, num_reports, prior_hashes)
@@ -1121,6 +1199,15 @@ def parse_args() -> argparse.Namespace:
             "development-only calibration run. Disabled for historical reproduction."
         ),
     )
+    p.add_argument(
+        "--classification-mode",
+        choices=[HISTORICAL_FOUR_LEVEL_MODE, BINARY_CORE_ADAPTER_MODE],
+        default=HISTORICAL_FOUR_LEVEL_MODE,
+        help=(
+            "Use the historical direct four-level interface or the preregistered binary-core "
+            "interface for post-hoc certainty mapping. Historical mode is the default."
+        ),
+    )
     p.add_argument("-v", "--verbose", action="count", default=1, help="Increase verbosity (-v, -vv).")
     return p.parse_args()
 
@@ -1141,6 +1228,10 @@ def main() -> None:
 
     logging.info(f"Using dataset: {dataset_path} with identifier: {dataset_id}")
 
+    capture_classification_logprobs = (
+        args.capture_classification_logprobs
+        or args.classification_mode == BINARY_CORE_ADAPTER_MODE
+    )
     cfg = RunConfig(
         outdir=args.outdir,
         dataset_path=dataset_path,
@@ -1151,7 +1242,8 @@ def main() -> None:
         top_p=args.top_p,
         max_tokens=args.max_tokens,
         comment=args.comment,
-        capture_classification_logprobs=args.capture_classification_logprobs,
+        capture_classification_logprobs=capture_classification_logprobs,
+        classification_mode=args.classification_mode,
     )
 
     # Helpful env overrides recorded in config output

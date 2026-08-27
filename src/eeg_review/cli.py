@@ -9,6 +9,7 @@ from .analysis_plan import build_comparison_readiness
 from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
 from .baseline import run_baseline_cv, run_baseline_oof_evaluation, run_baseline_predict
 from .calibration import calibrate_predictions
+from .certainty_adapter import fit_certainty_adapter
 from .compare import compare_predictions
 from .error_review import build_error_review_packet
 from .intake import EvidenceLayer, validate_intake_to_directory
@@ -332,6 +333,34 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Verify declared frozen adapter and signal artifacts by checksum",
     )
+    certainty_adapter = subparsers.add_parser(
+        "certainty-adapter-fit",
+        help=(
+            "Fit the preregistered four-level Mistral certainty mapper on the governed "
+            "100-report Zoe development manifest"
+        ),
+    )
+    certainty_adapter.add_argument("--contract", type=Path, required=True)
+    certainty_adapter.add_argument("--reference", type=Path, required=True)
+    certainty_adapter.add_argument("--predictions", type=Path, required=True)
+    certainty_adapter.add_argument("--prediction-run-receipt", type=Path, required=True)
+    certainty_adapter.add_argument("--development-manifest", type=Path, required=True)
+    certainty_adapter.add_argument("--output-dir", type=Path, required=True)
+    certainty_adapter.add_argument("--reference-table", default="reports")
+    certainty_adapter.add_argument("--prediction-table", default="classifications")
+    certainty_adapter.add_argument("--manifest-table", default="manifest")
+    certainty_adapter.add_argument("--id-column", default="Hashed_ReportURN")
+    certainty_adapter.add_argument(
+        "--probability-column", action="append", type=prediction_mapping
+    )
+    certainty_adapter.add_argument(
+        "--acknowledge-governed-inputs",
+        action="store_true",
+        help=(
+            "Required acknowledgement that the keyed manifest, reference, and prediction "
+            "inputs remain in authorized storage"
+        ),
+    )
     return parser
 
 
@@ -512,6 +541,21 @@ def main() -> None:
             args.output_dir,
             bundle_root=args.bundle_root,
             check_files=args.check_files,
+        )
+    elif args.command == "certainty-adapter-fit":
+        result = fit_certainty_adapter(
+            args.contract,
+            args.reference,
+            args.predictions,
+            args.prediction_run_receipt,
+            args.development_manifest,
+            args.output_dir,
+            reference_table=args.reference_table,
+            prediction_table=args.prediction_table,
+            manifest_table=args.manifest_table,
+            id_column=args.id_column,
+            probability_columns=dict(args.probability_column or []) or None,
+            acknowledge_governed_inputs=args.acknowledge_governed_inputs,
         )
     else:
         intake_paths = dict(args.intake)

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
 from eeg_review.logprob_adapter import (
     JSON_KEY_TO_LABEL,
+    extract_binary_core_positive_probabilities,
     extract_core_positive_probabilities,
 )
 
@@ -68,3 +71,45 @@ def test_malformed_logprob_surface_returns_explicit_unavailable_values() -> None
     result = extract_core_positive_probabilities("{}", {"tokens": []})
 
     assert result == {label: None for label in JSON_KEY_TO_LABEL.values()}
+
+
+def test_extracts_explicit_binary_core_probability_without_four_level_renormalization() -> None:
+    completion = (
+        '{"focal_epileptiform_activity":1,'
+        '"generalized_epileptiform_activity":4,'
+        '"focal_non_epileptiform_activity":1,'
+        '"generalized_non_epileptiform_activity":4,'
+        '"abnormality":4}'
+    )
+    payload = fake_logprobs(completion)
+    for key in JSON_KEY_TO_LABEL:
+        digit_index = completion.index(f'"{key}":') + len(f'"{key}":')
+        payload["top_logprobs"][digit_index] = {
+            "1": math.log(0.25),
+            "4": math.log(0.75),
+        }
+
+    result = extract_binary_core_positive_probabilities(completion, payload)
+
+    assert all(value == pytest.approx(0.75) for value in result.values())
+
+
+def test_binary_surface_requires_both_absent_and_present_alternatives() -> None:
+    completion = (
+        '{"focal_epileptiform_activity":1,'
+        '"generalized_epileptiform_activity":4,'
+        '"focal_non_epileptiform_activity":1,'
+        '"generalized_non_epileptiform_activity":4,'
+        '"abnormality":4}'
+    )
+    payload = fake_logprobs(completion)
+    for key in JSON_KEY_TO_LABEL:
+        digit_index = completion.index(f'"{key}":') + len(f'"{key}":')
+        payload["top_logprobs"][digit_index] = {"1": math.log(0.25), "4": math.log(0.75)}
+    abnormality_index = completion.index('"abnormality":') + len('"abnormality":')
+    del payload["top_logprobs"][abnormality_index]["1"]
+
+    result = extract_binary_core_positive_probabilities(completion, payload)
+
+    assert result["Abnormality"] is None
+    assert result["Focal Epi"] == pytest.approx(0.75)

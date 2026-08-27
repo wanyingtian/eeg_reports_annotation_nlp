@@ -29,7 +29,7 @@ class AdaptationMethod(StrEnum):
     GRAMMAR_CONSTRAINED_DECODING = "grammar_constrained_decoding"
     EVIDENCE_EXTRACTION = "evidence_extraction"
     DETERMINISTIC_CONSISTENCY_CHECKS = "deterministic_consistency_checks"
-    POST_HOC_CALIBRATION = "post_hoc_calibration"
+    POST_HOC_CERTAINTY_MAPPING = "post_hoc_certainty_mapping"
     SOFT_PROMPT_TUNING = "soft_prompt_tuning"
     LORA = "lora"
     TEACHER_STUDENT_DISTILLATION = "teacher_student_distillation"
@@ -77,6 +77,29 @@ class EvaluationBoundary:
 
 
 @dataclass(frozen=True)
+class CertaintyMapping:
+    input_feature: str | None
+    output_interpretation: str | None
+    core_boundary: float | None
+    threshold_shape: str | None
+    candidate_margins: tuple[float, ...]
+    historical_margin: float | None
+    selection_objective: str | None
+    tie_break_rule: str | None
+    minimum_valid_pairs: int | None
+    minimum_pairs_per_core_side: int | None
+    insufficient_support_action: str | None
+    missing_probability_action: str | None
+    crossfit_diagnostic: str | None
+    resampling_method: str | None
+    resampling_iterations: int | None
+    resampling_seed: int | None
+    interval_level: float | None
+    development_manifest: ArtifactIdentity
+    interpretation_boundary: str | None
+
+
+@dataclass(frozen=True)
 class AdaptationPlan:
     schema_version: int
     status: AdaptationPlanStatus | None
@@ -85,10 +108,12 @@ class AdaptationPlan:
     base_evidence_layer: str | None
     scientific_question: str | None
     hypothesis: str | None
+    component_sequence: tuple[str, ...]
     task_adapter: TaskAdapter
     signals: tuple[AdaptationSignal, ...]
     freeze: FreezeState
     evaluation: EvaluationBoundary
+    certainty_mapping: CertaintyMapping
     claim_boundary: str | None
     privacy_boundary: str | None
 
@@ -98,7 +123,7 @@ REQUIRED_METHODS = {
     AdaptationMethod.GRAMMAR_CONSTRAINED_DECODING,
     AdaptationMethod.EVIDENCE_EXTRACTION,
     AdaptationMethod.DETERMINISTIC_CONSISTENCY_CHECKS,
-    AdaptationMethod.POST_HOC_CALIBRATION,
+    AdaptationMethod.POST_HOC_CERTAINTY_MAPPING,
 }
 
 PARAMETRIC_OR_TEACHER_METHODS = {
@@ -125,10 +150,12 @@ TOP_LEVEL_FIELDS = {
     "base_evidence_layer",
     "scientific_question",
     "hypothesis",
+    "component_sequence",
     "task_adapter",
     "signals",
     "freeze",
     "evaluation",
+    "certainty_mapping",
     "claim_boundary",
     "privacy_boundary",
 }
@@ -157,6 +184,27 @@ BLOCK_FIELDS = {
         "primary_contrast",
         "attribution_scope",
         "medgemma_comparison_scope",
+    },
+    "certainty_mapping": {
+        "input_feature",
+        "output_interpretation",
+        "core_boundary",
+        "threshold_shape",
+        "candidate_margins",
+        "historical_margin",
+        "selection_objective",
+        "tie_break_rule",
+        "minimum_valid_pairs",
+        "minimum_pairs_per_core_side",
+        "insufficient_support_action",
+        "missing_probability_action",
+        "crossfit_diagnostic",
+        "resampling_method",
+        "resampling_iterations",
+        "resampling_seed",
+        "interval_level",
+        "development_manifest",
+        "interpretation_boundary",
     },
 }
 
@@ -225,6 +273,10 @@ def _validate_payload_shape(issues: list[ValidationIssue], payload: dict[str, An
     for field, artifact in (
         ("task_adapter.artifact", _mapping(payload.get("task_adapter")).get("artifact")),
         ("freeze.receipt", _mapping(payload.get("freeze")).get("receipt")),
+        (
+            "certainty_mapping.development_manifest",
+            _mapping(payload.get("certainty_mapping")).get("development_manifest"),
+        ),
     ):
         _reject_unknown_fields(issues, field, artifact, ARTIFACT_FIELDS)
 
@@ -233,6 +285,7 @@ def parse_adaptation_plan(payload: dict[str, Any]) -> AdaptationPlan:
     adapter = _mapping(payload.get("task_adapter"))
     freeze = _mapping(payload.get("freeze"))
     evaluation = _mapping(payload.get("evaluation"))
+    certainty = _mapping(payload.get("certainty_mapping"))
 
     methods: list[AdaptationMethod] = []
     raw_methods = adapter.get("methods")
@@ -267,6 +320,18 @@ def parse_adaptation_plan(payload: dict[str, Any]) -> AdaptationPlan:
         if isinstance(raw_evaluation_cohorts, list)
         else ()
     )
+    raw_candidate_margins = certainty.get("candidate_margins")
+    candidate_margins = (
+        tuple(float(value) for value in raw_candidate_margins if isinstance(value, (int, float)))
+        if isinstance(raw_candidate_margins, list)
+        else ()
+    )
+    raw_component_sequence = payload.get("component_sequence")
+    component_sequence = (
+        tuple(value for value in raw_component_sequence if isinstance(value, str))
+        if isinstance(raw_component_sequence, list)
+        else ()
+    )
 
     return AdaptationPlan(
         schema_version=payload.get("schema_version", 0),
@@ -276,6 +341,7 @@ def parse_adaptation_plan(payload: dict[str, Any]) -> AdaptationPlan:
         base_evidence_layer=payload.get("base_evidence_layer"),
         scientific_question=payload.get("scientific_question"),
         hypothesis=payload.get("hypothesis"),
+        component_sequence=component_sequence,
         task_adapter=TaskAdapter(
             adapter_id=adapter.get("adapter_id"),
             route=adapter.get("route"),
@@ -303,6 +369,27 @@ def parse_adaptation_plan(payload: dict[str, Any]) -> AdaptationPlan:
             attribution_scope=evaluation.get("attribution_scope"),
             medgemma_comparison_scope=evaluation.get("medgemma_comparison_scope"),
         ),
+        certainty_mapping=CertaintyMapping(
+            input_feature=certainty.get("input_feature"),
+            output_interpretation=certainty.get("output_interpretation"),
+            core_boundary=certainty.get("core_boundary"),
+            threshold_shape=certainty.get("threshold_shape"),
+            candidate_margins=candidate_margins,
+            historical_margin=certainty.get("historical_margin"),
+            selection_objective=certainty.get("selection_objective"),
+            tie_break_rule=certainty.get("tie_break_rule"),
+            minimum_valid_pairs=certainty.get("minimum_valid_pairs"),
+            minimum_pairs_per_core_side=certainty.get("minimum_pairs_per_core_side"),
+            insufficient_support_action=certainty.get("insufficient_support_action"),
+            missing_probability_action=certainty.get("missing_probability_action"),
+            crossfit_diagnostic=certainty.get("crossfit_diagnostic"),
+            resampling_method=certainty.get("resampling_method"),
+            resampling_iterations=certainty.get("resampling_iterations"),
+            resampling_seed=certainty.get("resampling_seed"),
+            interval_level=certainty.get("interval_level"),
+            development_manifest=_artifact(certainty.get("development_manifest")),
+            interpretation_boundary=certainty.get("interpretation_boundary"),
+        ),
         claim_boundary=payload.get("claim_boundary"),
         privacy_boundary=payload.get("privacy_boundary"),
     )
@@ -316,6 +403,16 @@ def _required_text(issues: list[ValidationIssue], field: str, value: Any) -> Non
 def _required_bool(issues: list[ValidationIssue], field: str, value: Any) -> None:
     if not isinstance(value, bool):
         issues.append(ValidationIssue(IssueSeverity.BLOCKER, field, "boolean value is required"))
+
+
+def _required_int(issues: list[ValidationIssue], field: str, value: Any) -> None:
+    if not isinstance(value, int) or isinstance(value, bool):
+        issues.append(ValidationIssue(IssueSeverity.BLOCKER, field, "integer value is required"))
+
+
+def _required_number(issues: list[ValidationIssue], field: str, value: Any) -> None:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        issues.append(ValidationIssue(IssueSeverity.BLOCKER, field, "numeric value is required"))
 
 
 def _is_sha256(value: Any) -> bool:
@@ -390,9 +487,9 @@ def validate_adaptation_plan(
     issues: list[ValidationIssue] = []
     _validate_payload_shape(issues, payload)
 
-    if plan.schema_version != 1:
+    if plan.schema_version != 2:
         issues.append(
-            ValidationIssue(IssueSeverity.BLOCKER, "schema_version", "schema version 1 is required")
+            ValidationIssue(IssueSeverity.BLOCKER, "schema_version", "schema version 2 is required")
         )
     if plan.status is None:
         issues.append(
@@ -434,21 +531,35 @@ def validate_adaptation_plan(
         ("task_adapter.parameter_update", adapter.parameter_update),
     ):
         _required_text(issues, field, value)
-    if adapter.route != "schema_guided_inference_time_and_post_hoc_calibration":
+    expected_component_sequence = (
+        "reproduced_mistral_historical_four_level",
+        "binary_core_historical_margin",
+        "binary_core_fitted_per_category_margin",
+    )
+    if plan.component_sequence != expected_component_sequence:
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "component_sequence",
+                "must preserve the three-stage historical, binary-core, and fitted-margin "
+                "development ablation",
+            )
+        )
+    if adapter.route != "binary_core_schema_guided_and_post_hoc_certainty_mapping":
         issues.append(
             ValidationIssue(
                 IssueSeverity.BLOCKER,
                 "task_adapter.route",
-                "the preregistered route is the non-parametric task layer plus "
-                "post-hoc calibration",
+                "the preregistered route is the binary-core task interface plus "
+                "post-hoc four-level certainty mapping",
             )
         )
-    if adapter.parameter_update != "calibration_thresholds_only":
+    if adapter.parameter_update != "certainty_threshold_margins_only":
         issues.append(
             ValidationIssue(
                 IssueSeverity.BLOCKER,
                 "task_adapter.parameter_update",
-                "Mistral weights must remain frozen; only calibration thresholds may be learned",
+                "Mistral weights must remain frozen; only certainty margins may be learned",
             )
         )
     _required_bool(
@@ -655,6 +766,87 @@ def validate_adaptation_plan(
     ):
         _required_text(issues, field, value)
 
+    certainty = plan.certainty_mapping
+    required_certainty_text = {
+        "input_feature": "grammar_normalized_binary_core_positive_probability",
+        "output_interpretation": "four_level_certainty_annotation",
+        "threshold_shape": "per_category_symmetric_margin_around_fixed_core_boundary",
+        "selection_objective": "maximize_exact_four_level_agreement",
+        "tie_break_rule": "closest_to_historical_margin_then_smaller_margin",
+        "insufficient_support_action": "retain_historical_margin_and_mark_not_fitted",
+        "missing_probability_action": "exclude_pair_and_report_availability",
+        "crossfit_diagnostic": "leave_one_report_out_selection",
+        "resampling_method": "stratified_by_reference_core_side_report_bootstrap",
+    }
+    for field, expected in required_certainty_text.items():
+        value = getattr(certainty, field)
+        _required_text(issues, f"certainty_mapping.{field}", value)
+        if value is not None and value != expected:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"certainty_mapping.{field}",
+                    f"must be {expected}",
+                )
+            )
+    _required_text(
+        issues,
+        "certainty_mapping.interpretation_boundary",
+        certainty.interpretation_boundary,
+    )
+    _required_number(issues, "certainty_mapping.core_boundary", certainty.core_boundary)
+    if certainty.core_boundary != 0.5:
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "certainty_mapping.core_boundary",
+                "the binary decision boundary must remain fixed at 0.5",
+            )
+        )
+    if certainty.candidate_margins != (0.1, 0.2, 0.3):
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "certainty_mapping.candidate_margins",
+                "must preserve the thesis-derived candidate margins 0.1, 0.2, and 0.3",
+            )
+        )
+    _required_number(
+        issues, "certainty_mapping.historical_margin", certainty.historical_margin
+    )
+    if certainty.historical_margin != 0.1:
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "certainty_mapping.historical_margin",
+                "must preserve the thesis's historical 0.1 margin as fallback and tie anchor",
+            )
+        )
+    for field, value, minimum in (
+        ("minimum_valid_pairs", certainty.minimum_valid_pairs, 1),
+        ("minimum_pairs_per_core_side", certainty.minimum_pairs_per_core_side, 1),
+        ("resampling_iterations", certainty.resampling_iterations, 100),
+    ):
+        _required_int(issues, f"certainty_mapping.{field}", value)
+        if isinstance(value, int) and not isinstance(value, bool) and value < minimum:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.BLOCKER,
+                    f"certainty_mapping.{field}",
+                    f"must be at least {minimum}",
+                )
+            )
+    _required_int(issues, "certainty_mapping.resampling_seed", certainty.resampling_seed)
+    _required_number(issues, "certainty_mapping.interval_level", certainty.interval_level)
+    if certainty.interval_level != 0.95:
+        issues.append(
+            ValidationIssue(
+                IssueSeverity.BLOCKER,
+                "certainty_mapping.interval_level",
+                "the development diagnostic interval level must be fixed at 0.95",
+            )
+        )
+
     artifacts = {
         "task_adapter.artifact": _validate_artifact(
             issues,
@@ -669,6 +861,15 @@ def validate_adaptation_plan(
             issues,
             "freeze.receipt",
             freeze.receipt,
+            required=frozen,
+            contract_path=contract_path,
+            bundle_root=bundle_root,
+            check_files=check_files,
+        ),
+        "certainty_mapping.development_manifest": _validate_artifact(
+            issues,
+            "certainty_mapping.development_manifest",
+            certainty.development_manifest,
             required=frozen,
             contract_path=contract_path,
             bundle_root=bundle_root,
@@ -694,7 +895,7 @@ def validate_adaptation_plan(
     )
     ready_for_evaluation = bool(design_valid and frozen and check_files)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "contract_schema_version": plan.schema_version,
         "contract_sha256": sha256_file(contract_path),
         "plan_id": plan.plan_id,

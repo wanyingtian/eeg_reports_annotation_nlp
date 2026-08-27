@@ -38,7 +38,7 @@
       "status": "preregistered_unfrozen_not_admitted",
       "base_evidence_layer": "reproduced_mistral",
       "plan": "mistral-task-adaptation.preregistered.json",
-      "purpose": "test a schema-guided inference-time task layer and development-only post-hoc calibration without modifying Mistral weights",
+      "purpose": "test a schema-guided binary-core task layer and development-only post-hoc certainty mapping without modifying Mistral weights",
       "evaluation_allowed": false,
       "admission_gate": "frozen adapter and signal receipt plus author-group admission"
     }

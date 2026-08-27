@@ -44,8 +44,10 @@ def test_frozen_plan_requires_and_verifies_adapter_and_freeze_receipt(tmp_path: 
     payload = load_plan()
     adapter = tmp_path / "adapter.json"
     receipt = tmp_path / "freeze-receipt.json"
+    development_manifest = tmp_path / "development-manifest.csv"
     adapter.write_text('{"adapter":"frozen"}', encoding="utf-8")
     receipt.write_text('{"status":"frozen_before_evaluation"}', encoding="utf-8")
+    development_manifest.write_text("Hashed_ReportURN\na\n", encoding="utf-8")
     payload["status"] = "frozen_before_evaluation"
     payload["task_adapter"]["artifact"] = {
         "path": adapter.name,
@@ -57,6 +59,10 @@ def test_frozen_plan_requires_and_verifies_adapter_and_freeze_receipt(tmp_path: 
         "path": receipt.name,
         "sha256": sha256_file(receipt),
     }
+    payload["certainty_mapping"]["development_manifest"] = {
+        "path": development_manifest.name,
+        "sha256": sha256_file(development_manifest),
+    }
     plan = write_plan(tmp_path, payload)
 
     result = validate_adaptation_plan(plan, bundle_root=tmp_path, check_files=True)
@@ -66,6 +72,10 @@ def test_frozen_plan_requires_and_verifies_adapter_and_freeze_receipt(tmp_path: 
     assert result["ready_for_evaluation"] is True
     assert result["artifact_validation"]["task_adapter.artifact"]["matches"] is True
     assert result["artifact_validation"]["freeze.receipt"]["matches"] is True
+    assert (
+        result["artifact_validation"]["certainty_mapping.development_manifest"]["matches"]
+        is True
+    )
 
 
 def test_evaluation_outcome_reuse_blocks_the_confirmatory_route(tmp_path: Path) -> None:
@@ -135,6 +145,35 @@ def test_frozen_status_without_artifacts_or_author_admission_is_blocked(tmp_path
     assert "freeze.frozen_before_evaluation" in fields
     assert "task_adapter.artifact.path" in fields
     assert "freeze.receipt.path" in fields
+    assert "certainty_mapping.development_manifest.path" in fields
+
+
+def test_certainty_mapping_cannot_change_core_boundary_or_candidate_grid(tmp_path: Path) -> None:
+    payload = load_plan()
+    payload["certainty_mapping"]["core_boundary"] = 0.6
+    payload["certainty_mapping"]["candidate_margins"] = [0.01, 0.02]
+    plan = write_plan(tmp_path, payload)
+
+    result = validate_adaptation_plan(plan)
+
+    assert result["design_valid"] is False
+    fields = {issue["field"] for issue in result["issues"]}
+    assert "certainty_mapping.core_boundary" in fields
+    assert "certainty_mapping.candidate_margins" in fields
+
+
+def test_certainty_mapping_rejects_silent_generalization_claim(tmp_path: Path) -> None:
+    payload = load_plan()
+    payload["certainty_mapping"]["resampling_method"] = "external_validation"
+    payload["certainty_mapping"]["secret_result"] = 0.99
+    plan = write_plan(tmp_path, payload)
+
+    result = validate_adaptation_plan(plan)
+
+    assert result["design_valid"] is False
+    fields = {issue["field"] for issue in result["issues"]}
+    assert "certainty_mapping.resampling_method" in fields
+    assert "certainty_mapping.secret_result" in fields
 
 
 def test_unrecognized_result_or_method_fields_cannot_enter_the_plan(tmp_path: Path) -> None:

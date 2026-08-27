@@ -5,11 +5,12 @@ admitting it into the paper or computing a result. Its public-safe plan is
 `model-receipts/mistral-task-adaptation.preregistered.json`; the machine-readable
 shape is `model-receipts/mistral-task-adaptation-plan.schema.json`.
 
-The working name is **schema-guided inference-time task adaptation and post-hoc
-calibration**. This preserves the thesis lineage while avoiding ambiguity with
-learned soft-prompt tuning. The initial route does not update Mistral weights,
-does not use MedGemma as a teacher, and does not select a configuration from
-Zoe or Maria evaluation results.
+The working name is **binary-core schema-guided task adaptation and post-hoc
+certainty mapping**. This preserves the thesis lineage while avoiding two
+ambiguities: a generated four-level label is not itself a calibrated
+probability, and this route is not learned soft-prompt tuning. The route does
+not update Mistral weights, does not use MedGemma as a teacher, and does not
+select a configuration from Zoe or Maria evaluation results.
 
 ## Thesis lineage
 
@@ -21,8 +22,9 @@ The work package operationalizes existing directions in Wanying Tian's thesis:
 - grammar-constrained structured decoding;
 - evidence extraction and internal label consistency;
 - a model-agnostic pipeline that can transport to other LLMs; and
-- the proposed lightweight post-hoc calibration layer using token evidence and
-  per-category thresholds without retraining the model.
+- the proposed lightweight post-hoc mapping from binary token evidence to the
+  four certainty levels using per-category thresholds without retraining the
+  model.
 
 It does not retroactively change the submitted Mistral configuration. If run,
 it becomes `post_submission_mistral_adapted`, derived from but distinct from
@@ -57,23 +59,43 @@ The preregistered route contains:
 - the existing GBNF output constraint;
 - evidence extraction;
 - deterministic cross-label consistency checks; and
-- per-category post-hoc calibration learned only on the development surface.
+- an explicit binary core-decision interface using the same schema definitions
+  and consistency constraints;
+- per-category post-hoc certainty margins learned only on the development
+  surface.
 
-Only calibration thresholds may be fitted. Soft prompts, LoRA, full
+Only certainty threshold margins may be fitted. Soft prompts, LoRA, full
 fine-tuning, and teacher-student distillation require new identifiers, new
 receipts, and an independently defensible development/evaluation boundary.
 
 Every attempted component variant and unfavorable development result must be
 retained. The stopping rule is fixed before implementation: complete the
-prespecified component ablation and calibration procedure on the development
+prespecified component ablation and certainty-mapping procedure on the development
 surface, then freeze. Do not continue after inspecting evaluation outcomes.
+
+The component sequence is fixed before a development run:
+
+1. `reproduced_mistral_historical_four_level`: the exact reproduced historical
+   prompt, four-level grammar, and output semantics;
+2. `binary_core_historical_margin`: the mechanically narrowed binary 1/4
+   interface and the thesis's historical symmetric margin of 0.1; and
+3. `binary_core_fitted_per_category_margin`: the same binary inference surface
+   with one margin selected per category from the fixed grid 0.1, 0.2, 0.3.
+
+This sequence separates the binary language-interface effect from the
+development-fitted margin effect. No open-ended prompt search is part of this
+route. Any clinically substantive change to definitions, examples, or
+uncertainty anchors must become a newly identified prompt artifact and be
+admitted before its outcomes are inspected.
 
 ## Probability instrumentation
 
 The historical Mistral outputs contain generated four-level decisions but no
 token-probability surface. They therefore cannot be retroactively described as
-probabilistically calibrated. The pipeline now has an opt-in instrument for a
-new, separately governed run:
+probabilistically calibrated. Directly normalizing the four generated level
+tokens also fails to cleanly separate the core decision from its certainty.
+The pipeline therefore has an opt-in binary-core mode for a new, separately
+governed run:
 
 ```bash
 python src/LLM_pipeline/pipeline.py \
@@ -82,26 +104,81 @@ python src/LLM_pipeline/pipeline.py \
   --dataset-path /governed/path/zoe_reference.db \
   --dataset-id zoe-development-calibration \
   --output-csv /governed/path/mistral-development-logprobs.csv \
-  --capture-classification-logprobs
+  --classification-mode binary_core_certainty_adapter
 ```
 
-The historical route remains unchanged because the flag is disabled by
-default. When enabled, the model is loaded with `logits_all=true` and
-llama.cpp is asked for the top 64 completion-token log probabilities; both
-settings are written into the run receipt. At each grammar-constrained decision
-position, the pipeline requires explicit alternatives for all four levels and
-records:
+The historical route remains unchanged because
+`historical_four_level` is the default. Binary mode mechanically retains the
+historical definitions, examples, JSON keys, and cross-label constraints, but
+narrows each decision to `1 = core absent` or `4 = core present`. It uses a
+separate GBNF artifact and writes a mode marker on every resumable prediction
+row. The model is loaded with `logits_all=true` and llama.cpp is asked for the
+top 64 completion-token log probabilities; both settings are written into the
+run receipt. At each grammar-constrained decision position, the pipeline
+requires both explicit binary alternatives and records:
 
 ```text
-P(core positive) = [P(level 3) + P(level 4)] / sum(P(level 1..4))
+P(core positive) = P(token 4) / [P(token 1) + P(token 4)]
 ```
 
-If even one level alternative is absent, that category's probability is
+If either binary alternative is absent, that category's probability is
 recorded as unavailable rather than renormalized over a truncated surface. The
 run receipt records the feature definition and availability count for every
 label. These probabilities are governed case-level outputs, not human
-confidence and not calibrated values. They become calibration inputs only
-through the frozen development-only procedure in this work package.
+confidence and not calibrated values. They become certainty-mapping inputs only
+through the development-only procedure in this work package.
+
+## Fixed certainty mapping and confidence machinery
+
+The binary decision boundary remains 0.5. For a selected symmetric margin
+`m`, the mapping is:
+
+```text
+p < 0.5-m       -> 1, confident no
+0.5-m <= p < .5 -> 2, low-confidence no
+.5 <= p < .5+m  -> 3, low-confidence yes
+p >= .5+m       -> 4, confident yes
+```
+
+For each category, select `m` from 0.1, 0.2, or 0.3 by maximizing exact
+four-level agreement on the fixed first-100 Zoe RA development manifest. Ties
+go to the margin closest to the historical 0.1 choice and then to the smaller
+margin. The binary core decision therefore cannot be improved by moving its
+boundary during this procedure.
+
+At least 80 valid probability/reference pairs and at least five pairs on each
+side of the core boundary are required for category-specific fitting. If that
+support is absent, retain margin 0.1 and mark the category as not fitted. Do
+not pool a rare category into a different clinical label or use MedGemma
+outputs to overcome sparse support.
+
+The fitter retains every candidate margin and unfavorable development score.
+It reports a leave-one-report-out selection diagnostic, a 2,000-replicate
+bootstrap distribution of threshold-selection stability stratified by RA core
+side, and descriptive 95% Wilson intervals. These quantities describe the
+small development surface; none is an independent generalization interval or
+patient-cluster estimate.
+
+The fitter requires the exact 100-key governed manifest, the binary prediction
+CSV, and its producing run receipt. Checksums, the binary mode marker, model,
+prompt, grammar, and exact prediction-key coverage must all agree:
+
+```bash
+uv run eeg-review certainty-adapter-fit \
+  --contract /governed/path/mistral-task-adaptation.execution.json \
+  --reference /governed/path/zoe-ra.db \
+  --predictions /governed/path/mistral-development-logprobs.csv \
+  --prediction-run-receipt /governed/path/mistral-development-logprobs.run.json \
+  --development-manifest /governed/path/zoe-development-first-100.csv \
+  --output-dir /governed/path/mistral-certainty-adapter \
+  --acknowledge-governed-inputs
+```
+
+The public preregistration deliberately leaves the governed manifest identity
+null. Before fitting, make an execution copy in authorized storage, declare
+the manifest path and SHA-256, and validate that copy. The command emits only
+aggregate development diagnostics, the thresholds, hashes, and receipts; no
+report key or case-level prediction is copied out.
 
 ## Comparison design
 
@@ -155,10 +232,11 @@ status to `frozen_before_evaluation`, and validate both files with
 - a frozen status without author admission and immutable artifacts; and
 - changes to the historical development and evaluation identifiers.
 
-`ready_for_implementation` means the signal boundary and instrumentation are
-specified. It does not mean that a threshold adapter has been fitted or that a
-model result exists. No development or evaluation inference was run while
-adding this instrument.
+`ready_for_implementation` means the signal boundary, binary language
+interface, component sequence, mapping objective, fallback, and stability
+diagnostics are specified. It does not mean that a threshold adapter has been
+fitted or that a model result exists. No development or evaluation inference
+was run while adding this instrument.
 
 The validation receipt contains no performance estimate and does not admit the
 proposed fourth layer into final analysis. Completed manifests, signal

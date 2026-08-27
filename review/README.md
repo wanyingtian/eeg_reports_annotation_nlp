@@ -63,11 +63,16 @@ A potential Mistral extension is governed separately by
 [`MISTRAL_TASK_ADAPTATION_PROTOCOL.md`](MISTRAL_TASK_ADAPTATION_PROTOCOL.md).
 It preregisters a proposed `post_submission_mistral_adapted` layer grounded in
 the thesis's model-agnostic prompt, grammar, evidence, consistency, and
-post-hoc calibration directions. The plan explicitly separates development,
-design-prior, evaluation-only, and MedGemma context-only signals. It is not an
-admitted evidence layer or a result: the machine gate blocks final evaluation
-until the complete adapter is frozen, checksummed, and admitted by the author
-group.
+post-hoc certainty-mapping directions. The implemented opt-in route separates
+binary core classification from the four-level mapping, fixes the 0.5 core
+boundary, and selects only among the thesis-derived symmetric margins 0.1,
+0.2, and 0.3. Its fitter requires the exact governed first-100 Zoe manifest and
+the producing binary prediction receipt, retains every candidate score, and
+reports leave-one-out and bootstrap selection-stability diagnostics without
+emitting keys. The plan explicitly separates development, design-prior,
+evaluation-only, and MedGemma context-only signals. It is not an admitted
+evidence layer or a result: the machine gate blocks final evaluation until the
+complete adapter is frozen, checksummed, and admitted by the author group.
 
 On FIR/Alliance, load a supported compiler/CUDA module before installing the
 `llm` group. Record the exact modules and driver in the run receipt; do not

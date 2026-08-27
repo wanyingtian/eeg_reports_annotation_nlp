@@ -1,22 +1,27 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "preregistered_unfrozen",
-  "plan_id": "jbhi-02463/mistral-task-adaptation/schema-guided-calibration/v1",
+  "plan_id": "jbhi-02463/mistral-task-adaptation/binary-core-certainty-mapping/v2",
   "proposed_evidence_layer_id": "post_submission_mistral_adapted",
   "base_evidence_layer": "reproduced_mistral",
-  "scientific_question": "How much of the post-submission performance difference can be attributed to a portable EEG task-adaptation and calibration layer rather than to changing the base model?",
-  "hypothesis": "A frozen schema-guided inference-time adapter plus development-only post-hoc calibration will improve Mistral certainty alignment and structured consistency while preserving the submitted model weights and untouched evaluation surfaces.",
+  "scientific_question": "How much of the post-submission performance difference can be attributed to a portable EEG binary-core task interface and post-hoc certainty-mapping layer rather than to changing the base model?",
+  "hypothesis": "A frozen binary-core schema-guided interface plus development-only post-hoc certainty mapping will improve Mistral certainty alignment and structured consistency while preserving the submitted model weights and untouched evaluation surfaces.",
+  "component_sequence": [
+    "reproduced_mistral_historical_four_level",
+    "binary_core_historical_margin",
+    "binary_core_fitted_per_category_margin"
+  ],
   "task_adapter": {
-    "adapter_id": "jbhi-02463/adapter/eeg-schema-guided-calibration/v1",
-    "route": "schema_guided_inference_time_and_post_hoc_calibration",
+    "adapter_id": "jbhi-02463/adapter/eeg-binary-core-certainty-mapping/v2",
+    "route": "binary_core_schema_guided_and_post_hoc_certainty_mapping",
     "methods": [
       "iterative_prompt_engineering",
       "grammar_constrained_decoding",
       "evidence_extraction",
       "deterministic_consistency_checks",
-      "post_hoc_calibration"
+      "post_hoc_certainty_mapping"
     ],
-    "parameter_update": "calibration_thresholds_only",
+    "parameter_update": "certainty_threshold_margins_only",
     "teacher_model_outputs_used": false,
     "artifact": {
       "path": null,
@@ -113,7 +118,7 @@
     "author_group_admitted": false,
     "frozen_before_evaluation": false,
     "selection_rule": "Use only the historical first-100 Zoe development manifest, declared domain knowledge, and prespecified consistency criteria; retain every attempted variant and unfavorable development result.",
-    "stopping_rule": "Freeze after the prespecified component ablation and calibration procedure completes on the development surface; do not continue after inspecting Zoe or Maria evaluation outcomes.",
+    "stopping_rule": "Freeze after the prespecified three-stage component ablation and certainty-mapping procedure completes on the development surface; do not continue after inspecting Zoe or Maria evaluation outcomes.",
     "receipt": {
       "path": null,
       "sha256": null
@@ -130,6 +135,34 @@
     "primary_contrast": "reproduced_mistral_vs_post_submission_mistral_adapted",
     "attribution_scope": "The primary same-model contrast may estimate the task-layer effect only when Mistral artifact, quantization, runtime, and report surface are otherwise held fixed.",
     "medgemma_comparison_scope": "Adapted Mistral versus v5g MedGemma is an overall-configuration comparison, not a base-model or adapter effect, until both adapters are transported across both base models in a frozen factorial design."
+  },
+  "certainty_mapping": {
+    "input_feature": "grammar_normalized_binary_core_positive_probability",
+    "output_interpretation": "four_level_certainty_annotation",
+    "core_boundary": 0.5,
+    "threshold_shape": "per_category_symmetric_margin_around_fixed_core_boundary",
+    "candidate_margins": [
+      0.1,
+      0.2,
+      0.3
+    ],
+    "historical_margin": 0.1,
+    "selection_objective": "maximize_exact_four_level_agreement",
+    "tie_break_rule": "closest_to_historical_margin_then_smaller_margin",
+    "minimum_valid_pairs": 80,
+    "minimum_pairs_per_core_side": 5,
+    "insufficient_support_action": "retain_historical_margin_and_mark_not_fitted",
+    "missing_probability_action": "exclude_pair_and_report_availability",
+    "crossfit_diagnostic": "leave_one_report_out_selection",
+    "resampling_method": "stratified_by_reference_core_side_report_bootstrap",
+    "resampling_iterations": 2000,
+    "resampling_seed": 20260827,
+    "interval_level": 0.95,
+    "development_manifest": {
+      "path": null,
+      "sha256": null
+    },
+    "interpretation_boundary": "Threshold selection and resampling outputs are development-set diagnostics, not independent performance estimates, clinical confidence, or evidence of external generalization."
   },
   "claim_boundary": "Matching or exceeding MedGemma is a hypothesis, not a configuration-selection rule. This plan creates no result and does not alter submitted or reproduced Mistral evidence.",
   "privacy_boundary": "The public plan contains no report text, report or patient key, case-level prediction, model weight, or governed manifest."

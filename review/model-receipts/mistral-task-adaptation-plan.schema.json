@@ -12,15 +12,17 @@
     "base_evidence_layer",
     "scientific_question",
     "hypothesis",
+    "component_sequence",
     "task_adapter",
     "signals",
     "freeze",
     "evaluation",
+    "certainty_mapping",
     "claim_boundary",
     "privacy_boundary"
   ],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "status": {
       "enum": ["preregistered_unfrozen", "frozen_before_evaluation", "retired"]
     },
@@ -29,6 +31,13 @@
     "base_evidence_layer": {"const": "reproduced_mistral"},
     "scientific_question": {"type": "string", "minLength": 1},
     "hypothesis": {"type": "string", "minLength": 1},
+    "component_sequence": {
+      "const": [
+        "reproduced_mistral_historical_four_level",
+        "binary_core_historical_margin",
+        "binary_core_fitted_per_category_margin"
+      ]
+    },
     "task_adapter": {
       "type": "object",
       "additionalProperties": false,
@@ -42,7 +51,7 @@
       ],
       "properties": {
         "adapter_id": {"type": "string", "minLength": 1},
-        "route": {"const": "schema_guided_inference_time_and_post_hoc_calibration"},
+        "route": {"const": "binary_core_schema_guided_and_post_hoc_certainty_mapping"},
         "methods": {
           "type": "array",
           "uniqueItems": true,
@@ -52,14 +61,14 @@
               "grammar_constrained_decoding",
               "evidence_extraction",
               "deterministic_consistency_checks",
-              "post_hoc_calibration",
+              "post_hoc_certainty_mapping",
               "soft_prompt_tuning",
               "lora",
               "teacher_student_distillation"
             ]
           }
         },
-        "parameter_update": {"const": "calibration_thresholds_only"},
+        "parameter_update": {"const": "certainty_threshold_margins_only"},
         "teacher_model_outputs_used": {"const": false},
         "artifact": {"$ref": "#/$defs/artifact"}
       }
@@ -113,6 +122,64 @@
         "primary_contrast": {"type": "string", "minLength": 1},
         "attribution_scope": {"type": "string", "minLength": 1},
         "medgemma_comparison_scope": {"type": "string", "minLength": 1}
+      }
+    },
+    "certainty_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_feature",
+        "output_interpretation",
+        "core_boundary",
+        "threshold_shape",
+        "candidate_margins",
+        "historical_margin",
+        "selection_objective",
+        "tie_break_rule",
+        "minimum_valid_pairs",
+        "minimum_pairs_per_core_side",
+        "insufficient_support_action",
+        "missing_probability_action",
+        "crossfit_diagnostic",
+        "resampling_method",
+        "resampling_iterations",
+        "resampling_seed",
+        "interval_level",
+        "development_manifest",
+        "interpretation_boundary"
+      ],
+      "properties": {
+        "input_feature": {
+          "const": "grammar_normalized_binary_core_positive_probability"
+        },
+        "output_interpretation": {"const": "four_level_certainty_annotation"},
+        "core_boundary": {"const": 0.5},
+        "threshold_shape": {
+          "const": "per_category_symmetric_margin_around_fixed_core_boundary"
+        },
+        "candidate_margins": {
+          "const": [0.1, 0.2, 0.3]
+        },
+        "historical_margin": {"const": 0.1},
+        "selection_objective": {"const": "maximize_exact_four_level_agreement"},
+        "tie_break_rule": {
+          "const": "closest_to_historical_margin_then_smaller_margin"
+        },
+        "minimum_valid_pairs": {"type": "integer", "minimum": 1},
+        "minimum_pairs_per_core_side": {"type": "integer", "minimum": 1},
+        "insufficient_support_action": {
+          "const": "retain_historical_margin_and_mark_not_fitted"
+        },
+        "missing_probability_action": {"const": "exclude_pair_and_report_availability"},
+        "crossfit_diagnostic": {"const": "leave_one_report_out_selection"},
+        "resampling_method": {
+          "const": "stratified_by_reference_core_side_report_bootstrap"
+        },
+        "resampling_iterations": {"type": "integer", "minimum": 100},
+        "resampling_seed": {"type": "integer"},
+        "interval_level": {"const": 0.95},
+        "development_manifest": {"$ref": "#/$defs/artifact"},
+        "interpretation_boundary": {"type": "string", "minLength": 1}
       }
     },
     "claim_boundary": {"type": "string", "minLength": 1},
