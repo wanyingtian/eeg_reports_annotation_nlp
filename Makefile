@@ -1,6 +1,6 @@
 UV ?= uv
 
-.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt study-status study-ledger
+.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model study-status study-ledger
 
 sync:
 	$(UV) sync
@@ -9,7 +9,7 @@ sync-all:
 	$(UV) sync --extra reports --extra baselines --extra llm --extra evidence
 
 lint:
-	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/study_job.py
+	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/preload_model.py scripts/study_job.py src/LLM_pipeline/llm_models.py
 
 test:
 	$(UV) run --extra baselines pytest
@@ -25,6 +25,16 @@ verify: lint test audit-sample
 verify-llm-receipt:
 	$(UV) sync --extra llm
 	PYTHONPATH=src/LLM_pipeline $(UV) run python scripts/smoke_inference_receipt.py
+
+preload-model:
+	@test -n "$(MODEL)" || (echo "Set MODEL to a registered model name" && exit 2)
+	@test -n "$(RECEIPT)" || (echo "Set RECEIPT to the output receipt path" && exit 2)
+	$(UV) run --extra llm python scripts/preload_model.py --model "$(MODEL)" --receipt "$(RECEIPT)"
+
+smoke-model:
+	@test -n "$(MODEL)" || (echo "Set MODEL to a registered model name" && exit 2)
+	@test -n "$(RECEIPT)" || (echo "Set RECEIPT to the output receipt path" && exit 2)
+	$(UV) run --extra llm python scripts/smoke_model.py --model "$(MODEL)" --receipt "$(RECEIPT)"
 
 study-status:
 	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed run directory" && exit 2)

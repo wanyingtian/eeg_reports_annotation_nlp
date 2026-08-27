@@ -31,6 +31,34 @@ Before a comparator can support a manuscript claim, preserve:
 Use `review/model-receipts/contemporary-llm-intake.template.json` as the
 transfer checklist. Null fields mean the comparator remains unreceipted.
 
+The branch includes candidate Q2_K and Q4_K_S registry entries pinned to a
+public Unsloth GGUF revision. They are preload candidates, not proof of
+Vasily's producing artifacts. After accepting the upstream Google HAI-DEF
+terms, preload Q2_K without allocating it in llama.cpp:
+
+```bash
+make preload-model \
+  MODEL=medgemma-27b-q2-candidate \
+  RECEIPT=/private/path/medgemma-q2-preload-receipt.json
+```
+
+The Hugging Face cache resumes partial downloads. The command verifies the
+10.5 GB file against the pinned SHA-256 before writing the receipt. Compare
+that hash with Vasily's producing receipt when it arrives.
+
+After preloading, verify that the local llama.cpp build can load the artifact,
+apply its embedded chat template, and obey a trivial GBNF constraint:
+
+```bash
+make smoke-model \
+  MODEL=medgemma-27b-q2-candidate \
+  RECEIPT=/private/path/medgemma-q2-runtime-smoke-receipt.json
+```
+
+This is a runtime preflight, not an EEG-result reproduction. Do not run the
+study cohort until the producing prompt, grammar, wrapper, and keyed manifest
+have been receipted.
+
 ## Development and evaluation lock
 
 A prompt or grammar selected after inspecting reference performance on a
