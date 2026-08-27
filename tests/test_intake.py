@@ -38,7 +38,7 @@ def make_contract(tmp_path: Path, layer: EvidenceLayer) -> Path:
     ):
         path.write_bytes(content)
 
-    manifest = tmp_path / "cohort.csv"
+    manifest = tmp_path / f"{layer.value}-cohort.csv"
     predictions = tmp_path / f"{layer.value}-predictions.csv"
     write_csv(
         manifest,
@@ -223,3 +223,55 @@ def test_three_layer_readiness_is_scaffolding_not_evaluation(tmp_path: Path) -> 
     rendered = json.dumps(result)
     assert "accuracy" not in rendered
     assert "r1" not in rendered
+
+
+def test_readiness_blocks_swapped_layer_identity(tmp_path: Path) -> None:
+    intake_paths = {layer: make_contract(tmp_path, layer) for layer in EvidenceLayer}
+    intake_paths[EvidenceLayer.SUBMITTED_MISTRAL] = intake_paths[
+        EvidenceLayer.POST_SUBMISSION_MEDGEMMA
+    ]
+
+    result = build_comparison_readiness(
+        intake_paths,
+        tmp_path / "readiness",
+        bundle_root=tmp_path,
+    )
+
+    submitted = result["evidence_layers"]["submitted_mistral"]
+    assert submitted["contract_evidence_layer_matches"] is False
+    assert submitted["ready_for_analysis"] is False
+    assert result["preregistered_comparisons"][0]["ready"] is False
+
+
+def test_patient_mapping_mismatch_blocks_grouped_not_same_case_plan(tmp_path: Path) -> None:
+    intake_paths = {layer: make_contract(tmp_path, layer) for layer in EvidenceLayer}
+    reproduced = intake_paths[EvidenceLayer.REPRODUCED_MISTRAL]
+    payload = json.loads(reproduced.read_text(encoding="utf-8"))
+    manifest = tmp_path / "reproduced_mistral-cohort.csv"
+    write_csv(
+        manifest,
+        ["report_key", "patient_key"],
+        [["r1", "p1"], ["r2", "p2"], ["r3", "p2"]],
+    )
+    payload["cohorts"][0]["manifest"]["artifact"] = artifact(manifest)
+    reproduced.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = build_comparison_readiness(
+        intake_paths,
+        tmp_path / "readiness",
+        bundle_root=tmp_path,
+    )
+    comparison = next(
+        item
+        for item in result["preregistered_comparisons"]
+        if item["comparison_id"] == "submitted_vs_reproduced_mistral"
+    )
+    cohort = comparison["cohorts"][0]
+    assert cohort["same_case_ready"] is True
+    assert cohort["patient_grouped_ready"] is False
+    mapping_gate = next(
+        gate
+        for gate in cohort["patient_grouped_gates"]
+        if gate["gate"] == "report_to_patient_mapping_matches"
+    )
+    assert mapping_gate["passed"] is False
