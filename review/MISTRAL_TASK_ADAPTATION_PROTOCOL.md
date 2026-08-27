@@ -164,6 +164,35 @@ CSV, and its producing run receipt. Checksums, the binary mode marker, model,
 prompt, grammar, and exact prediction-key coverage must all agree:
 
 ```bash
+uv run eeg-review development-manifest-create \
+  --reference /governed/path/zoe_development_100.db \
+  --output-dir /governed/path/mistral-adaptation \
+  --acknowledge-governed-output
+
+uv run eeg-review adaptation-development-prepare \
+  --contract review/model-receipts/mistral-task-adaptation.preregistered.json \
+  --reference /governed/path/zoe_development_100.db \
+  --development-manifest \
+    /governed/path/mistral-adaptation/zoe-development-first-100-ra.manifest.csv \
+  --development-manifest-receipt \
+    /governed/path/mistral-adaptation/zoe-development-first-100-ra.manifest.receipt.json \
+  --output-plan \
+    /governed/path/mistral-adaptation/mistral-task-adaptation.execution.json \
+  --acknowledge-governed-output
+```
+
+The first command accepts only an exact 100-row, unique-key, complete-five-label
+reference snapshot and writes its keyed CSV with owner-only permissions. The
+second independently rechecks the reference, manifest order, receipt, and
+checksums before binding both artifacts into an unfrozen execution plan. It
+cannot mark the plan ready for evaluation. Outputs are immutable: use a newly
+identified governed directory for a genuinely different preparation rather
+than overwriting a receipt.
+
+After author confirmation and a receipted binary-core development run, fit the
+adapter:
+
+```bash
 uv run eeg-review certainty-adapter-fit \
   --contract /governed/path/mistral-task-adaptation.execution.json \
   --reference /governed/path/zoe-ra.db \
@@ -175,10 +204,9 @@ uv run eeg-review certainty-adapter-fit \
 ```
 
 The public preregistration deliberately leaves the governed manifest identity
-null. Before fitting, make an execution copy in authorized storage, declare
-the manifest path and SHA-256, and validate that copy. The command emits only
-aggregate development diagnostics, the thresholds, hashes, and receipts; no
-report key or case-level prediction is copied out.
+null. The preparation command supplies that identity only in authorized
+storage. The fitter emits only aggregate development diagnostics, thresholds,
+hashes, and receipts; no report key or case-level prediction is copied out.
 
 ## Comparison design
 

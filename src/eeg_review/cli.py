@@ -11,6 +11,10 @@ from .baseline import run_baseline_cv, run_baseline_oof_evaluation, run_baseline
 from .calibration import calibrate_predictions
 from .certainty_adapter import fit_certainty_adapter
 from .compare import compare_predictions
+from .development_manifest import (
+    create_development_manifest,
+    prepare_adaptation_execution_plan,
+)
 from .error_review import build_error_review_packet
 from .intake import EvidenceLayer, validate_intake_to_directory
 from .ledger import build_result_ledger
@@ -361,6 +365,46 @@ def build_parser() -> argparse.ArgumentParser:
             "inputs remain in authorized storage"
         ),
     )
+
+    development_manifest = subparsers.add_parser(
+        "development-manifest-create",
+        help=(
+            "Freeze the exact 100-report Zoe RA development key sequence in governed storage"
+        ),
+    )
+    development_manifest.add_argument("--reference", type=Path, required=True)
+    development_manifest.add_argument("--output-dir", type=Path, required=True)
+    development_manifest.add_argument("--table", default="reports")
+    development_manifest.add_argument("--id-column", default="Hashed_ReportURN")
+    development_manifest.add_argument(
+        "--acknowledge-governed-output",
+        action="store_true",
+        help="Required acknowledgement that the keyed manifest stays in authorized storage",
+    )
+
+    development_prepare = subparsers.add_parser(
+        "adaptation-development-prepare",
+        help=(
+            "Bind the immutable development reference and manifest to a governed execution plan"
+        ),
+    )
+    development_prepare.add_argument("--contract", type=Path, required=True)
+    development_prepare.add_argument("--reference", type=Path, required=True)
+    development_prepare.add_argument("--development-manifest", type=Path, required=True)
+    development_prepare.add_argument(
+        "--development-manifest-receipt", type=Path, required=True
+    )
+    development_prepare.add_argument("--output-plan", type=Path, required=True)
+    development_prepare.add_argument("--reference-table", default="reports")
+    development_prepare.add_argument("--id-column", default="Hashed_ReportURN")
+    development_prepare.add_argument(
+        "--acknowledge-governed-output",
+        action="store_true",
+        help=(
+            "Required acknowledgement that the bound execution plan and receipts remain "
+            "in authorized storage"
+        ),
+    )
     return parser
 
 
@@ -556,6 +600,25 @@ def main() -> None:
             id_column=args.id_column,
             probability_columns=dict(args.probability_column or []) or None,
             acknowledge_governed_inputs=args.acknowledge_governed_inputs,
+        )
+    elif args.command == "development-manifest-create":
+        result = create_development_manifest(
+            args.reference,
+            args.output_dir,
+            table=args.table,
+            id_column=args.id_column,
+            acknowledge_governed_output=args.acknowledge_governed_output,
+        )
+    elif args.command == "adaptation-development-prepare":
+        result = prepare_adaptation_execution_plan(
+            args.contract,
+            args.reference,
+            args.development_manifest,
+            args.development_manifest_receipt,
+            args.output_plan,
+            reference_table=args.reference_table,
+            id_column=args.id_column,
+            acknowledge_governed_output=args.acknowledge_governed_output,
         )
     else:
         intake_paths = dict(args.intake)

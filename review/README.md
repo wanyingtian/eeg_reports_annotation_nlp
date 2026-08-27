@@ -375,6 +375,22 @@ inspect `crash_report.txt` before manually resuming. Do not select a new model
 or prompt version through the interactive resume menu unless the run is being
 recorded as a distinct experimental condition.
 
+### Development-only Mistral adaptation gate
+
+The post-submission binary-core Mistral work package is intentionally separate
+from the historical rerun. Before any 100-report development inference, use
+`eeg-review development-manifest-create` to create the immutable governed Zoe
+RA key sequence, then `eeg-review adaptation-development-prepare` to bind the
+reference and manifest identities to an unfrozen execution plan. Both commands
+fail on missing or duplicate keys, wrong population arithmetic, incomplete
+labels, receipt mismatch, or attempted overwrite. See
+[`MISTRAL_TASK_ADAPTATION_PROTOCOL.md`](MISTRAL_TASK_ADAPTATION_PROTOCOL.md) and
+[`MISTRAL_TASK_ADAPTATION_IMPLEMENTATION_CHECKPOINT_2026-08-27.md`](MISTRAL_TASK_ADAPTATION_IMPLEMENTATION_CHECKPOINT_2026-08-27.md).
+
+This preparation does not authorize a development run and cannot make the
+adapter ready for protected Zoe or Maria evaluation. The keyed manifest,
+bound execution plan, predictions, and fit receipts remain governed.
+
 ## Non-negotiable run rules
 
 1. Work from immutable input snapshots and retain their checksums.

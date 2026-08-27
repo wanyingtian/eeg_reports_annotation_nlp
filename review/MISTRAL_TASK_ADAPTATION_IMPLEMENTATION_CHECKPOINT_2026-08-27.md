@@ -48,11 +48,36 @@ or continue searching after evaluation outcomes are seen. A category requires
 No report text, report key, patient key, or case-level prediction is emitted by
 the fitter. Patient independence is not inferred from report-level resampling.
 
+## Development identity and preflight
+
+The development identity is no longer an unresolved filename convention. The
+original delivered Zoe RA database (SHA-256
+`b71eb6e26e7178f2d49daf49edf3bff480633773216e96ca307f8a987de84085`)
+and the native reproduction's materialized first-100 snapshot agree exactly in
+ordered report keys and report text. Four independently retained copies of the
+materialized snapshot are byte-identical (SHA-256
+`7af5de9c8561d2c3347b89517fb245caf1fc8fb7001900582c6337e58142034e`).
+
+The governed manifest has now been created and bound to an unfrozen execution
+copy of the plan. Its keyed CSV remains outside Git; its artifact SHA-256 is
+`5b1b6c81ecee99a2dee6d2fc48a92734bdc288b428781590093fa9296cfa4f57`.
+The plan-preparation validator re-read the reference and manifest, required 100
+unique nonblank keys in the same order, required complete valid RA labels for
+all five categories, and checked every declared artifact checksum. The bound
+plan remains `preregistered_unfrozen` and explicitly not ready for evaluation.
+
+This preflight also establishes two sparse-support consequences before model
+outputs are seen: Generalized Epileptiform has only three RA core-positive
+development examples and therefore must use the prespecified 0.1 fallback;
+Focal Epileptiform has exactly five, so any unavailable probability will also
+force its fallback. These are consequences of the fixed reference surface, not
+post-result choices, and the grid must not be widened in response.
+
 ## Verification
 
 At this checkpoint:
 
-- all 47 repository tests passed;
+- all 52 repository tests passed;
 - lint and sample aggregate audit passed;
 - both historical four-level and binary-core fake-model runs passed end to end;
 - binary probability extraction fails closed unless both 1 and 4 alternatives
@@ -73,12 +98,12 @@ The author group should confirm, before a development run:
 1. that the binary-core interface is the intended operationalization of the
    thesis's proposed binary-token-probability route;
 2. that the historical margin grid and the stated sparse-support fallback are
-   acceptable;
-3. the immutable first-100 Zoe RA manifest identity; and
-4. that the three-stage development sequence is complete enough to freeze
+   acceptable, including the now-known forced Generalized Epileptiform
+   fallback; and
+3. that the three-stage development sequence is complete enough to freeze
    without open-ended prompt search.
 
-After those confirmations, create a governed execution copy of the plan, add
-the manifest path and checksum, run only the 100-report development surface,
-review all favorable and unfavorable diagnostics, and freeze the adapter before
-any protected evaluation outcome is inspected.
+The governed execution copy and manifest binding are already prepared. After
+those confirmations, run only the 100-report development surface, review all
+favorable and unfavorable diagnostics, and freeze the adapter before any
+protected evaluation outcome is inspected.
