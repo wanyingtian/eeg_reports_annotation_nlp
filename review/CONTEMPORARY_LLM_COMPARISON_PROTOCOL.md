@@ -59,6 +59,21 @@ This is a runtime preflight, not an EEG-result reproduction. Do not run the
 study cohort until the producing prompt, grammar, wrapper, and keyed manifest
 have been receipted.
 
+For a bounded compatibility check against the preserved submitted
+classification prompt and grammar, run one sample report without the separate
+explanation stage:
+
+```bash
+make smoke-classification \
+  MODEL=medgemma-27b-q2-candidate \
+  RECEIPT=/private/path/medgemma-q2-classification-smoke-receipt.json
+```
+
+The private receipt hashes, rather than copies, the report text and source
+identifier. This raw-completion route deliberately records that no embedded
+chat template was applied. It verifies only that the candidate can execute the
+historical classification interface; it is not v5g and is not a study result.
+
 ## Development and evaluation lock
 
 A prompt or grammar selected after inspecting reference performance on a
