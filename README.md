@@ -21,6 +21,13 @@ boundary and [review/REVIEWER_EXECUTION_MATRIX.md](review/REVIEWER_EXECUTION_MAT
 for the reviewer-to-artifact map. No clinical report text, credentials, patient
 keys, or case-level outputs should be committed to this branch.
 
+Contemporary comparator intake is governed by the typed contract and
+aggregate-only gates in
+[review/PRODUCING_BUNDLE_INTAKE.md](review/PRODUCING_BUNDLE_INTAKE.md). They
+keep submitted Mistral, reproduced Mistral, and post-submission MedGemma as
+three distinct evidence layers and prevent silent key-set reduction before a
+paired analysis.
+
 ## Project Structure
 
 ```

@@ -1,19 +1,31 @@
 {
-  "schema_version": 1,
-  "status": "template-unreceipted",
-  "model": {
+  "schema_version": 2,
+  "status": "template_unreceipted",
+  "evidence_layer": "post_submission_medgemma",
+  "model_identity": {
     "upstream_repo_id": null,
     "upstream_revision": null,
-    "gguf_filename": null,
-    "gguf_sha256": null,
+    "artifact": {
+      "path": null,
+      "sha256": null
+    },
     "size_bytes": null,
     "quantization": null,
     "license": null
   },
   "runtime": {
-    "llama_cpp_revision": null,
-    "llama_cpp_python_version": null,
-    "chat_template": null,
+    "engine": null,
+    "engine_version": null,
+    "engine_revision": null,
+    "chat_template": {
+      "mode": null,
+      "source": null,
+      "artifact": {
+        "path": null,
+        "sha256": null
+      },
+      "applied": null
+    },
     "n_ctx": null,
     "n_gpu_layers": null,
     "temperature": null,
@@ -26,19 +38,74 @@
   },
   "prompt": {
     "id": null,
-    "sha256": null,
-    "grammar_sha256": null,
+    "artifact": {
+      "path": null,
+      "sha256": null
+    },
     "development_population": null,
     "reference_outcomes_inspected_during_selection": null,
     "frozen_before_final_evaluation": null,
-    "stopping_rule": null
+    "stopping_rule": null,
+    "selection_history_artifact": {
+      "path": null,
+      "sha256": null
+    }
   },
-  "cohorts": [],
-  "outputs": {
-    "prediction_surface_sha256_by_cohort": {},
-    "invalid_count_by_cohort": {},
-    "unfinished_count_by_cohort": {},
-    "aggregate_receipt_sha256_by_cohort": {}
+  "grammar": {
+    "mode": null,
+    "artifact": {
+      "path": null,
+      "sha256": null
+    },
+    "purpose": null
   },
-  "privacy_boundary": "No report text, patient key, model weight, or case-level output is committed."
+  "key_contract": {
+    "report_key_column": null,
+    "report_key_namespace": null,
+    "report_key_normalization": "exact_string",
+    "patient_key_column": null,
+    "patient_key_namespace": null,
+    "patient_key_semantics_confirmed": null
+  },
+  "cohorts": [
+    {
+      "cohort_id": null,
+      "role": null,
+      "manifest": {
+        "artifact": {
+          "path": null,
+          "sha256": null
+        },
+        "table": "reports"
+      },
+      "population": {
+        "source_records": null,
+        "candidate_records": null,
+        "included_records": null,
+        "excluded_records_by_reason": {},
+        "reference_complete_records": null,
+        "prediction_expected_records": null
+      },
+      "predictions": {
+        "surface": {
+          "artifact": {
+            "path": null,
+            "sha256": null
+          },
+          "table": "classifications"
+        },
+        "report_key_column": null,
+        "label_columns": {
+          "Focal Epi": null,
+          "Gen Epi": null,
+          "Focal Non-epi": null,
+          "Gen Non-epi": null,
+          "Abnormality": null
+        },
+        "invalid_records": null,
+        "unfinished_records": null
+      }
+    }
+  ],
+  "privacy_boundary": "No report text, patient key, model weight, or case-level output is committed. Completed contracts and keyed artifacts remain in authorized storage."
 }

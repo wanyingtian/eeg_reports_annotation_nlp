@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_before_producing_bundle_integration",
+  "evidence_layers": [
+    {
+      "id": "submitted_mistral",
+      "role": "immutable submitted source of record",
+      "replacement_allowed": false
+    },
+    {
+      "id": "reproduced_mistral",
+      "role": "post-submission reproduction and runtime-sensitivity evidence",
+      "replacement_allowed": false
+    },
+    {
+      "id": "post_submission_medgemma",
+      "role": "separately named contemporary comparator after producing-bundle validation",
+      "replacement_allowed": false
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "submitted_vs_reproduced_mistral",
+      "purpose": "reproduction agreement and sensitivity; not model superiority"
+    },
+    {
+      "id": "submitted_mistral_vs_post_submission_medgemma",
+      "purpose": "contemporary comparison on an exactly matched frozen report surface"
+    },
+    {
+      "id": "reproduced_mistral_vs_post_submission_medgemma",
+      "purpose": "runtime-context sensitivity; cannot replace the submitted source of record"
+    }
+  ],
+  "analysis_gates": [
+    "typed producing-bundle intake passes",
+    "cohort population arithmetic reconciles",
+    "report keys are unique, complete, and exactly matched",
+    "canonical label surfaces match",
+    "patient keys have confirmed semantics and a shared namespace for grouped inference"
+  ],
+  "claim_boundary": "No performance value, producing configuration, or dataset identity is inferred from provisional aggregate summaries."
+}

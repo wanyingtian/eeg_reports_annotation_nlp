@@ -154,6 +154,8 @@ def evaluate_predictions(
     fold_column: str | None = None,
     reference_row_ranges: list[tuple[int, int]] | None = None,
     require_complete_reference: bool = False,
+    require_exact_key_set: bool = False,
+    require_patient_grouping: bool = False,
     bootstrap_iterations: int = 2000,
     seed: int = 20260718,
 ) -> dict[str, Any]:
@@ -162,6 +164,8 @@ def evaluate_predictions(
     missing_mappings = sorted(set(labels) - set(prediction_columns))
     if missing_mappings:
         raise ValueError(f"Missing prediction-column mappings for: {missing_mappings}")
+    if require_patient_grouping and not cluster_column:
+        raise ValueError("Patient grouping is required but no cluster column was supplied")
 
     reference_columns = [id_column, *labels]
     if cluster_column:
@@ -185,10 +189,30 @@ def evaluate_predictions(
         selection["complete_reference_required"] = False
         selection["excluded_incomplete_reference_records"] = 0
     predictions = load_table(predictions_path, prediction_input_columns, prediction_table)
+    if reference[id_column].isna().any():
+        raise ValueError("Reference identifiers are missing")
+    if predictions[id_column].isna().any():
+        raise ValueError("Prediction identifiers are missing")
     if reference[id_column].duplicated().any():
         raise ValueError("Reference identifiers are not unique")
     if predictions[id_column].duplicated().any():
         raise ValueError("Prediction identifiers are not unique")
+
+    reference_keys = set(reference[id_column])
+    prediction_keys = set(predictions[id_column])
+    key_alignment = {
+        "reference_missing_from_predictions": len(reference_keys - prediction_keys),
+        "predictions_extra_vs_reference": len(prediction_keys - reference_keys),
+    }
+    key_alignment["exact_key_set"] = not any(key_alignment.values())
+    key_alignment["exact_key_set_required"] = require_exact_key_set
+    if require_exact_key_set and not key_alignment["exact_key_set"]:
+        counts = ", ".join(
+            f"{name}={value}"
+            for name, value in key_alignment.items()
+            if name not in {"exact_key_set", "exact_key_set_required"}
+        )
+        raise ValueError(f"Exact report-key alignment failed: {counts}")
 
     predictions = predictions.rename(
         columns={prediction_columns[label]: f"{label}__prediction" for label in labels}
@@ -201,6 +225,7 @@ def evaluate_predictions(
         "matched_records": int(len(merged)),
         "unmatched_reference_records": int(len(reference) - len(merged)),
         "unmatched_prediction_records": int(len(predictions) - len(merged)),
+        "key_alignment": key_alignment,
         "bootstrap": {
             "iterations": bootstrap_iterations,
             "seed": seed,
@@ -324,6 +349,8 @@ def evaluate_predictions(
                 "fold_column": fold_column,
                 "reference_row_ranges": reference_row_ranges,
                 "require_complete_reference": require_complete_reference,
+                "require_exact_key_set": require_exact_key_set,
+                "require_patient_grouping": require_patient_grouping,
                 "bootstrap_iterations": bootstrap_iterations,
                 "seed": seed,
             },

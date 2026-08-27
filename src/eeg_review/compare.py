@@ -146,6 +146,8 @@ def compare_predictions(
     cluster_column: str | None = None,
     reference_row_ranges: list[tuple[int, int]] | None = None,
     require_complete_reference: bool = False,
+    require_exact_key_set: bool = False,
+    require_patient_grouping: bool = False,
     bootstrap_iterations: int = 2000,
     seed: int = 20260718,
     multiplicity: str = "holm",
@@ -164,6 +166,8 @@ def compare_predictions(
         raise ValueError("Model IDs must be distinct")
     if multiplicity not in {"holm", "none"}:
         raise ValueError("Multiplicity must be 'holm' or 'none'")
+    if require_patient_grouping and not cluster_column:
+        raise ValueError("Patient grouping is required but no cluster column was supplied")
 
     reference_columns = [id_column, *labels]
     if cluster_column:
@@ -188,12 +192,16 @@ def compare_predictions(
         path: Path, table: str, mappings: dict[str, str], suffix: str
     ) -> pd.DataFrame:
         frame = load_table(path, [id_column, *[mappings[label] for label in labels]], table)
+        if frame[id_column].isna().any():
+            raise ValueError(f"Prediction identifiers are missing for model {suffix}")
         if frame[id_column].duplicated().any():
             raise ValueError(f"Prediction identifiers are not unique for model {suffix}")
         return frame.rename(
             columns={mappings[label]: f"{label}__prediction_{suffix}" for label in labels}
         )
 
+    if reference[id_column].isna().any():
+        raise ValueError("Reference identifiers are missing")
     if reference[id_column].duplicated().any():
         raise ValueError("Reference identifiers are not unique")
     predictions_a = load_predictions(
@@ -202,6 +210,26 @@ def compare_predictions(
     predictions_b = load_predictions(
         predictions_b_path, prediction_b_table, prediction_b_columns, "b"
     )
+    reference_keys = set(reference[id_column])
+    prediction_a_keys = set(predictions_a[id_column])
+    prediction_b_keys = set(predictions_b[id_column])
+    key_alignment = {
+        "reference_missing_from_a": len(reference_keys - prediction_a_keys),
+        "reference_missing_from_b": len(reference_keys - prediction_b_keys),
+        "prediction_a_extra_vs_reference": len(prediction_a_keys - reference_keys),
+        "prediction_b_extra_vs_reference": len(prediction_b_keys - reference_keys),
+        "a_missing_from_b": len(prediction_a_keys - prediction_b_keys),
+        "b_missing_from_a": len(prediction_b_keys - prediction_a_keys),
+    }
+    key_alignment["exact_three_way_key_set"] = not any(key_alignment.values())
+    key_alignment["exact_key_set_required"] = require_exact_key_set
+    if require_exact_key_set and not key_alignment["exact_three_way_key_set"]:
+        counts = ", ".join(
+            f"{name}={value}"
+            for name, value in key_alignment.items()
+            if name not in {"exact_three_way_key_set", "exact_key_set_required"}
+        )
+        raise ValueError(f"Exact three-way report-key alignment failed: {counts}")
     merged = reference.merge(predictions_a, on=id_column, how="inner", validate="one_to_one")
     merged = merged.merge(predictions_b, on=id_column, how="inner", validate="one_to_one")
 
@@ -214,6 +242,7 @@ def compare_predictions(
         "prediction_b_records": int(len(predictions_b)),
         "matched_records": int(len(merged)),
         "unmatched_reference_records": int(len(reference) - len(merged)),
+        "key_alignment": key_alignment,
         "reference_selection": selection,
         "bootstrap": {
             "iterations": bootstrap_iterations,
@@ -357,6 +386,8 @@ def compare_predictions(
                 "cluster_column": cluster_column,
                 "reference_row_ranges": reference_row_ranges,
                 "require_complete_reference": require_complete_reference,
+                "require_exact_key_set": require_exact_key_set,
+                "require_patient_grouping": require_patient_grouping,
                 "bootstrap_iterations": bootstrap_iterations,
                 "seed": seed,
                 "multiplicity": multiplicity,

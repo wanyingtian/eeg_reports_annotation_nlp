@@ -29,7 +29,10 @@ Before a comparator can support a manuscript claim, preserve:
    boundary for exporting aggregate receipts.
 
 Use `review/model-receipts/contemporary-llm-intake.template.json` as the
-transfer checklist. Null fields mean the comparator remains unreceipted.
+transfer checklist. Its version-2 structure has a JSON Schema and a typed
+aggregate-only validator; see
+`review/PRODUCING_BUNDLE_INTAKE.md`. Null fields mean the comparator remains
+unreceipted.
 
 The branch includes candidate Q2_K and Q4_K_S registry entries pinned to a
 public Unsloth GGUF revision. They are preload candidates, not proof of
@@ -74,6 +77,10 @@ identifier. This raw-completion route deliberately records that no embedded
 chat template was applied. It verifies only that the candidate can execute the
 historical classification interface; it is not v5g and is not a study result.
 
+The Q2 artifact may therefore be used for interface and transport checks only.
+Do not infer the producing model, quantization, prompt version, cohort, or
+selection history from a successful smoke completion.
+
 ## Development and evaluation lock
 
 A prompt or grammar selected after inspecting reference performance on a
@@ -100,22 +107,26 @@ Run each locked comparator through the existing aggregate workflow:
 ```bash
 uv run eeg-review evaluate \
   --reference /governed/path/zoe_reference.db \
-  --predictions /governed/path/contemporary_zoe.csv \
+  --predictions /governed/path/contemporary_zoe_selected.csv \
   --reference-range 100:500 \
   --reference-range 1000:2000 \
   --require-complete-reference \
+  --require-exact-key-set \
+  --require-patient-grouping \
   --cluster-column Hashed_PatientURN \
   --output-dir outputs/review/zoe-contemporary
 
 uv run eeg-review compare \
   --reference /governed/path/zoe_reference.db \
-  --predictions-a /governed/path/contemporary_zoe.csv \
-  --predictions-b /governed/path/mistral_zoe.csv \
+  --predictions-a /governed/path/contemporary_zoe_selected.csv \
+  --predictions-b /governed/path/mistral_zoe_selected.csv \
   --model-a-id contemporary-locked \
   --model-b-id mistral-7b-submitted \
   --reference-range 100:500 \
   --reference-range 1000:2000 \
   --require-complete-reference \
+  --require-exact-key-set \
+  --require-patient-grouping \
   --cluster-column Hashed_PatientURN \
   --output-dir outputs/review/zoe-contemporary-vs-mistral
 ```
@@ -123,7 +134,13 @@ uv run eeg-review compare \
 Repeat on Maria with `--reference-range 0:500`. Omit the cluster column only
 when no authoritative patient key exists; the receipt will then retain the
 report-level limitation. Use the same selected report keys for the comparator,
-Mistral, LD, and SG surfaces.
+Mistral, LD, and SG surfaces. The `_selected` files above are governed derived
+surfaces containing exactly the intake manifest's included report keys; do not
+point the strict command at a larger all-reports prediction export.
+
+Before either command, run `eeg-review comparison-readiness` across the three
+preregistered evidence layers. That command is a gate only and deliberately
+produces no performance result.
 
 ## Required displays
 

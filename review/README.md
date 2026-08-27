@@ -49,9 +49,12 @@ identifiers. The earlier active checkpoint is retained as operational history.
 
 Any post-submission model proposed as a stronger comparator must use
 [`CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md`](CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md)
-and the empty receipt under `model-receipts/`. A rendered aggregate report is
-not a substitute for its model, prompt, grammar, cohort, prediction, and
-selection-history receipts.
+and the typed gates in
+[`PRODUCING_BUNDLE_INTAKE.md`](PRODUCING_BUNDLE_INTAKE.md). The public branch
+contains only the schema, validator, and unreceipted template under
+`model-receipts/`; completed contracts and keyed artifacts stay governed. A
+rendered aggregate report is not a substitute for model, prompt, grammar,
+cohort, prediction, and selection-history receipts.
 
 On FIR/Alliance, load a supported compiler/CUDA module before installing the
 `llm` group. Record the exact modules and driver in the run receipt; do not
@@ -234,6 +237,12 @@ the primary inference and McNemar is a report-level sensitivity analysis. When
 no patient key is supplied, both limitations are printed in the result. Exact
 Zoe baseline comparisons must wait for the producing report-level BoW/BERT
 exports; the recovered aggregate matrices are insufficient for paired tests.
+
+For the final three-layer model analysis, first materialize governed prediction
+views containing exactly the confirmed intake-manifest keys. Then add
+`--require-exact-key-set` and `--require-patient-grouping`. The strict key gate
+is not appropriate for a larger all-reports prediction export that
+intentionally contains records outside the selected reference surface.
 
 ## Phase 3c: probability calibration for baselines
 

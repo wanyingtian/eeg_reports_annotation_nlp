@@ -19,6 +19,13 @@ eligibility/exclusion rules, sampling unit/method/seed, study period, sites,
 report and unique-patient counts, and responsible custodian. Cross-cohort
 patient comparisons are invalid if keys were salted or generated differently.
 
+For cross-model work, complete the typed producing-bundle contract described
+in [PRODUCING_BUNDLE_INTAKE.md](PRODUCING_BUNDLE_INTAKE.md). The validator
+requires named exclusion arithmetic and reports missing, extra, null, and
+duplicate key counts without exporting the keys themselves. A file-level
+contract is not analysis-ready unless the manifest and prediction report-key
+sets are exactly identical.
+
 ## Output classes
 
 - Aggregate JSON/CSV may leave the governed environment only after the local
@@ -27,3 +34,6 @@ patient comparisons are invalid if keys were salted or generated differently.
   they contain only pseudonymous keys. They remain governed.
 - Report text, direct identifiers, credentials, databases, and model caches
   must never be committed to this repository.
+- Completed intake contracts can disclose private filenames, dataset
+  fingerprints, and producing metadata. Keep them with the governed bundle;
+  commit only the schema and unreceipted template.

@@ -82,3 +82,43 @@ def test_compare_emits_aggregate_paired_receipt(tmp_path: Path) -> None:
     rendered = (output / "paired_comparison_summary.json").read_text(encoding="utf-8")
     assert "Hashed_ReportURN" not in rendered
     assert '"a"' not in json.dumps(json.loads(rendered)["labels"])
+
+
+def test_compare_can_require_exact_keys_and_patient_grouping(tmp_path: Path) -> None:
+    reference = tmp_path / "reference.db"
+    with sqlite3.connect(reference) as connection:
+        connection.execute(
+            'CREATE TABLE reports ("Hashed_ReportURN" TEXT, "Patient" TEXT, "Abnormality" INTEGER)'
+        )
+        connection.executemany(
+            "INSERT INTO reports VALUES (?, ?, ?)",
+            [("a", "p1", 1), ("b", "p2", 4)],
+        )
+    model_a = tmp_path / "model-a.csv"
+    model_b = tmp_path / "model-b.csv"
+    write_predictions(model_a, [("a", 1), ("b", 4)])
+    write_predictions(model_b, [("a", 1)])
+
+    with pytest.raises(ValueError, match="Exact three-way report-key alignment failed"):
+        compare_predictions(
+            reference,
+            model_a,
+            model_b,
+            tmp_path / "comparison",
+            model_a_id="model-a",
+            model_b_id="model-b",
+            labels=["Abnormality"],
+            cluster_column="Patient",
+            require_exact_key_set=True,
+        )
+    with pytest.raises(ValueError, match="no cluster column"):
+        compare_predictions(
+            reference,
+            model_a,
+            model_a,
+            tmp_path / "comparison",
+            model_a_id="model-a",
+            model_b_id="model-b",
+            labels=["Abnormality"],
+            require_patient_grouping=True,
+        )

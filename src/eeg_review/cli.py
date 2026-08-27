@@ -4,11 +4,13 @@ import argparse
 import json
 from pathlib import Path
 
+from .analysis_plan import build_comparison_readiness
 from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
 from .baseline import run_baseline_cv, run_baseline_oof_evaluation, run_baseline_predict
 from .calibration import calibrate_predictions
 from .compare import compare_predictions
 from .error_review import build_error_review_packet
+from .intake import EvidenceLayer, validate_intake_to_directory
 from .ledger import build_result_ledger
 from .metrics import evaluate_predictions
 
@@ -18,6 +20,18 @@ def named_path(value: str) -> tuple[str, Path]:
     if not separator or not name or not path:
         raise argparse.ArgumentTypeError("expected NAME=/path/to/dataset")
     return name, Path(path)
+
+
+def evidence_layer_path(value: str) -> tuple[EvidenceLayer, Path]:
+    name, separator, path = value.partition("=")
+    if not separator or not name or not path:
+        raise argparse.ArgumentTypeError("expected EVIDENCE_LAYER=/path/to/intake.json")
+    try:
+        layer = EvidenceLayer(name)
+    except ValueError as error:
+        allowed = ", ".join(layer.value for layer in EvidenceLayer)
+        raise argparse.ArgumentTypeError(f"evidence layer must be one of: {allowed}") from error
+    return layer, Path(path)
 
 
 def prediction_mapping(value: str) -> tuple[str, str]:
@@ -106,6 +120,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     evaluate.add_argument(
+        "--require-exact-key-set",
+        action="store_true",
+        help="Fail instead of silently reducing to an inner-joined report surface",
+    )
+    evaluate.add_argument(
+        "--require-patient-grouping",
+        action="store_true",
+        help="Fail unless a patient/cluster column is supplied",
+    )
+    evaluate.add_argument(
         "--fold-column",
         help="Prediction-file column identifying the held-out fold for each row",
     )
@@ -136,6 +160,16 @@ def build_parser() -> argparse.ArgumentParser:
         dest="reference_row_ranges",
     )
     compare.add_argument("--require-complete-reference", action="store_true")
+    compare.add_argument(
+        "--require-exact-key-set",
+        action="store_true",
+        help="Fail unless reference and both prediction report-key sets are identical",
+    )
+    compare.add_argument(
+        "--require-patient-grouping",
+        action="store_true",
+        help="Fail unless a patient/cluster column is supplied",
+    )
     compare.add_argument("--bootstrap-iterations", type=int, default=2000)
     compare.add_argument("--seed", type=int, default=20260718)
     compare.add_argument("--multiplicity", choices=["holm", "none"], default="holm")
@@ -249,6 +283,37 @@ def build_parser() -> argparse.ArgumentParser:
     ledger.add_argument("--calibration", action="append", type=named_path, default=[])
     ledger.add_argument("--comparison", action="append", type=named_path, default=[])
     ledger.add_argument("--output-dir", type=Path, required=True)
+
+    intake = subparsers.add_parser(
+        "intake-validate",
+        help="Validate one typed producing-bundle intake without emitting case keys",
+    )
+    intake.add_argument("--contract", type=Path, required=True)
+    intake.add_argument("--output-dir", type=Path, required=True)
+    intake.add_argument(
+        "--bundle-root",
+        type=Path,
+        help="Resolve relative governed artifact paths from this directory",
+    )
+    intake.add_argument(
+        "--check-files",
+        action="store_true",
+        help="Inspect governed manifests and predictions for exact key coverage",
+    )
+
+    readiness = subparsers.add_parser(
+        "comparison-readiness",
+        help="Check preregistered cross-layer analysis gates without computing results",
+    )
+    readiness.add_argument(
+        "--intake",
+        action="append",
+        type=evidence_layer_path,
+        required=True,
+        help="EVIDENCE_LAYER=/path/to/intake.json; repeat for each available layer",
+    )
+    readiness.add_argument("--bundle-root", type=Path)
+    readiness.add_argument("--output-dir", type=Path, required=True)
     return parser
 
 
@@ -297,6 +362,8 @@ def main() -> None:
             fold_column=args.fold_column,
             reference_row_ranges=args.reference_row_ranges,
             require_complete_reference=args.require_complete_reference,
+            require_exact_key_set=args.require_exact_key_set,
+            require_patient_grouping=args.require_patient_grouping,
             bootstrap_iterations=args.bootstrap_iterations,
             seed=args.seed,
         )
@@ -318,6 +385,8 @@ def main() -> None:
             cluster_column=args.cluster_column,
             reference_row_ranges=args.reference_row_ranges,
             require_complete_reference=args.require_complete_reference,
+            require_exact_key_set=args.require_exact_key_set,
+            require_patient_grouping=args.require_patient_grouping,
             bootstrap_iterations=args.bootstrap_iterations,
             seed=args.seed,
             multiplicity=args.multiplicity,
@@ -402,7 +471,7 @@ def main() -> None:
             bootstrap_iterations=args.bootstrap_iterations,
             seed=args.seed,
         )
-    else:
+    elif args.command == "result-ledger":
         named_inputs = [*args.evaluation, *args.calibration, *args.comparison]
         if len(named_inputs) != len({name for name, _path in named_inputs}):
             parser.error("analysis names must be unique across all ledger inputs")
@@ -411,6 +480,22 @@ def main() -> None:
             evaluations=dict(args.evaluation),
             calibrations=dict(args.calibration),
             comparisons=dict(args.comparison),
+        )
+    elif args.command == "intake-validate":
+        result = validate_intake_to_directory(
+            args.contract,
+            args.output_dir,
+            bundle_root=args.bundle_root,
+            check_files=args.check_files,
+        )
+    else:
+        intake_paths = dict(args.intake)
+        if len(intake_paths) != len(args.intake):
+            parser.error("each evidence layer may be supplied only once")
+        result = build_comparison_readiness(
+            intake_paths,
+            args.output_dir,
+            bundle_root=args.bundle_root,
         )
     print(json.dumps(result, indent=2, sort_keys=True))
 
