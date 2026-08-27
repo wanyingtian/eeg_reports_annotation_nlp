@@ -171,3 +171,9 @@ produces no performance result.
   separately from prompt content and base-model choice.
 - The contemporary result may strengthen the revision only after its producing
   bundle passes this contract and the authors agree on its role.
+
+An adapted-Mistral comparison is governed by
+`MISTRAL_TASK_ADAPTATION_PROTOCOL.md`. Until both frozen adapters have been
+transported across both base models, adapted Mistral versus v5g MedGemma is an
+overall-configuration contrast; it cannot isolate the effect of base weights
+from task adaptation.

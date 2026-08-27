@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .adaptation_plan import validate_adaptation_plan_to_directory
 from .analysis_plan import build_comparison_readiness
 from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
 from .baseline import run_baseline_cv, run_baseline_oof_evaluation, run_baseline_predict
@@ -314,6 +315,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     readiness.add_argument("--bundle-root", type=Path)
     readiness.add_argument("--output-dir", type=Path, required=True)
+
+    adaptation = subparsers.add_parser(
+        "adaptation-plan-validate",
+        help="Validate the proposed Mistral task-adaptation boundary without computing results",
+    )
+    adaptation.add_argument("--contract", type=Path, required=True)
+    adaptation.add_argument("--output-dir", type=Path, required=True)
+    adaptation.add_argument(
+        "--bundle-root",
+        type=Path,
+        help="Resolve relative frozen adapter and receipt paths from this directory",
+    )
+    adaptation.add_argument(
+        "--check-files",
+        action="store_true",
+        help="Verify declared frozen adapter and signal artifacts by checksum",
+    )
     return parser
 
 
@@ -483,6 +501,13 @@ def main() -> None:
         )
     elif args.command == "intake-validate":
         result = validate_intake_to_directory(
+            args.contract,
+            args.output_dir,
+            bundle_root=args.bundle_root,
+            check_files=args.check_files,
+        )
+    elif args.command == "adaptation-plan-validate":
+        result = validate_adaptation_plan_to_directory(
             args.contract,
             args.output_dir,
             bundle_root=args.bundle_root,

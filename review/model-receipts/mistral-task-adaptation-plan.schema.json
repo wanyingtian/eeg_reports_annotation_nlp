@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/eeg-review/mistral-task-adaptation-plan.schema.json",
+  "title": "JBHI post-submission Mistral task-adaptation plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "plan_id",
+    "proposed_evidence_layer_id",
+    "base_evidence_layer",
+    "scientific_question",
+    "hypothesis",
+    "task_adapter",
+    "signals",
+    "freeze",
+    "evaluation",
+    "claim_boundary",
+    "privacy_boundary"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {
+      "enum": ["preregistered_unfrozen", "frozen_before_evaluation", "retired"]
+    },
+    "plan_id": {"type": "string", "minLength": 1},
+    "proposed_evidence_layer_id": {"const": "post_submission_mistral_adapted"},
+    "base_evidence_layer": {"const": "reproduced_mistral"},
+    "scientific_question": {"type": "string", "minLength": 1},
+    "hypothesis": {"type": "string", "minLength": 1},
+    "task_adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_id",
+        "route",
+        "methods",
+        "parameter_update",
+        "teacher_model_outputs_used",
+        "artifact"
+      ],
+      "properties": {
+        "adapter_id": {"type": "string", "minLength": 1},
+        "route": {"const": "schema_guided_inference_time_and_post_hoc_calibration"},
+        "methods": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "iterative_prompt_engineering",
+              "grammar_constrained_decoding",
+              "evidence_extraction",
+              "deterministic_consistency_checks",
+              "post_hoc_calibration",
+              "soft_prompt_tuning",
+              "lora",
+              "teacher_student_distillation"
+            ]
+          }
+        },
+        "parameter_update": {"const": "calibration_thresholds_only"},
+        "teacher_model_outputs_used": {"const": false},
+        "artifact": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "signals": {
+      "type": "array",
+      "minItems": 7,
+      "items": {"$ref": "#/$defs/signal"}
+    },
+    "freeze": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "author_group_admitted",
+        "frozen_before_evaluation",
+        "selection_rule",
+        "stopping_rule",
+        "receipt"
+      ],
+      "properties": {
+        "author_group_admitted": {"type": "boolean"},
+        "frozen_before_evaluation": {"type": "boolean"},
+        "selection_rule": {"type": "string", "minLength": 1},
+        "stopping_rule": {"type": "string", "minLength": 1},
+        "receipt": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "development_cohort_id",
+        "evaluation_cohort_ids",
+        "exact_same_case_required",
+        "patient_grouping_required_when_confirmed",
+        "primary_contrast",
+        "attribution_scope",
+        "medgemma_comparison_scope"
+      ],
+      "properties": {
+        "development_cohort_id": {"const": "zoe_development_first_100_ra"},
+        "evaluation_cohort_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["zoe_evaluation_1395", "maria_evaluation_499"]},
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "exact_same_case_required": {"const": true},
+        "patient_grouping_required_when_confirmed": {"const": true},
+        "primary_contrast": {"type": "string", "minLength": 1},
+        "attribution_scope": {"type": "string", "minLength": 1},
+        "medgemma_comparison_scope": {"type": "string", "minLength": 1}
+      }
+    },
+    "claim_boundary": {"type": "string", "minLength": 1},
+    "privacy_boundary": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": ["string", "null"]},
+        "sha256": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-fA-F]{64}$"
+        }
+      }
+    },
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_id",
+        "signal_type",
+        "use",
+        "used_for_parameter_or_variant_selection",
+        "outcomes_inspected",
+        "artifact",
+        "note"
+      ],
+      "properties": {
+        "signal_id": {"type": "string", "minLength": 1},
+        "signal_type": {"type": "string", "minLength": 1},
+        "use": {
+          "enum": [
+            "development",
+            "design_prior",
+            "evaluation_only",
+            "context_only_prohibited_for_selection"
+          ]
+        },
+        "used_for_parameter_or_variant_selection": {"type": "boolean"},
+        "outcomes_inspected": {"type": "boolean"},
+        "artifact": {"$ref": "#/$defs/artifact"},
+        "note": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

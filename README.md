@@ -25,12 +25,16 @@ Contemporary comparator intake is governed by the typed contract and
 aggregate-only gates in
 [review/PRODUCING_BUNDLE_INTAKE.md](review/PRODUCING_BUNDLE_INTAKE.md). They
 keep submitted Mistral, reproduced Mistral, and post-submission MedGemma as
-three distinct evidence layers and prevent silent key-set reduction before a
+three admitted evidence layers and prevent silent key-set reduction before a
 paired analysis. The same contract carries a multi-parent provenance DAG for
 upstream weights, the external producing configuration, the inherited
 evaluation framework, and the exact integration revision. It records bounded
 scientific roles and distribution states without an ownership field or model-
-weight redistribution.
+weight redistribution. A proposed fourth layer, schema-guided Mistral task
+adaptation and post-hoc calibration, is preregistered separately in
+[review/MISTRAL_TASK_ADAPTATION_PROTOCOL.md](review/MISTRAL_TASK_ADAPTATION_PROTOCOL.md).
+Its validator permits implementation planning but blocks evaluation until the
+adapter and signal boundary are frozen and author-admitted.
 
 ## Project Structure
 

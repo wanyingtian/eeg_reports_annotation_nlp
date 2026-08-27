@@ -59,6 +59,16 @@ the Google/Unsloth artifact, external producing configuration, historical
 evaluation framework, and integration branch as distinct DAG parents. It uses
 bounded contribution and governance roles rather than an ownership field.
 
+A potential Mistral extension is governed separately by
+[`MISTRAL_TASK_ADAPTATION_PROTOCOL.md`](MISTRAL_TASK_ADAPTATION_PROTOCOL.md).
+It preregisters a proposed `post_submission_mistral_adapted` layer grounded in
+the thesis's model-agnostic prompt, grammar, evidence, consistency, and
+post-hoc calibration directions. The plan explicitly separates development,
+design-prior, evaluation-only, and MedGemma context-only signals. It is not an
+admitted evidence layer or a result: the machine gate blocks final evaluation
+until the complete adapter is frozen, checksummed, and admitted by the author
+group.
+
 On FIR/Alliance, load a supported compiler/CUDA module before installing the
 `llm` group. Record the exact modules and driver in the run receipt; do not
 silently substitute a different model file or quantization.

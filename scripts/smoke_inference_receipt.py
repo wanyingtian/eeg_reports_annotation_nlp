@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import tempfile
 from pathlib import Path
 
@@ -14,14 +15,41 @@ class FakeModel:
     def __init__(self) -> None:
         self.calls = 0
 
-    def __call__(self, _prompt: str, **_kwargs: object) -> dict:
+    def __call__(self, prompt: str, **kwargs: object) -> dict:
         self.calls += 1
         if self.calls % 2:
-            text = '{"abnormality": 1}'
+            text = (
+                '{"focal_epileptiform_activity":1,'
+                '"generalized_epileptiform_activity":2,'
+                '"focal_non_epileptiform_activity":3,'
+                '"generalized_non_epileptiform_activity":4,'
+                '"abnormality":4}'
+            )
         else:
             text = '{"abnormality": {"decision": 1, "reasons": []}}'
+        choice: dict[str, object] = {"text": text}
+        if kwargs.get("logprobs"):
+            scores = {
+                "1": math.log(0.1),
+                "2": math.log(0.2),
+                "3": math.log(0.3),
+                "4": math.log(0.4),
+            }
+            token_logprobs = [-0.01] * len(text)
+            top_logprobs: list[dict[str, float]] = [{} for _ in text]
+            for key in pipeline.JSON_KEY_TO_LABEL:
+                marker = f'"{key}":'
+                digit_index = text.index(marker) + len(marker)
+                token_logprobs[digit_index] = scores[text[digit_index]]
+                top_logprobs[digit_index] = scores.copy()
+            choice["logprobs"] = {
+                "tokens": list(text),
+                "token_logprobs": token_logprobs,
+                "top_logprobs": top_logprobs,
+                "text_offset": list(range(len(prompt), len(prompt) + len(text))),
+            }
         return {
-            "choices": [{"text": text}],
+            "choices": [choice],
             "usage": {"prompt_tokens": 20, "completion_tokens": 6, "total_tokens": 26},
         }
 
@@ -37,6 +65,7 @@ def main() -> None:
             dataset_path=repository / "data" / "zoe_reports_sample.db",
             dataset_id="fixture",
             model_name="mistral",
+            capture_classification_logprobs=True,
         )
         model_receipt = {
             "registry_name": "fake",
@@ -59,13 +88,23 @@ def main() -> None:
             run_config,
             flush_every=1,
         )
-        if "Report" in pd.read_csv(results).columns:
+        result_table = pd.read_csv(results)
+        if "Report" in result_table.columns:
             raise AssertionError("Inference output leaked report text")
+        if abs(float(result_table.loc[0, "Prob_Abnormality"]) - 0.7) > 1e-12:
+            raise AssertionError("Grammar-token probability receipt missing")
         receipt = json.loads(results.with_suffix(".run.json").read_text(encoding="utf-8"))
         if receipt["model"]["sha256"] != "0" * 64:
             raise AssertionError("Model receipt missing")
         if receipt["telemetry"]["classify_prompt_tokens"]["mean"] != 20.0:
             raise AssertionError("Token receipt missing")
+        instrumentation = receipt["calibration_instrumentation"]
+        if not instrumentation["enabled"]:
+            raise AssertionError("Calibration instrumentation was not receipted")
+        if instrumentation["completion_logprobs_requested"] != 64:
+            raise AssertionError("Classification logprob depth missing")
+        if instrumentation["available_records_by_label"]["Abnormality"] != 1:
+            raise AssertionError("Probability availability count missing")
     print("inference receipt smoke test passed")
 
 

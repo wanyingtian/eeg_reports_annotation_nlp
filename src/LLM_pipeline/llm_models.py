@@ -78,7 +78,7 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def resolve_model_artifact(model_name: str) -> tuple[Path, dict]:
+def resolve_model_artifact(model_name: str, *, logits_all: bool = False) -> tuple[Path, dict]:
     """Download/cache a GGUF model and return its validated provenance."""
     if model_name not in MODEL_CONFIGS:
         available = list(MODEL_CONFIGS.keys())
@@ -100,6 +100,7 @@ def resolve_model_artifact(model_name: str) -> tuple[Path, dict]:
             f"Model checksum mismatch for {model_name}: "
             f"expected {expected_sha256}, found {model_sha256}"
         )
+    load_parameters = {**DEFAULT_PARAMS, "logits_all": logits_all}
     receipt = {
         "registry_name": model_name,
         "repo_id": cfg["repo_id"],
@@ -109,16 +110,16 @@ def resolve_model_artifact(model_name: str) -> tuple[Path, dict]:
         "sha256": model_sha256,
         "expected_sha256": expected_sha256,
         "size_bytes": model_path.stat().st_size,
-        "load_parameters": dict(DEFAULT_PARAMS),
+        "load_parameters": load_parameters,
     }
     return model_path, receipt
 
 
-def download_model_with_receipt(model_name: str) -> tuple[Llama, dict]:
+def download_model_with_receipt(model_name: str, *, logits_all: bool = False) -> tuple[Llama, dict]:
     """Download and load a GGUF model, returning immutable model provenance."""
-    model_path, receipt = resolve_model_artifact(model_name)
+    model_path, receipt = resolve_model_artifact(model_name, logits_all=logits_all)
     logging.info("Loading model into llama.cpp...")
-    return Llama(model_path=str(model_path), **DEFAULT_PARAMS), receipt
+    return Llama(model_path=str(model_path), **receipt["load_parameters"]), receipt
 
 
 def download_model(model_name: str) -> Llama:

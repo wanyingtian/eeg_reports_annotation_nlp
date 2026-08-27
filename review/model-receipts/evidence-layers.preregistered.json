@@ -32,6 +32,17 @@
       "purpose": "runtime-context sensitivity; cannot replace the submitted source of record"
     }
   ],
+  "proposed_extensions": [
+    {
+      "id": "post_submission_mistral_adapted",
+      "status": "preregistered_unfrozen_not_admitted",
+      "base_evidence_layer": "reproduced_mistral",
+      "plan": "mistral-task-adaptation.preregistered.json",
+      "purpose": "test a schema-guided inference-time task layer and development-only post-hoc calibration without modifying Mistral weights",
+      "evaluation_allowed": false,
+      "admission_gate": "frozen adapter and signal receipt plus author-group admission"
+    }
+  ],
   "analysis_gates": [
     "typed producing-bundle intake passes",
     "cohort population arithmetic reconciles",
@@ -39,5 +50,5 @@
     "canonical label surfaces match",
     "patient keys have confirmed semantics and a shared namespace for grouped inference"
   ],
-  "claim_boundary": "No performance value, producing configuration, or dataset identity is inferred from provisional aggregate summaries."
+  "claim_boundary": "No performance value, producing configuration, or dataset identity is inferred from provisional aggregate summaries. Proposed extensions are not admitted evidence layers until their stated freeze and governance gates pass."
 }

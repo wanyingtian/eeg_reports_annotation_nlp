@@ -194,3 +194,12 @@ or report-level bootstrap from becoming the primary analysis.
 Until these arrive, Q2 work remains an interface/transport check. Do not infer
 the producing `v5g` configuration, run a replacement evaluation surface, or
 publish a new result artifact.
+
+## Proposed Mistral adaptation is not yet a fourth admitted layer
+
+`MISTRAL_TASK_ADAPTATION_PROTOCOL.md` defines a separately named,
+post-submission Mistral task-adaptation work package. Its public plan is listed
+under `proposed_extensions` in the evidence-layer preregistration. That listing
+does not add it to the three-layer readiness command. It may become a fourth
+evidence layer only after its adapter and signal boundary are frozen, its
+governed artifacts pass validation, and the author group admits the experiment.

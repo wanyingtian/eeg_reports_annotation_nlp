@@ -53,6 +53,23 @@ import pandas as pd
 from llama_cpp.llama import Llama, LlamaGrammar
 from llm_models import download_model_with_receipt, get_available_models
 
+try:
+    from eeg_review.logprob_adapter import (
+        JSON_KEY_TO_LABEL,
+        PROBABILITY_COLUMNS,
+        extract_core_positive_probabilities,
+    )
+except ModuleNotFoundError:
+    # Preserve the historical `python src/LLM_pipeline/pipeline.py` entry point
+    # for environments that installed requirements without installing the
+    # repository package itself.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from eeg_review.logprob_adapter import (
+        JSON_KEY_TO_LABEL,
+        PROBABILITY_COLUMNS,
+        extract_core_positive_probabilities,
+    )
+
 # --------------------------- Defaults / Constants --------------------------- #
 
 # Resolve paths relative to the repo root (two levels up from this script)
@@ -69,6 +86,7 @@ DEFAULT_TOP_K = 40
 DEFAULT_TOP_P = 0.95
 DEFAULT_MAX_TOKENS = 3000
 DEFAULT_STOP: Optional[Iterable[str]] = None
+CLASSIFICATION_LOGPROBS = 64
 MAX_WORKER_RESTARTS = 3
 
 # Prompts (kept as provided)
@@ -196,6 +214,7 @@ class RunConfig:
     max_tokens: int = DEFAULT_MAX_TOKENS
     stop: Optional[Iterable[str]] = DEFAULT_STOP
     comment: str = "LLM pipeline run"
+    capture_classification_logprobs: bool = False
 
 
 @dataclass(frozen=True)
@@ -205,6 +224,7 @@ class LLMCallReceipt:
     prompt_tokens: int | None
     completion_tokens: int | None
     total_tokens: int | None
+    logprobs: dict[str, Any] | None
 
 
 # ------------------------------ Logging Setup ------------------------------ #
@@ -563,6 +583,7 @@ def llm_json_with_receipt(
     grammar: Optional[LlamaGrammar] = None,
     top_k: Optional[int] = None,
     top_p: Optional[float] = None,
+    logprobs: int | None = None,
 ) -> LLMCallReceipt:
     """Invoke the LLM and retain timing and llama.cpp token accounting."""
     kwargs = {
@@ -576,24 +597,30 @@ def llm_json_with_receipt(
         kwargs["top_k"] = top_k
     if top_p is not None:
         kwargs["top_p"] = top_p
+    if logprobs is not None:
+        kwargs["logprobs"] = logprobs
 
     started = time.perf_counter()
     resp = model(prompt, **kwargs)
     elapsed = time.perf_counter() - started
     usage = resp.get("usage", {})
+    choice = resp["choices"][0]
     return LLMCallReceipt(
-        text=resp["choices"][0]["text"],
+        text=choice["text"],
         elapsed_seconds=elapsed,
         prompt_tokens=usage.get("prompt_tokens"),
         completion_tokens=usage.get("completion_tokens"),
         total_tokens=usage.get("total_tokens"),
+        logprobs=choice.get("logprobs"),
     )
 
 
 
 # ------------------------------ Core Pipeline ------------------------------ #
 
-def process_completed_csv(path: Optional[Path]) -> Tuple[pd.DataFrame, set[str]]:
+def process_completed_csv(
+    path: Optional[Path], *, capture_classification_logprobs: bool = False
+) -> Tuple[pd.DataFrame, set[str]]:
     """
     Load existing results to resume. Returns (df, set_of_hashed_ids).
     """
@@ -612,6 +639,8 @@ def process_completed_csv(path: Optional[Path]) -> Tuple[pd.DataFrame, set[str]]
         "explain_completion_tokens",
         "explain_total_tokens",
     ]
+    if capture_classification_logprobs:
+        cols.extend(PROBABILITY_COLUMNS)
     base = pd.DataFrame(columns=cols)
     if not path:
         logging.info("No completed CSV supplied; starting fresh.")
@@ -702,8 +731,17 @@ def run_pipeline(
             grammar=grammar_classify,
             top_k=cfg.top_k,
             top_p=cfg.top_p,
+            logprobs=CLASSIFICATION_LOGPROBS if cfg.capture_classification_logprobs else None,
         )
         classifications = classification_call.text
+        classification_probabilities = (
+            extract_core_positive_probabilities(
+                classifications,
+                classification_call.logprobs,
+            )
+            if cfg.capture_classification_logprobs
+            else {}
+        )
 
         # 2) Explanations (feed classification JSON verbatim)
         explain_input = (
@@ -745,6 +783,10 @@ def run_pipeline(
                             "explain_prompt_tokens": explanation_call.prompt_tokens,
                             "explain_completion_tokens": explanation_call.completion_tokens,
                             "explain_total_tokens": explanation_call.total_tokens,
+                            **{
+                                f"Prob_{label}": probability
+                                for label, probability in classification_probabilities.items()
+                            },
                         }
                     ]
                 ),
@@ -782,6 +824,37 @@ def run_pipeline(
             "top_p": cfg.top_p,
             "max_tokens": cfg.max_tokens,
             "stop_sequences": list(cfg.stop) if cfg.stop else None,
+        },
+        "calibration_instrumentation": {
+            "enabled": cfg.capture_classification_logprobs,
+            "completion_logprobs_requested": (
+                CLASSIFICATION_LOGPROBS if cfg.capture_classification_logprobs else None
+            ),
+            "feature_definition": (
+                "P(level in {3,4}) normalized over explicit grammar-constrained level-token "
+                "alternatives {1,2,3,4}"
+                if cfg.capture_classification_logprobs
+                else None
+            ),
+            "probability_columns": (
+                list(PROBABILITY_COLUMNS) if cfg.capture_classification_logprobs else []
+            ),
+            "available_records_by_label": (
+                {
+                    label: int(
+                        pd.to_numeric(results_df[f"Prob_{label}"], errors="coerce").notna().sum()
+                    )
+                    for label in JSON_KEY_TO_LABEL.values()
+                }
+                if cfg.capture_classification_logprobs
+                else {}
+            ),
+            "interpretation": (
+                "Model token probability for the grammar decision, not human certainty and not "
+                "a calibrated probability until a development-only calibration receipt exists."
+                if cfg.capture_classification_logprobs
+                else "not captured"
+            ),
         },
         "comment": cfg.comment,
         "reports_completed": len(results_df),
@@ -867,10 +940,16 @@ def worker_target(
     grammar_classify = load_gbnf(BASE_DIR / "result_grammar.gbnf")
     grammar_explain = load_gbnf(BASE_DIR / "result_grammar_exp.gbnf")
 
-    model, model_receipt = download_model_with_receipt(model_name)
+    model, model_receipt = download_model_with_receipt(
+        model_name,
+        logits_all=cfg.capture_classification_logprobs,
+    )
 
     # (Re)load completed and pending.
-    prior_df, prior_hashes = process_completed_csv(resume_csv)
+    prior_df, prior_hashes = process_completed_csv(
+        resume_csv,
+        capture_classification_logprobs=cfg.capture_classification_logprobs,
+    )
     logging.info(f"Initial completed count: {len(prior_hashes)}")
     pending = load_reports_df(dataset_path, num_reports, prior_hashes)
 
@@ -1034,6 +1113,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--top-k", dest="top_k", type=int, default=DEFAULT_TOP_K, help="Optional: Top-k sampling cutoff. Defaults to 40.")
     p.add_argument("--top-p", dest="top_p", type=float, default=DEFAULT_TOP_P, help="Optional: Top-p (nucleus) sampling threshold. Defaults to 0.95.")
     p.add_argument("--max-tokens", dest="max_tokens", type=int, default=DEFAULT_MAX_TOKENS, help="Optional: Max new tokens to generate. Defaults to 3000.")
+    p.add_argument(
+        "--capture-classification-logprobs",
+        action="store_true",
+        help=(
+            "Capture grammar-decision token probabilities for a separately governed "
+            "development-only calibration run. Disabled for historical reproduction."
+        ),
+    )
     p.add_argument("-v", "--verbose", action="count", default=1, help="Increase verbosity (-v, -vv).")
     return p.parse_args()
 
@@ -1064,6 +1151,7 @@ def main() -> None:
         top_p=args.top_p,
         max_tokens=args.max_tokens,
         comment=args.comment,
+        capture_classification_logprobs=args.capture_classification_logprobs,
     )
 
     # Helpful env overrides recorded in config output

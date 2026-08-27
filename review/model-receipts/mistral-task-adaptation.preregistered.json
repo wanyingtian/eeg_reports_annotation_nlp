@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_unfrozen",
+  "plan_id": "jbhi-02463/mistral-task-adaptation/schema-guided-calibration/v1",
+  "proposed_evidence_layer_id": "post_submission_mistral_adapted",
+  "base_evidence_layer": "reproduced_mistral",
+  "scientific_question": "How much of the post-submission performance difference can be attributed to a portable EEG task-adaptation and calibration layer rather than to changing the base model?",
+  "hypothesis": "A frozen schema-guided inference-time adapter plus development-only post-hoc calibration will improve Mistral certainty alignment and structured consistency while preserving the submitted model weights and untouched evaluation surfaces.",
+  "task_adapter": {
+    "adapter_id": "jbhi-02463/adapter/eeg-schema-guided-calibration/v1",
+    "route": "schema_guided_inference_time_and_post_hoc_calibration",
+    "methods": [
+      "iterative_prompt_engineering",
+      "grammar_constrained_decoding",
+      "evidence_extraction",
+      "deterministic_consistency_checks",
+      "post_hoc_calibration"
+    ],
+    "parameter_update": "calibration_thresholds_only",
+    "teacher_model_outputs_used": false,
+    "artifact": {
+      "path": null,
+      "sha256": null
+    }
+  },
+  "signals": [
+    {
+      "signal_id": "zoe_development_first_100_ra",
+      "signal_type": "human_reference_labels",
+      "use": "development",
+      "used_for_parameter_or_variant_selection": true,
+      "outcomes_inspected": true,
+      "artifact": {
+        "path": null,
+        "sha256": null
+      },
+      "note": "Historical first-100 Zoe RA development boundary described in the thesis; exact membership is governed by its immutable manifest."
+    },
+    {
+      "signal_id": "clinical_guidelines_and_annotation_schema",
+      "signal_type": "domain_knowledge_and_design_prior",
+      "use": "design_prior",
+      "used_for_parameter_or_variant_selection": false,
+      "outcomes_inspected": false,
+      "artifact": {
+        "path": null,
+        "sha256": null
+      },
+      "note": "Clinical definitions, annotation semantics, and deterministic label relationships may shape the task interface without exposing evaluation outcomes."
+    },
+    {
+      "signal_id": "reviewer_method_requests",
+      "signal_type": "methodological_design_context",
+      "use": "design_prior",
+      "used_for_parameter_or_variant_selection": false,
+      "outcomes_inspected": false,
+      "artifact": {
+        "path": null,
+        "sha256": null
+      },
+      "note": "Reviewer requests may determine which uncertainty and sensitivity analyses are reported, but not select a winning configuration from evaluation results."
+    },
+    {
+      "signal_id": "zoe_evaluation",
+      "signal_type": "human_reference_labels",
+      "use": "evaluation_only",
+      "used_for_parameter_or_variant_selection": false,
+      "outcomes_inspected": false,
+      "artifact": {
+        "path": null,
+        "sha256": null
+      },
+      "note": "The 1,395-report Zoe evaluation surface remains untouched until adapter freeze; its exact membership is governed by its manifest."
+    },
+    {
+      "signal_id": "maria_evaluation",
+      "signal_type": "human_reference_labels",
+      "use": "evaluation_only",
+      "used_for_parameter_or_variant_selection": false,
+      "outcomes_inspected": false,
+      "artifact": {
+        "path": null,
+        "sha256": null
+      },
+      "note": "The 499-report Maria evaluation surface remains untouched until adapter freeze; its exact membership is governed by its manifest."
+    },
+    {
+      "signal_id": "medgemma_v5g_predictions",
+      "signal_type": "external_model_predictions",
+      "use": "context_only_prohibited_for_selection",
+      "used_for_parameter_or_variant_selection": false,
+      "outcomes_inspected": false,
+      "artifact": {
+        "path": null,
+        "sha256": null
+      },
+      "note": "Exact v5g predictions, when received, are comparison evidence and may not teach or select this Mistral adapter."
+    },
+    {
+      "signal_id": "medgemma_v5g_aggregate_results",
+      "signal_type": "external_aggregate_comparison_context",
+      "use": "context_only_prohibited_for_selection",
+      "used_for_parameter_or_variant_selection": false,
+      "outcomes_inspected": true,
+      "artifact": {
+        "path": null,
+        "sha256": null
+      },
+      "note": "Awareness of provisional aggregates motivates a transportability question but cannot define thresholds, stopping, or variant choice."
+    }
+  ],
+  "freeze": {
+    "author_group_admitted": false,
+    "frozen_before_evaluation": false,
+    "selection_rule": "Use only the historical first-100 Zoe development manifest, declared domain knowledge, and prespecified consistency criteria; retain every attempted variant and unfavorable development result.",
+    "stopping_rule": "Freeze after the prespecified component ablation and calibration procedure completes on the development surface; do not continue after inspecting Zoe or Maria evaluation outcomes.",
+    "receipt": {
+      "path": null,
+      "sha256": null
+    }
+  },
+  "evaluation": {
+    "development_cohort_id": "zoe_development_first_100_ra",
+    "evaluation_cohort_ids": [
+      "zoe_evaluation_1395",
+      "maria_evaluation_499"
+    ],
+    "exact_same_case_required": true,
+    "patient_grouping_required_when_confirmed": true,
+    "primary_contrast": "reproduced_mistral_vs_post_submission_mistral_adapted",
+    "attribution_scope": "The primary same-model contrast may estimate the task-layer effect only when Mistral artifact, quantization, runtime, and report surface are otherwise held fixed.",
+    "medgemma_comparison_scope": "Adapted Mistral versus v5g MedGemma is an overall-configuration comparison, not a base-model or adapter effect, until both adapters are transported across both base models in a frozen factorial design."
+  },
+  "claim_boundary": "Matching or exceeding MedGemma is a hypothesis, not a configuration-selection rule. This plan creates no result and does not alter submitted or reproduced Mistral evidence.",
+  "privacy_boundary": "The public plan contains no report text, report or patient key, case-level prediction, model weight, or governed manifest."
+}
