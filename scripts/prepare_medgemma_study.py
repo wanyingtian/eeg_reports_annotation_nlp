@@ -299,6 +299,43 @@ def command_plan(run_dir: Path, cohorts: list[dict[str, Any]]) -> list[dict[str,
     return commands
 
 
+def sensitivity(path: Path, run_dir: Path) -> str:
+    first = path.relative_to(run_dir).parts[0]
+    if first in {"inputs", "manifests", "comparators", "products", "analysis"}:
+        return "governed_case_level_or_derived_product"
+    return "operational_metadata_or_aggregate_receipt"
+
+
+def write_transfer_manifest(run_dir: Path, study_id: str) -> dict[str, Any]:
+    destination = run_dir / "transfer-manifest.json"
+    files = []
+    for path in sorted(run_dir.rglob("*")):
+        if not path.is_file() or path == destination:
+            continue
+        files.append(
+            {
+                "path": str(path.relative_to(run_dir)),
+                "size_bytes": path.stat().st_size,
+                "sha256": sha256_file(path),
+                "sensitivity": sensitivity(path, run_dir),
+            }
+        )
+    payload = {
+        "schema_version": 1,
+        "created_at_utc": datetime.now(UTC).isoformat(),
+        "study_id": study_id,
+        "repository_revision": git_revision(),
+        "transfer_rule": (
+            "Transfer only through an approved governed channel, preserve relative paths, "
+            "and verify every SHA-256 before execution or resume. Model weights remain in "
+            "the destination host's validated cache and are not part of this bundle."
+        ),
+        "files": files,
+    }
+    atomic_json(destination, payload)
+    return payload
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=Path, required=True)
@@ -397,6 +434,7 @@ def main() -> None:
             "completed_stages": [],
         },
     )
+    write_transfer_manifest(output, plan["study_id"])
     print(json.dumps({"prepared": True, "cohorts": prepared}, indent=2))
 
 
