@@ -62,9 +62,8 @@ make smoke-model \
   RECEIPT=/private/path/medgemma-q2-runtime-smoke-receipt.json
 ```
 
-This is a runtime preflight, not an EEG-result reproduction. Do not run the
-study cohort until the producing prompt, grammar, wrapper, and keyed manifest
-have been receipted.
+This is a runtime preflight, not an EEG-result reproduction. It does not by
+itself authorize a cohort run.
 
 For a bounded compatibility check against the preserved submitted
 classification prompt and grammar, run one sample report without the separate
@@ -81,9 +80,13 @@ identifier. This raw-completion route deliberately records that no embedded
 chat template was applied. It verifies only that the candidate can execute the
 historical classification interface; it is not v5g and is not a study result.
 
-The Q2 artifact may therefore be used for interface and transport checks only.
-Do not infer the producing model, quantization, prompt version, cohort, or
-selection history from a successful smoke completion.
+The smoke completion cannot be promoted into a result and cannot identify an
+external producing configuration. It may, however, support a separately
+preregistered independent comparator. The frozen independent study is defined
+in `MEDGEMMA_INDEPENDENT_COMPARATOR_STUDY.md` and
+`model-receipts/medgemma-independent-comparator.preregistered.json`. Vasily's
+v5g remains a distinct example configuration and does not block that
+independent study.
 
 ## Development and evaluation lock
 
@@ -169,8 +172,10 @@ produces no performance result.
   descriptive; disagreement cannot identify which model is clinically right.
 - Grammar-enforced consistency is a decoding constraint. Report its effect
   separately from prompt content and base-model choice.
-- The contemporary result may strengthen the revision only after its producing
-  bundle passes this contract and the authors agree on its role.
+- An independently preregistered contemporary result may be generated under
+  its own producing contract. Any external result, including v5g, requires its
+  own exact producing-bundle intake. Manuscript use of either still requires
+  validation and author agreement.
 
 An adapted-Mistral comparison is governed by
 `MISTRAL_TASK_ADAPTATION_PROTOCOL.md`. Until both frozen adapters have been

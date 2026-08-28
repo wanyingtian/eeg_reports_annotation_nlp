@@ -179,6 +179,49 @@ def main() -> None:
             raise AssertionError("Binary-core mode not receipted")
         if "alternatives {1,4}" not in binary_instrument["feature_definition"]:
             raise AssertionError("Binary-core feature definition not receipted")
+
+        comparator_results = output / "classification_only_fixture.csv"
+        comparator_config = output / "classification_only_fixture.json"
+        comparator_run_config = pipeline.RunConfig(
+            outdir=output,
+            dataset_path=repository / "data" / "zoe_reports_sample.db",
+            dataset_id="fixture-classification-only",
+            model_name="medgemma-27b-q2-candidate",
+            max_tokens=256,
+            run_explanations=False,
+        )
+        comparator_model = FakeModel()
+        pipeline.run_pipeline(
+            comparator_model,
+            model_receipt,
+            pd.DataFrame([{"Hashed_ReportURN": "fixture-id", "Report": "Normal EEG."}]),
+            pd.DataFrame(),
+            None,
+            None,
+            comparator_results,
+            comparator_config,
+            comparator_run_config,
+            flush_every=1,
+        )
+        if comparator_model.calls != 1:
+            raise AssertionError("Classification-only mode invoked the explanation stage")
+        comparator_table = pd.read_csv(comparator_results)
+        if comparator_table.loc[0, "pipeline_execution_mode"] != "classification_only":
+            raise AssertionError("Classification-only resume marker missing")
+        comparator_receipt = json.loads(
+            comparator_results.with_suffix(".run.json").read_text(encoding="utf-8")
+        )
+        if comparator_receipt["execution_surface"] != {
+            "classification": True,
+            "explanations": False,
+        }:
+            raise AssertionError("Classification-only execution surface was not receipted")
+        resumed, completed = pipeline.process_completed_csv(
+            comparator_results,
+            run_explanations=False,
+        )
+        if len(resumed) != 1 or completed != {"fixture-id"}:
+            raise AssertionError("Classification-only output is not resumable")
     print("inference receipt smoke test passed")
 
 

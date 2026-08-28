@@ -14,8 +14,11 @@ The layer names and intended comparisons are preregistered in
 1. `submitted_mistral` is the immutable submitted source of record.
 2. `reproduced_mistral` is post-submission reproduction and runtime-sensitivity
    evidence; it does not overwrite the submission.
-3. `post_submission_medgemma` is a separately named contemporary comparator
-   that remains blocked until its exact producing bundle is validated.
+3. `post_submission_medgemma` is a separately named contemporary-comparator
+   layer. Each configuration in that layer requires its own producing
+   contract. An external v5g reproduction remains blocked pending exact
+   intake; the independently preregistered matched-interface configuration is
+   not blocked by that missing external bundle.
 
 The received difference between provisional populations of 1,994 and 2,493
 is a diagnostic clue only. Its arithmetic difference is 499, but the contract
@@ -179,7 +182,7 @@ both `--require-exact-key-set` and `--require-patient-grouping` when the
 confirmed patient key exists. These switches prevent an unnoticed inner join
 or report-level bootstrap from becoming the primary analysis.
 
-## Current decision gates
+## External v5g decision gates
 
 - exact MedGemma producing model artifact and quantization;
 - exact Google upstream and Unsloth distribution revisions, artifact hash,
@@ -191,9 +194,11 @@ or report-level bootstrap from becoming the primary analysis.
 - keyed predictions with invalid and unfinished rows retained; and
 - Chris's confirmation of the submitted selection and processing lineage.
 
-Until these arrive, Q2 work remains an interface/transport check. Do not infer
-the producing `v5g` configuration, run a replacement evaluation surface, or
-publish a new result artifact.
+Until these arrive, do not infer or label any run as the producing `v5g`
+configuration. This does not prohibit the distinctly identified independent
+Q2 comparator specified in `MEDGEMMA_INDEPENDENT_COMPARATOR_STUDY.md`. That
+study has its own freeze, readiness, governed execution, validation, and
+author-admission gates and is additive rather than a replacement surface.
 
 ## Proposed Mistral adaptation is not yet a fourth admitted layer
 

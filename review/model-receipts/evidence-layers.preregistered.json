@@ -14,8 +14,22 @@
     },
     {
       "id": "post_submission_medgemma",
-      "role": "separately named contemporary comparator after producing-bundle validation",
-      "replacement_allowed": false
+      "role": "separately named contemporary-comparator layer with configuration-specific producing contracts",
+      "replacement_allowed": false,
+      "configurations": [
+        {
+          "id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-matched-interface-q2-v1",
+          "status": "preregistered_pre_inference",
+          "plan": "medgemma-independent-comparator.preregistered.json",
+          "role": "independently specified matched-historical-interface comparison"
+        },
+        {
+          "id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g",
+          "status": "pending_exact_producing_bundle",
+          "role": "additive external example configuration",
+          "blocks_independent_configuration": false
+        }
+      ]
     }
   ],
   "comparisons": [

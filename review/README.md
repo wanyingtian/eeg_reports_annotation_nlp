@@ -324,6 +324,27 @@ reports are selected. Keep the packet inside the approved environment and use
 [`CLINICAL_ERROR_REVIEW_PROTOCOL.md`](CLINICAL_ERROR_REVIEW_PROTOCOL.md) before
 clinical review.
 
+## Independent MedGemma comparator
+
+An additive matched-interface MedGemma comparison is specified in
+[`MEDGEMMA_INDEPENDENT_COMPARATOR_STUDY.md`](MEDGEMMA_INDEPENDENT_COMPARATOR_STUDY.md).
+Its machine-readable plan and readiness gate are separate from exact intake of
+Vasily's v5g configuration. The latter is an additive, nonblocking external
+configuration until its producing bundle arrives.
+
+Prepare exact complete-case manifests, governed SQLite snapshots, selected
+submitted/reproduced Mistral comparison surfaces, and a resumable command plan
+without starting inference:
+
+```bash
+make medgemma-prepare \
+  SOURCE_RUN=/governed/path/jbhi-native-20260814 \
+  RUN_DIR=/governed/path/jbhi-medgemma-independent-v1
+```
+
+The preparation step writes governed case-level material and therefore must
+not target the public repository. It executes no model call.
+
 ## Phase 4: instrumented LLM reruns
 
 The existing `src/LLM_pipeline/pipeline.py` now records the exact GGUF filename,

@@ -10,6 +10,7 @@ from .audit import DEFAULT_LABELS, audit_dataset, audit_overlap
 from .baseline import run_baseline_cv, run_baseline_oof_evaluation, run_baseline_predict
 from .calibration import calibrate_predictions
 from .certainty_adapter import fit_certainty_adapter
+from .comparator_study import validate_comparator_study_to_directory
 from .compare import compare_predictions
 from .development_manifest import (
     create_development_manifest,
@@ -337,6 +338,30 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Verify declared frozen adapter and signal artifacts by checksum",
     )
+
+    comparator_study = subparsers.add_parser(
+        "medgemma-study-readiness",
+        help=(
+            "Validate the independently specified MedGemma comparator without running inference"
+        ),
+    )
+    comparator_study.add_argument("--plan", type=Path, required=True)
+    comparator_study.add_argument("--output-dir", type=Path, required=True)
+    comparator_study.add_argument(
+        "--source-run",
+        type=Path,
+        help="Completed governed reproduction run containing the frozen cohort snapshots",
+    )
+    comparator_study.add_argument(
+        "--receipt-dir",
+        type=Path,
+        help="Private directory containing the model preload and smoke receipts",
+    )
+    comparator_study.add_argument(
+        "--check-local",
+        action="store_true",
+        help="Check governed inputs, cached model, and private runtime receipts",
+    )
     certainty_adapter = subparsers.add_parser(
         "certainty-adapter-fit",
         help=(
@@ -585,6 +610,14 @@ def main() -> None:
             args.output_dir,
             bundle_root=args.bundle_root,
             check_files=args.check_files,
+        )
+    elif args.command == "medgemma-study-readiness":
+        result = validate_comparator_study_to_directory(
+            args.plan,
+            args.output_dir,
+            source_run=args.source_run,
+            receipt_dir=args.receipt_dir,
+            check_local=args.check_local,
         )
     elif args.command == "certainty-adapter-fit":
         result = fit_certainty_adapter(

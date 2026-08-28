@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_pre_inference",
+  "study_id": "jbhi-02463-post-submission-medgemma-independent-v1",
+  "evidence_layer": "post_submission_medgemma",
+  "scientific_role": {
+    "role": "additive contemporary comparator",
+    "replacement_allowed": false,
+    "submitted_source_of_record": "submitted_mistral",
+    "claim_boundary": "This configuration is independently specified in the inherited evaluation harness. It is not Vasily's v5g configuration and does not reproduce or invalidate that contribution."
+  },
+  "independent_configuration": {
+    "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-matched-interface-q2-v1",
+    "status": "frozen_for_governed_execution",
+    "origin": "independently specified in the shared JBHI evaluation harness",
+    "model": {
+      "upstream_release": "google/medgemma-27b-text-it",
+      "upstream_model_version": "1.0.0",
+      "upstream_model_card_url": "https://huggingface.co/google/medgemma-27b-text-it",
+      "upstream_technical_documentation_url": "https://developers.google.com/health-ai-developer-foundations/medgemma",
+      "distribution_repo_id": "unsloth/medgemma-27b-text-it-GGUF",
+      "distribution_revision": "334fbf6811c963d223f6ac107a459347353f068d",
+      "registry_name": "medgemma-27b-q2-candidate",
+      "filename": "medgemma-27b-text-it-Q2_K.gguf",
+      "quantization": "Q2_K",
+      "size_bytes": 10503437312,
+      "sha256": "b137aac80f2bcb1c1ed35bfe13387bc496eb18898d5f46425687604f0f714481",
+      "license_terms_url": "https://developers.google.com/health-ai-developer-foundations/terms",
+      "license_notice": "Terms metadata is recorded for provenance; this study specification makes no legal conclusion and does not redistribute weights."
+    },
+    "runtime": {
+      "engine": "llama-cpp-python",
+      "engine_version": "0.3.34",
+      "n_ctx": 4096,
+      "n_gpu_layers": 30,
+      "hardware_primary": "24 GB Apple-silicon unified-memory laptop",
+      "portable_target": "Linux/NVIDIA with the same artifact, prompt, grammar, and sampling receipt",
+      "runtime_equivalence_rule": "Hardware may change; model bytes, interface bytes, sampling parameters, report-key manifests, and output schema may not."
+    },
+    "interface": {
+      "mode": "matched_historical_raw_completion",
+      "chat_template_applied": false,
+      "prompt_source": "src/LLM_pipeline/pipeline.py:PROMPT_CLASSIFY",
+      "prompt_sha256": "52198221d8330e9857b51a7ad99b017aa18836e1718b08dd0ae355820f5a5e69",
+      "grammar": {
+        "path": "src/LLM_pipeline/result_grammar.gbnf",
+        "sha256": "5237e13988062538cda9c21906f1f4e1fc8b99498e2462ea69fe24bface35016"
+      },
+      "classification_only": true,
+      "explanation_stage_run": false,
+      "sampling": {
+        "temperature": 0.0,
+        "top_k": 40,
+        "top_p": 0.95,
+        "max_tokens": 256,
+        "stop": null
+      },
+      "rationale": "Use the byte-identical submitted classification prompt and grammar so the primary comparison changes model weights and quantization while preserving the historical task interface. A native-chat-template sensitivity run would be a separately preregistered configuration and may not replace this primary result after outcomes are seen."
+    },
+    "execution_policy": {
+      "repository_revision": "capture clean HEAD in every run receipt",
+      "checkpoint_every_records": 1,
+      "resume_by_exact_report_key": true,
+      "retain_invalid_and_unfinished_rows": true,
+      "retry_policy": "up to three supervised process restarts; preserve every failed attempt and do not silently regenerate a syntactically valid answer",
+      "governed_output": true,
+      "weights_redistributed": false
+    }
+  },
+  "external_configurations": [
+    {
+      "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g",
+      "role": "additive external example configuration",
+      "status": "pending_exact_producing_bundle",
+      "originator_status": "Vasily Vakorin named in the current author correspondence; exact producing receipt pending",
+      "blocks_independent_execution": false,
+      "required_for_exact_reproduction": [
+        "model and runtime receipt",
+        "prompt, grammar, wrapper, and chat-template bytes",
+        "cohort and selection manifests",
+        "keyed predictions including invalid and unfinished rows"
+      ],
+      "admission_rule": "After exact intake, validate as its own configuration node and display it separately; do not relabel the independent configuration as v5g."
+    }
+  ],
+  "cohorts": [
+    {
+      "cohort_id": "zoe_development_transport_100",
+      "role": "development_transport_check",
+      "input": {
+        "path": "inputs/zoe_development_100.db",
+        "sha256": "7af5de9c8561d2c3347b89517fb245caf1fc8fb7001900582c6337e58142034e"
+      },
+      "historical_source_ranges": [[0, 100]],
+      "population": {
+        "candidate_records": 100,
+        "complete_records": 100,
+        "excluded_incomplete_records": 0,
+        "execute_records": 100
+      },
+      "use": "Operational transport and degeneracy check only. Reference outcomes may not select or alter the frozen primary configuration."
+    },
+    {
+      "cohort_id": "zoe_evaluation_1395",
+      "role": "evaluation",
+      "input": {
+        "path": "inputs/zoe_evaluation_1400.db",
+        "sha256": "5d72fad45cc6d8d7f62060cbbb1528c68453d2dc5381665c7985518155e522f4"
+      },
+      "historical_source_ranges": [[100, 500], [1000, 2000]],
+      "population": {
+        "candidate_records": 1400,
+        "complete_records": 1395,
+        "excluded_incomplete_records": 5,
+        "execute_records": 1395
+      },
+      "selection_rule": "Freeze the exact 1,395 complete-reference report keys before inference; retain the five excluded keys and reasons in the cohort receipt."
+    },
+    {
+      "cohort_id": "maria_evaluation_499",
+      "role": "evaluation",
+      "input": {
+        "path": "inputs/maria_evaluation_500.db",
+        "sha256": "37ac1f1d509fde90db0550938b716318cfcc77f153d5d23045e60ff3769dcd9d"
+      },
+      "historical_source_ranges": [[0, 500]],
+      "population": {
+        "candidate_records": 500,
+        "complete_records": 499,
+        "excluded_incomplete_records": 1,
+        "execute_records": 499
+      },
+      "selection_rule": "Freeze the exact 499 complete-reference report keys before inference; retain the excluded key and reason in the cohort receipt."
+    }
+  ],
+  "population_arithmetic_note": "The independent plan contains 100 transport-check plus 1,395 Zoe evaluation plus 499 Maria evaluation records, totaling 1,994 executable reports. This arithmetic must not be used to infer Vasily's provisional selection history merely because the same aggregate count appeared in correspondence.",
+  "key_and_privacy_contract": {
+    "report_key_column": "Hashed_ReportURN",
+    "report_key_normalization": "exact_string",
+    "duplicate_or_missing_report_keys_allowed": false,
+    "patient_key_column": null,
+    "patient_key_semantics_confirmed": false,
+    "cluster_code_is_patient_key": false,
+    "patient_grouping_gate": "A separately confirmed stable patient key and report-to-patient mapping are required before patient-grouped intervals or splits. Cluster code has author/cohort-like cardinality in the preserved snapshots and is not used as a patient identifier.",
+    "governed_artifacts": [
+      "report text",
+      "report and patient keys",
+      "cohort manifests",
+      "keyed predictions",
+      "case-level error-review packets"
+    ],
+    "public_safe_artifacts": [
+      "source configuration",
+      "aggregate readiness receipts",
+      "aggregate result receipts after author approval"
+    ]
+  },
+  "analysis_plan": {
+    "primary_reference": "Reference Annotator (LD), using the submitted study's four-level semantics",
+    "secondary_reference": "Second Annotator (SG) sensitivity surface",
+    "primary_comparisons": [
+      "independent MedGemma versus submitted Mistral on identical report keys",
+      "independent MedGemma versus reproduced Mistral on identical report keys"
+    ],
+    "descriptive_outputs": [
+      "candidate, included, excluded, invalid, unfinished, matched, and unmatched counts",
+      "four-level and binary-core confusion matrices",
+      "TP, FP, TN, FN, support, precision, recall, specificity, F1, core accuracy, certainty-adjusted accuracy, four-level kappa, and core kappa",
+      "model size, runtime, prompt/completion tokens, and report-level latency"
+    ],
+    "paired_inference": {
+      "effect_direction": "independent MedGemma minus comparator",
+      "effects": [
+        "core accuracy difference",
+        "certainty-adjusted accuracy difference",
+        "false-negative-rate difference"
+      ],
+      "confidence_level": 0.95,
+      "bootstrap_iterations": 2000,
+      "seed": 20260718,
+      "exact_mcnemar": "report-level sensitivity analysis on discordant correctness pairs",
+      "multiplicity": "Holm adjustment across all five labels by core and four-level correctness tests"
+    },
+    "patient_grouped_inference": {
+      "status": "gated_pending_confirmed_patient_mapping",
+      "primary_when_available": true,
+      "fallback": "Report-level intervals and exact McNemar results may be reported only with the non-independence limitation; do not describe them as patient-grouped."
+    },
+    "unfavorable_result_policy": "Retain and report invalid, unfinished, degenerate, null, and unfavorable results. The development transport check may stop an unsafe run but may not choose a better-scoring prompt or quantization."
+  },
+  "execution_sequence": [
+    "validate this preregistration, the clean repository revision, governed input hashes and population arithmetic",
+    "verify the pinned Q2 artifact, llama.cpp runtime, historical prompt, grammar, and classification-only smoke receipt",
+    "freeze exact executable report-key manifests for 100 development-transport, 1,395 Zoe evaluation, and 499 Maria evaluation records",
+    "run the 100-report transport check without metric-driven configuration selection",
+    "inspect only operational failures, invalidity, truncation, output degeneracy, timing, and resource behavior",
+    "run the locked 1,395 Zoe and 499 Maria surfaces with atomic per-record checkpoints",
+    "validate exact key coverage and preserve invalid and unfinished records",
+    "process classifications, evaluate each cohort, and run paired same-case comparisons",
+    "create a completed version-3 producing-bundle intake for the independent configuration in governed storage",
+    "seek author-group admission before manuscript or figure use"
+  ],
+  "stopping_and_change_control": {
+    "operational_stop_conditions": [
+      "model or input hash mismatch",
+      "duplicate or missing report key",
+      "context-limit failure",
+      "systematic invalid JSON or degenerate constant output in the transport check",
+      "thermal, memory, or storage conditions that threaten the machine or governed products"
+    ],
+    "permitted_after_stop": "Fix transport or implementation defects without inspecting evaluation outcomes, issue a new configuration identifier and receipt when bytes or semantics change, and preserve the failed attempt.",
+    "prohibited": "Do not choose among prompts, templates, quantizations, or seeds using Zoe or Maria evaluation performance."
+  },
+  "local_readiness": {
+    "receipt_files": {
+      "preload": "medgemma-q2-preload-receipt.json",
+      "runtime_smoke": "medgemma-q2-runtime-smoke-receipt.json",
+      "classification_smoke": "medgemma-q2-classification-only-smoke-receipt.json"
+    },
+    "expected_minimum_free_disk_bytes": 53687091200,
+    "expected_minimum_unified_memory_bytes": 25769803776,
+    "full_model_rehash_required_before_each_run": false,
+    "model_integrity_basis": "Pinned cache blob plus validated preload receipt; rehash after transfer or cache mutation."
+  },
+  "distribution_status": {
+    "source_configuration": "source_config_publishable",
+    "weights": "weights_not_redistributed",
+    "keyed_outputs": "outputs_governed",
+    "aggregate_receipts": "author_review_before_publication"
+  }
+}

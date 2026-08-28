@@ -239,6 +239,7 @@ class RunConfig:
     comment: str = "LLM pipeline run"
     capture_classification_logprobs: bool = False
     classification_mode: str = HISTORICAL_FOUR_LEVEL_MODE
+    run_explanations: bool = True
 
 
 @dataclass(frozen=True)
@@ -647,6 +648,7 @@ def process_completed_csv(
     *,
     capture_classification_logprobs: bool = False,
     classification_mode: str = HISTORICAL_FOUR_LEVEL_MODE,
+    run_explanations: bool = True,
 ) -> Tuple[pd.DataFrame, set[str]]:
     """
     Load existing results to resume. Returns (df, set_of_hashed_ids).
@@ -666,6 +668,8 @@ def process_completed_csv(
         "explain_completion_tokens",
         "explain_total_tokens",
     ]
+    if not run_explanations:
+        cols.append("pipeline_execution_mode")
     if capture_classification_logprobs:
         cols.extend(PROBABILITY_COLUMNS)
     if classification_mode == BINARY_CORE_ADAPTER_MODE:
@@ -680,6 +684,22 @@ def process_completed_csv(
 
     try:
         df = pd.read_csv(path)
+        execution_modes = (
+            set(df["pipeline_execution_mode"].dropna().astype(str))
+            if "pipeline_execution_mode" in df.columns
+            else set()
+        )
+        expected_execution_mode = (
+            "classification_and_explanations" if run_explanations else "classification_only"
+        )
+        if execution_modes and execution_modes != {expected_execution_mode}:
+            raise ValueError(
+                "A resumed CSV must carry the same classification/explanation execution mode"
+            )
+        if not execution_modes and not run_explanations and len(df):
+            raise ValueError(
+                "A classification-only run cannot resume an unmarked historical CSV"
+            )
         # Normalize columns in case of prior version drift
         for c in cols:
             if c not in df.columns:
@@ -795,26 +815,38 @@ def run_pipeline(
         else:
             classification_probabilities = {}
 
-        # 2) Explanations (feed classification JSON verbatim)
-        explain_input = (
-            PROMPT_EXPLAIN
-            + "\n\n---\nEEG Report:\n"
-            + report
-            + "\n\nClassification JSON:\n"
-            + classifications
-            + "\n"
-        )
-        explanation_call = llm_json_with_receipt(
-            model=model,
-            prompt=explain_input,
-            temperature=cfg.temperature,
-            max_tokens=cfg.max_tokens,
-            stop=cfg.stop,
-            grammar=grammar_explain,
-            top_k=cfg.top_k,
-            top_p=cfg.top_p,
-        )
-        explanations = explanation_call.text
+        # 2) Explanations (feed classification JSON verbatim), unless a
+        # separately receipted comparator is classification-only.
+        if cfg.run_explanations:
+            explain_input = (
+                PROMPT_EXPLAIN
+                + "\n\n---\nEEG Report:\n"
+                + report
+                + "\n\nClassification JSON:\n"
+                + classifications
+                + "\n"
+            )
+            explanation_call = llm_json_with_receipt(
+                model=model,
+                prompt=explain_input,
+                temperature=cfg.temperature,
+                max_tokens=cfg.max_tokens,
+                stop=cfg.stop,
+                grammar=grammar_explain,
+                top_k=cfg.top_k,
+                top_p=cfg.top_p,
+            )
+            explanations = explanation_call.text
+        else:
+            explanation_call = LLMCallReceipt(
+                text="",
+                elapsed_seconds=0.0,
+                prompt_tokens=None,
+                completion_tokens=None,
+                total_tokens=None,
+                logprobs=None,
+            )
+            explanations = ""
 
         # Append row
         results_df = pd.concat(
@@ -835,6 +867,11 @@ def run_pipeline(
                             "explain_prompt_tokens": explanation_call.prompt_tokens,
                             "explain_completion_tokens": explanation_call.completion_tokens,
                             "explain_total_tokens": explanation_call.total_tokens,
+                            **(
+                                {"pipeline_execution_mode": "classification_only"}
+                                if not cfg.run_explanations
+                                else {}
+                            ),
                             **{
                                 f"Prob_{label}": probability
                                 for label, probability in classification_probabilities.items()
@@ -949,6 +986,7 @@ def run_pipeline(
             "explain": {
                 "filename": grammar_explain_path.name,
                 "sha256": sha256_file(grammar_explain_path),
+                "executed": cfg.run_explanations,
             },
         },
         "input_policy": {
@@ -956,7 +994,15 @@ def run_pipeline(
             "context_limit": model_receipt["load_parameters"].get("n_ctx"),
             "truncation": "none; context-limit errors are surfaced",
             "classification_chat_template": "raw prompt concatenated with two newlines and report",
-            "explanation_chat_template": "raw prompt plus report and classification JSON",
+            "explanation_chat_template": (
+                "raw prompt plus report and classification JSON"
+                if cfg.run_explanations
+                else "not executed"
+            ),
+        },
+        "execution_surface": {
+            "classification": True,
+            "explanations": cfg.run_explanations,
         },
         "telemetry": summarize_telemetry(results_df),
         "output": {"filename": out_results.name, "sha256": sha256_file(out_results)},
@@ -1027,6 +1073,7 @@ def worker_target(
         resume_csv,
         capture_classification_logprobs=cfg.capture_classification_logprobs,
         classification_mode=cfg.classification_mode,
+        run_explanations=cfg.run_explanations,
     )
     logging.info(f"Initial completed count: {len(prior_hashes)}")
     pending = load_reports_df(dataset_path, num_reports, prior_hashes)
@@ -1185,6 +1232,15 @@ def parse_args() -> argparse.Namespace:
         default=5,
         help="Atomically checkpoint after this many new reports (default: 5).",
     )
+    p.add_argument(
+        "--classification-only",
+        action="store_true",
+        help=(
+            "Run the five-label classification stage without the explanation stage. "
+            "This is intended for separately receipted comparator evaluations; the default "
+            "historical pipeline remains unchanged."
+        ),
+    )
     p.add_argument("--comment", type=str, default="LLM pipeline run", help="Optional: comment to save in config.")
     # sampling controls
     p.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="Optional: Sampling temperature (0 for greedy). Defaults to 0.")
@@ -1244,6 +1300,7 @@ def main() -> None:
         comment=args.comment,
         capture_classification_logprobs=capture_classification_logprobs,
         classification_mode=args.classification_mode,
+        run_explanations=not args.classification_only,
     )
 
     # Helpful env overrides recorded in config output
