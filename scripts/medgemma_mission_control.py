@@ -180,6 +180,7 @@ class MissionControl:
         poll_seconds: float,
         stall_seconds: float,
         max_orphan_resumes: int,
+        python_executable: Path | None = None,
     ) -> None:
         self.run_dir = run_dir
         self.compute_repo = compute_repo
@@ -189,6 +190,7 @@ class MissionControl:
         self.poll_seconds = poll_seconds
         self.stall_seconds = stall_seconds
         self.max_orphan_resumes = max_orphan_resumes
+        self.python_executable = python_executable or compute_repo / ".venv/bin/python"
         self.receipt_dir = run_dir / "receipts/mission-control"
         self.control_state_path = self.receipt_dir / "state.json"
 
@@ -213,7 +215,7 @@ class MissionControl:
     def refresh_public_status(self) -> None:
         subprocess.run(
             [
-                str(self.compute_repo / ".venv/bin/python"),
+                str(self.python_executable),
                 str(self.compute_repo / "scripts/run_tiered_medgemma_study.py"),
                 "status",
                 "--run-dir",
@@ -254,6 +256,7 @@ class MissionControl:
             "mission_control_repository": mission_revision,
             "execution_plan_sha256": sha256_file(self.tier_plan_path),
             "policy": {
+                "python_executable": str(self.python_executable),
                 "poll_seconds": self.poll_seconds,
                 "stall_seconds": self.stall_seconds,
                 "max_orphan_resumes": self.max_orphan_resumes,
@@ -357,11 +360,13 @@ class MissionControl:
         attempt = int(control["orphan_resume_attempts"]) + 1
         log_path = self.run_dir / f"logs/mission-control-resume-{attempt}.log"
         command = [
-            str(self.compute_repo / ".venv/bin/python"),
+            str(self.python_executable),
             str(self.compute_repo / "scripts/run_tiered_medgemma_study.py"),
             "run",
             "--run-dir",
             str(self.run_dir),
+            "--tier-plan",
+            str(self.tier_plan_path),
             "--public-status-output",
             str(self.public_status_path),
         ]
@@ -581,6 +586,11 @@ def controller_from_args(args: argparse.Namespace) -> MissionControl:
         poll_seconds=args.poll_seconds,
         stall_seconds=args.stall_seconds,
         max_orphan_resumes=args.max_orphan_resumes,
+        python_executable=(
+            args.python_executable.expanduser().resolve(strict=True)
+            if args.python_executable
+            else None
+        ),
     )
 
 
@@ -595,6 +605,11 @@ def main() -> None:
     parser.add_argument("--poll-seconds", type=float, default=15.0)
     parser.add_argument("--stall-seconds", type=float, default=300.0)
     parser.add_argument("--max-orphan-resumes", type=int, default=1)
+    parser.add_argument(
+        "--python-executable",
+        type=Path,
+        help="Pinned Python environment used for status refresh and orphan-only recovery.",
+    )
     parser.add_argument(
         "--reason",
         default="bounded live maintenance",

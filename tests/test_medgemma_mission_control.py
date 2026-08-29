@@ -92,6 +92,7 @@ def test_public_status_refresh_is_owned_by_mission_control(
     controller.refresh_public_status()
     assert "status" in captured["command"]
     assert "--tier-plan" in captured["command"]
+    assert captured["command"][0].endswith("repo/.venv/bin/python")
     assert captured["kwargs"]["check"] is True
 
 

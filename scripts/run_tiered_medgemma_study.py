@@ -14,6 +14,7 @@ import signal
 import socket
 import subprocess
 import sys
+import time
 from collections import Counter
 from contextlib import suppress
 from datetime import UTC, datetime
@@ -323,6 +324,67 @@ def write_state(run_dir: Path, state: dict[str, Any]) -> None:
     atomic_json(run_dir / "state.json", state)
 
 
+def launch_run(
+    run_dir: Path,
+    tier_plan: Path,
+    public_output: Path | None,
+) -> dict[str, Any]:
+    state = read_state(run_dir)
+    supervisor_pid = int(state.get("supervisor_pid") or 0)
+    if process_alive(supervisor_pid):
+        raise RuntimeError(f"Supervisor {supervisor_pid} is already running")
+    command = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "run",
+        "--run-dir",
+        str(run_dir),
+        "--tier-plan",
+        str(tier_plan),
+    ]
+    if public_output:
+        command.extend(["--public-status-output", str(public_output)])
+    if platform.system() == "Darwin" and Path("/usr/bin/caffeinate").exists():
+        command = ["/usr/bin/caffeinate", "-dimsu", *command]
+    log_path = run_dir / "logs/supervisor.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8") as log:
+        process = subprocess.Popen(
+            command,
+            cwd=REPO_ROOT,
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True,
+        )
+    receipt = {
+        "schema_version": 1,
+        "launcher_pid": process.pid,
+        "hostname": socket.gethostname(),
+        "command": command,
+        "launched_at_utc": utc_now(),
+        "repository": git_revision(),
+        "execution_plan_sha256": sha256_file(tier_plan),
+        "log": str(log_path.relative_to(run_dir)),
+    }
+    atomic_json(run_dir / "launcher.json", receipt)
+    time.sleep(1)
+    if process.poll() is not None:
+        raise RuntimeError(f"Detached supervisor exited immediately; inspect {log_path}")
+    return receipt
+
+
+def process_alive(pid: int) -> bool:
+    if pid < 1:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
 def run_command(run_dir: Path, stage: str, command: list[str]) -> None:
     log_path = run_dir / "logs" / f"{stage}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -461,7 +523,7 @@ def run_study(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["dry-run", "run", "status"])
+    parser.add_argument("command", choices=["dry-run", "launch", "run", "status"])
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument(
         "--tier-plan",
@@ -493,6 +555,10 @@ def main() -> None:
         print(json.dumps({"valid": True, "status": status}, indent=2))
     elif args.command == "status":
         print(json.dumps(status, indent=2))
+    elif args.command == "launch":
+        if git_revision()["worktree_dirty"]:
+            raise RuntimeError("Governed execution requires a clean repository revision")
+        print(json.dumps(launch_run(run_dir, plan_path, public_output), indent=2))
     else:
         if git_revision()["worktree_dirty"]:
             raise RuntimeError("Governed execution requires a clean repository revision")
