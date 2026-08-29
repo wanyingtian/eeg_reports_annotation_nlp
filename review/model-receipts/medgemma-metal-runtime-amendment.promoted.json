@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "amendment_id": "jbhi-02463/medgemma/runtime-amendment/metal-full-offload-flash-v1",
+  "status": "promoted_after_result_blind_benchmark",
+  "promoted_at_utc": "2026-08-29T17:30:00+00:00",
+  "scope": "execution runtime only",
+  "scientific_invariants": {
+    "model_bytes_changed": false,
+    "prompt_bytes_changed": false,
+    "grammar_bytes_changed": false,
+    "sampling_changed": false,
+    "cohort_or_key_manifest_changed": false,
+    "analysis_changed": false
+  },
+  "promoted_runtime_profile": {
+    "runtime_profile_id": "llama-cpp-python-metal-full-offload-flash-v1",
+    "engine": "llama-cpp-python",
+    "engine_version": "0.3.34",
+    "parameters": {
+      "n_ctx": 4096,
+      "n_gpu_layers": -1,
+      "n_batch": 1024,
+      "n_ubatch": 512,
+      "n_threads": 4,
+      "n_threads_batch": 10,
+      "flash_attn": true
+    }
+  },
+  "result_blind_benchmark": {
+    "plan_id": "jbhi-02463/medgemma/runtime-optimization/metal-v1",
+    "governed_receipt_sha256": "f8006c884209c9fd966fe2a413c5fa980d3b63d2fe6040d76afe6fde4a64c6da",
+    "records": 12,
+    "valid_structured_outputs": 12,
+    "exact_classification_equivalence_fraction": 1.0,
+    "speedup": 1.4665250200662892,
+    "baseline_reports_per_hour": 137.03544828736682,
+    "promoted_reports_per_hour": 200.96591354942353,
+    "maximum_resident_set_size_bytes": 12833718272,
+    "thermal_or_performance_warning": false,
+    "human_reference_outcomes_accessed": false,
+    "partial_performance_metrics_computed": false
+  },
+  "execution_policy": {
+    "new_run_directory_required": true,
+    "mixed_runtime_rows_allowed": false,
+    "frozen_original_run_overwritten": false,
+    "rollback": "Resume the stopped n_gpu_layers=30 run from its exact-key checkpoint.",
+    "manuscript_claim_created": false
+  }
+}

@@ -77,6 +77,37 @@ def test_tier_plan_rejects_non_monotonic_targets(tmp_path: Path) -> None:
         validate_plan(plan, job, study_plan)
 
 
+def test_tier_plan_rejects_runtime_amendment_mismatch(tmp_path: Path) -> None:
+    study_plan = tmp_path / "study-plan.json"
+    study_plan.write_text("{}\n", encoding="utf-8")
+    job = {
+        "study_id": "study",
+        "configuration_id": "configuration",
+        "cohorts": [{"cohort_id": "zoe", "records": 10}],
+        "runtime_amendment": {
+            "amendment_id": "amendment",
+            "sha256": "prepared",
+            "runtime_profile_id": "profile",
+        },
+    }
+    plan = {
+        "status": "preregistered_before_inference",
+        "study_id": "study",
+        "configuration_id": "configuration",
+        "source_study_plan_sha256": sha256_file(study_plan),
+        "runtime_amendment": {
+            "amendment_id": "amendment",
+            "sha256": "different",
+            "runtime_profile_id": "profile",
+        },
+        "tiers": [{"tier_id": "T0", "targets": {"zoe": 10}}],
+        "post_inference": {"partial_reference_metrics_allowed": False},
+    }
+
+    with pytest.raises(ValueError, match="runtime amendments differ"):
+        validate_plan(plan, job, study_plan)
+
+
 def test_operational_output_summary_excludes_keys_and_reference_metrics(tmp_path: Path) -> None:
     output = tmp_path / "raw.csv"
     rows = [

@@ -113,6 +113,10 @@ def validate_plan(plan: dict[str, Any], job: dict[str, Any], study_plan: Path) -
         raise ValueError("Final tier does not cover every prepared report")
     if plan["post_inference"].get("partial_reference_metrics_allowed") is not False:
         raise ValueError("Partial reference metrics must remain prohibited")
+    planned_amendment = plan.get("runtime_amendment")
+    prepared_amendment = job.get("runtime_amendment")
+    if planned_amendment != prepared_amendment:
+        raise ValueError("Tier plan and prepared job runtime amendments differ")
 
 
 def validate_run_inputs(run_dir: Path, job: dict[str, Any]) -> None:
@@ -277,6 +281,9 @@ def current_status(
             "hostname": socket.gethostname(),
             "platform": platform.platform(),
             "python": platform.python_version(),
+            "runtime_profile_id": (
+                job.get("runtime_amendment") or {}
+            ).get("runtime_profile_id", "llama-cpp-python-default"),
         },
         "repository": git_revision(),
         "privacy_boundary": (

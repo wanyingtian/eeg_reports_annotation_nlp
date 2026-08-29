@@ -121,7 +121,38 @@ def select_prediction_surface(frame: pd.DataFrame, keys: list[str], destination:
     destination.chmod(0o600)
 
 
-def command_plan(run_dir: Path, cohorts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def runtime_arguments(amendment: dict[str, Any] | None) -> list[str]:
+    if amendment is None:
+        return []
+    if amendment.get("status") != "promoted_after_result_blind_benchmark":
+        raise ValueError("Runtime amendment has not passed its promotion gate")
+    profile = amendment["promoted_runtime_profile"]
+    parameters = profile["parameters"]
+    arguments = [
+        "--runtime-profile-id",
+        profile["runtime_profile_id"],
+        "--n-ctx",
+        str(parameters["n_ctx"]),
+        "--n-gpu-layers",
+        str(parameters["n_gpu_layers"]),
+        "--n-batch",
+        str(parameters["n_batch"]),
+        "--n-ubatch",
+        str(parameters["n_ubatch"]),
+        "--n-threads",
+        str(parameters["n_threads"]),
+        "--n-threads-batch",
+        str(parameters["n_threads_batch"]),
+    ]
+    arguments.append("--flash-attn" if parameters["flash_attn"] else "--no-flash-attn")
+    return arguments
+
+
+def command_plan(
+    run_dir: Path,
+    cohorts: list[dict[str, Any]],
+    runtime_amendment: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     py = "python"
     commands: list[dict[str, Any]] = []
     for cohort in cohorts:
@@ -161,6 +192,7 @@ def command_plan(run_dir: Path, cohorts: list[dict[str, Any]]) -> list[dict[str,
                         "0.95",
                         "--max-tokens",
                         "256",
+                        *runtime_arguments(runtime_amendment),
                         "--comment",
                         "JBHI additive independent MedGemma matched-interface comparator",
                     ],
@@ -341,12 +373,24 @@ def main() -> None:
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("--source-run", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--runtime-amendment", type=Path)
     parser.add_argument("--acknowledge-governed-output", action="store_true")
     args = parser.parse_args()
     if not args.acknowledge_governed_output:
         parser.error("--acknowledge-governed-output is required")
 
     plan_path = args.plan.expanduser().resolve(strict=True)
+    runtime_amendment_path = (
+        args.runtime_amendment.expanduser().resolve(strict=True)
+        if args.runtime_amendment
+        else None
+    )
+    runtime_amendment = (
+        json.loads(runtime_amendment_path.read_text(encoding="utf-8"))
+        if runtime_amendment_path
+        else None
+    )
+    runtime_arguments(runtime_amendment)
     source_run = args.source_run.expanduser().resolve(strict=True)
     output = args.output_dir.expanduser().resolve()
     if output.exists() and any(output.iterdir()):
@@ -417,7 +461,18 @@ def main() -> None:
             "transfer_manifest_sha256": sha256_file(source_run / "transfer-manifest.json"),
         },
         "cohorts": prepared,
-        "commands": command_plan(output, prepared),
+        "commands": command_plan(output, prepared, runtime_amendment),
+        "runtime_amendment": (
+            {
+                "amendment_id": runtime_amendment["amendment_id"],
+                "sha256": sha256_file(runtime_amendment_path),
+                "runtime_profile_id": runtime_amendment["promoted_runtime_profile"][
+                    "runtime_profile_id"
+                ],
+            }
+            if runtime_amendment and runtime_amendment_path
+            else None
+        ),
         "status": "prepared_no_inference",
         "privacy_boundary": (
             "This run directory is governed. Inputs, manifests, and comparator surfaces contain "
