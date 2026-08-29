@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_before_inference",
+  "execution_plan_id": "jbhi-02463/medgemma-independent/tiered-execution/v1",
+  "study_id": "jbhi-02463-post-submission-medgemma-independent-v1",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-matched-interface-q2-v1",
+  "configuration_change": false,
+  "purpose": "Expose operational coverage, validity, timing, and ETA across every cohort early while preserving a result-blind evaluation and a resumable path to complete same-case analysis.",
+  "source_study_plan_sha256": "58121092aec45687c01ebef9de281f03e187cd188f3b0b691668a5e38018ee5c",
+  "planning_seconds_per_report": 40.960573292002664,
+  "early_view": {
+    "target_elapsed_hours": 2.0,
+    "minimum_completed_by_cohort": {
+      "zoe_development_transport_100": 100,
+      "zoe_evaluation_1395": 50,
+      "maria_evaluation_499": 25
+    },
+    "permitted_reporting": [
+      "completed and remaining record counts",
+      "valid and invalid structured-output counts",
+      "aggregate predicted-label distribution for degeneracy detection",
+      "latency and token summaries",
+      "recalibrated completion estimate"
+    ],
+    "prohibited_reporting": [
+      "partial-cohort accuracy or agreement",
+      "partial comparison with Mistral, annotators, or v5g",
+      "prompt, runtime, or stopping changes based on reference outcomes",
+      "manuscript performance claims"
+    ]
+  },
+  "transport_gate": {
+    "cohort_id": "zoe_development_transport_100",
+    "target_records": 100,
+    "must_complete_before_evaluation": true,
+    "stop_on_any_invalid_structured_output": true,
+    "stop_on_single_full_classification_pattern": true,
+    "reference_outcomes_accessed": false
+  },
+  "tiers": [
+    {
+      "tier_id": "T0_transport",
+      "targets": {
+        "zoe_development_transport_100": 100,
+        "zoe_evaluation_1395": 0,
+        "maria_evaluation_499": 0
+      },
+      "estimated_cumulative_hours": 1.1378,
+      "reporting_state": "transport_gate"
+    },
+    {
+      "tier_id": "T1_cross_cohort_vista",
+      "targets": {
+        "zoe_development_transport_100": 100,
+        "zoe_evaluation_1395": 50,
+        "maria_evaluation_499": 25
+      },
+      "estimated_cumulative_hours": 1.9911,
+      "reporting_state": "operational_view_all_cohorts"
+    },
+    {
+      "tier_id": "T2_first_quartile",
+      "targets": {
+        "zoe_development_transport_100": 100,
+        "zoe_evaluation_1395": 300,
+        "maria_evaluation_499": 125
+      },
+      "estimated_cumulative_hours": 5.9734,
+      "reporting_state": "running_result_blind"
+    },
+    {
+      "tier_id": "T3_midpoint",
+      "targets": {
+        "zoe_development_transport_100": 100,
+        "zoe_evaluation_1395": 700,
+        "maria_evaluation_499": 250
+      },
+      "estimated_cumulative_hours": 11.9468,
+      "reporting_state": "running_result_blind"
+    },
+    {
+      "tier_id": "T4_three_quarters",
+      "targets": {
+        "zoe_development_transport_100": 100,
+        "zoe_evaluation_1395": 1100,
+        "maria_evaluation_499": 375
+      },
+      "estimated_cumulative_hours": 17.9203,
+      "reporting_state": "running_result_blind"
+    },
+    {
+      "tier_id": "T5_complete_inference",
+      "targets": {
+        "zoe_development_transport_100": 100,
+        "zoe_evaluation_1395": 1395,
+        "maria_evaluation_499": 499
+      },
+      "estimated_cumulative_hours": 22.6876,
+      "reporting_state": "complete_inference_pending_analysis"
+    }
+  ],
+  "post_inference": {
+    "run_only_after_exact_final_key_coverage": true,
+    "steps": [
+      "process every cohort output",
+      "evaluate complete Zoe and Maria cohorts",
+      "compare on identical report keys with submitted Mistral",
+      "compare on identical report keys with reproduced Mistral",
+      "compare on identical report keys with the second annotator",
+      "retain multiplicity-controlled paired results and unfavorable outputs"
+    ],
+    "partial_reference_metrics_allowed": false
+  },
+  "status_contract": {
+    "public_safe": true,
+    "contains_report_text": false,
+    "contains_report_or_patient_keys": false,
+    "contains_reference_labels": false,
+    "contains_partial_performance_metrics": false,
+    "state_axes": [
+      "execution",
+      "validation",
+      "result",
+      "manuscript_admission"
+    ]
+  },
+  "change_control": "The tier schedule changes execution order and progress reporting only. Model bytes, prompt, grammar, sampling, report-key manifests, reference surfaces, analysis definitions, and admission rules remain frozen."
+}

@@ -1,6 +1,6 @@
 UV ?= uv
 
-.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare
+.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run
 
 sync:
 	$(UV) sync
@@ -9,7 +9,7 @@ sync-all:
 	$(UV) sync --extra reports --extra baselines --extra llm --extra evidence
 
 lint:
-	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/smoke_classification.py scripts/preload_model.py scripts/study_job.py scripts/prepare_medgemma_study.py src/LLM_pipeline/llm_models.py
+	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/smoke_classification.py scripts/preload_model.py scripts/study_job.py scripts/prepare_medgemma_study.py scripts/run_tiered_medgemma_study.py src/LLM_pipeline/llm_models.py
 
 test:
 	$(UV) run --extra baselines pytest
@@ -65,3 +65,18 @@ medgemma-prepare:
 		--plan review/model-receipts/medgemma-independent-comparator.preregistered.json \
 		--source-run "$(SOURCE_RUN)" --output-dir "$(RUN_DIR)" \
 		--acknowledge-governed-output
+
+medgemma-tier-dry-run:
+	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed MedGemma run directory" && exit 2)
+	$(UV) run --extra llm python scripts/run_tiered_medgemma_study.py dry-run \
+		--run-dir "$(RUN_DIR)" $(TIER_RUN_ARGS)
+
+medgemma-tier-status:
+	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed MedGemma run directory" && exit 2)
+	$(UV) run python scripts/run_tiered_medgemma_study.py status \
+		--run-dir "$(RUN_DIR)" $(TIER_RUN_ARGS)
+
+medgemma-tier-run:
+	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed MedGemma run directory" && exit 2)
+	$(UV) run --extra llm python scripts/run_tiered_medgemma_study.py run \
+		--run-dir "$(RUN_DIR)" $(TIER_RUN_ARGS)
