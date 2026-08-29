@@ -93,3 +93,57 @@ def test_public_status_refresh_is_owned_by_mission_control(
     assert "status" in captured["command"]
     assert "--tier-plan" in captured["command"]
     assert captured["kwargs"]["check"] is True
+
+
+def test_maintenance_checkpoint_hashes_atomic_products(monkeypatch, tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    product = run_dir / "products/cohort/raw.csv"
+    product.parent.mkdir(parents=True)
+    product.write_text("Hashed_ReportURN,classifications\ncase-1,{}\n", encoding="utf-8")
+    stage = run_dir / "stages/T0.done.json"
+    stage.parent.mkdir(parents=True)
+    stage.write_text("{}\n", encoding="utf-8")
+    (run_dir / "state.json").write_text(
+        json.dumps({"status": "stopped"}) + "\n", encoding="utf-8"
+    )
+    plan = tmp_path / "plan.json"
+    plan.write_text("{}\n", encoding="utf-8")
+    public_status = tmp_path / "progress.json"
+    public_status.write_text(
+        json.dumps(
+            {
+                "study_id": "study-1",
+                "completed_records": 1,
+                "target_records": 10,
+                "completed_tiers": ["T0"],
+                "current_tier": "T1",
+                "current_stage": "cohort__to_10",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(MODULE.MissionControl, "refresh_public_status", lambda _self: None)
+    monkeypatch.setattr(
+        MODULE,
+        "git_revision",
+        lambda path: {"revision": path.name, "worktree_dirty": False},
+    )
+    controller = MODULE.MissionControl(
+        run_dir=run_dir,
+        compute_repo=tmp_path / "compute",
+        tier_plan=plan,
+        public_status=public_status,
+        public_heartbeat=tmp_path / "heartbeat.json",
+        poll_seconds=15,
+        stall_seconds=300,
+        max_orphan_resumes=1,
+    )
+
+    receipt = controller.maintenance_checkpoint("test maintenance")
+
+    assert receipt["execution_state"] == "stopped"
+    assert receipt["products"][0]["records"] == 1
+    assert receipt["products"][0]["sha256"] == MODULE.sha256_file(product)
+    assert receipt["resume_policy"]["automatic_restart"] is False
+    assert (run_dir / receipt["receipt_path"]).exists()

@@ -10,7 +10,9 @@ Edit DEFAULT_PARAMS to change default loading parameters.
 
 import hashlib
 import logging
+import time
 from pathlib import Path
+from typing import Any
 
 from huggingface_hub import hf_hub_download
 from llama_cpp.llama import Llama
@@ -20,6 +22,18 @@ DEFAULT_PARAMS = {
     "n_ctx": 4096, # context window size, 4096 tokens are about 3000 words
     "n_gpu_layers": 30,
     "verbose": False,
+}
+
+ALLOWED_LOAD_OVERRIDES = {
+    "n_ctx",
+    "n_gpu_layers",
+    "n_batch",
+    "n_ubatch",
+    "n_threads",
+    "n_threads_batch",
+    "flash_attn",
+    "use_mmap",
+    "use_mlock",
 }
 
 # Model configurations - edit this to add new models
@@ -78,7 +92,34 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def resolve_model_artifact(model_name: str, *, logits_all: bool = False) -> tuple[Path, dict]:
+def validated_load_parameters(
+    *,
+    logits_all: bool,
+    load_overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    overrides = {key: value for key, value in (load_overrides or {}).items() if value is not None}
+    unexpected = sorted(set(overrides) - ALLOWED_LOAD_OVERRIDES)
+    if unexpected:
+        raise ValueError(f"Unsupported llama.cpp load overrides: {unexpected}")
+    parameters = {**DEFAULT_PARAMS, **overrides, "logits_all": logits_all}
+    for key in ("n_ctx", "n_batch", "n_ubatch"):
+        if key in parameters and int(parameters[key]) < 1:
+            raise ValueError(f"{key} must be positive")
+    if int(parameters["n_gpu_layers"]) < -1:
+        raise ValueError("n_gpu_layers must be -1 or non-negative")
+    if int(parameters.get("n_ubatch", parameters.get("n_batch", 512))) > int(
+        parameters.get("n_batch", 512)
+    ):
+        raise ValueError("n_ubatch cannot exceed n_batch")
+    return parameters
+
+
+def resolve_model_artifact(
+    model_name: str,
+    *,
+    logits_all: bool = False,
+    load_overrides: dict[str, Any] | None = None,
+) -> tuple[Path, dict]:
     """Download/cache a GGUF model and return its validated provenance."""
     if model_name not in MODEL_CONFIGS:
         available = list(MODEL_CONFIGS.keys())
@@ -100,7 +141,10 @@ def resolve_model_artifact(model_name: str, *, logits_all: bool = False) -> tupl
             f"Model checksum mismatch for {model_name}: "
             f"expected {expected_sha256}, found {model_sha256}"
         )
-    load_parameters = {**DEFAULT_PARAMS, "logits_all": logits_all}
+    load_parameters = validated_load_parameters(
+        logits_all=logits_all,
+        load_overrides=load_overrides,
+    )
     receipt = {
         "registry_name": model_name,
         "repo_id": cfg["repo_id"],
@@ -115,11 +159,23 @@ def resolve_model_artifact(model_name: str, *, logits_all: bool = False) -> tupl
     return model_path, receipt
 
 
-def download_model_with_receipt(model_name: str, *, logits_all: bool = False) -> tuple[Llama, dict]:
+def download_model_with_receipt(
+    model_name: str,
+    *,
+    logits_all: bool = False,
+    load_overrides: dict[str, Any] | None = None,
+) -> tuple[Llama, dict]:
     """Download and load a GGUF model, returning immutable model provenance."""
-    model_path, receipt = resolve_model_artifact(model_name, logits_all=logits_all)
+    model_path, receipt = resolve_model_artifact(
+        model_name,
+        logits_all=logits_all,
+        load_overrides=load_overrides,
+    )
     logging.info("Loading model into llama.cpp...")
-    return Llama(model_path=str(model_path), **receipt["load_parameters"]), receipt
+    started = time.perf_counter()
+    model = Llama(model_path=str(model_path), **receipt["load_parameters"])
+    receipt["model_load_elapsed_seconds"] = time.perf_counter() - started
+    return model, receipt
 
 
 def download_model(model_name: str) -> Llama:

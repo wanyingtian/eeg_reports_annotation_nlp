@@ -240,6 +240,14 @@ class RunConfig:
     capture_classification_logprobs: bool = False
     classification_mode: str = HISTORICAL_FOUR_LEVEL_MODE
     run_explanations: bool = True
+    runtime_profile_id: str = "llama-cpp-python-default"
+    n_ctx: int | None = None
+    n_gpu_layers: int | None = None
+    n_batch: int | None = None
+    n_ubatch: int | None = None
+    n_threads: int | None = None
+    n_threads_batch: int | None = None
+    flash_attn: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -649,6 +657,7 @@ def process_completed_csv(
     capture_classification_logprobs: bool = False,
     classification_mode: str = HISTORICAL_FOUR_LEVEL_MODE,
     run_explanations: bool = True,
+    runtime_profile_id: str = "llama-cpp-python-default",
 ) -> Tuple[pd.DataFrame, set[str]]:
     """
     Load existing results to resume. Returns (df, set_of_hashed_ids).
@@ -656,6 +665,7 @@ def process_completed_csv(
     cols = [
         "Hashed_ReportURN",
         "Report",
+        "runtime_profile_id",
         "classifications",
         "explanations",
         "report_whitespace_words",
@@ -684,6 +694,14 @@ def process_completed_csv(
 
     try:
         df = pd.read_csv(path)
+        if len(df) and "runtime_profile_id" not in df.columns:
+            df["runtime_profile_id"] = "llama-cpp-python-default"
+        observed_profiles = set(df.get("runtime_profile_id", pd.Series(dtype=str)).dropna())
+        if observed_profiles and observed_profiles != {runtime_profile_id}:
+            raise ValueError(
+                "A resumed CSV cannot mix runtime profiles: "
+                f"expected {runtime_profile_id}, found {sorted(observed_profiles)}"
+            )
         execution_modes = (
             set(df["pipeline_execution_mode"].dropna().astype(str))
             if "pipeline_execution_mode" in df.columns
@@ -856,6 +874,7 @@ def run_pipeline(
                     [
                         {
                             "Hashed_ReportURN": hashed_id,
+                            "runtime_profile_id": cfg.runtime_profile_id,
                             "classifications": classifications,
                             "explanations": explanations,
                             "report_whitespace_words": len(report.split()),
@@ -916,6 +935,7 @@ def run_pipeline(
             "sha256": sha256_file(dataset_path),
         },
         "model": model_receipt,
+        "runtime_profile_id": cfg.runtime_profile_id,
         "sampling": {
             "temperature": cfg.temperature,
             "top_k": cfg.top_k,
@@ -1063,10 +1083,21 @@ def worker_target(
     )
     grammar_explain = load_gbnf(BASE_DIR / "result_grammar_exp.gbnf")
 
+    load_overrides = {
+        "n_ctx": cfg.n_ctx,
+        "n_gpu_layers": cfg.n_gpu_layers,
+        "n_batch": cfg.n_batch,
+        "n_ubatch": cfg.n_ubatch,
+        "n_threads": cfg.n_threads,
+        "n_threads_batch": cfg.n_threads_batch,
+        "flash_attn": cfg.flash_attn,
+    }
     model, model_receipt = download_model_with_receipt(
         model_name,
         logits_all=cfg.capture_classification_logprobs,
+        load_overrides=load_overrides,
     )
+    model_receipt["runtime_profile_id"] = cfg.runtime_profile_id
 
     # (Re)load completed and pending.
     prior_df, prior_hashes = process_completed_csv(
@@ -1074,6 +1105,7 @@ def worker_target(
         capture_classification_logprobs=cfg.capture_classification_logprobs,
         classification_mode=cfg.classification_mode,
         run_explanations=cfg.run_explanations,
+        runtime_profile_id=cfg.runtime_profile_id,
     )
     logging.info(f"Initial completed count: {len(prior_hashes)}")
     pending = load_reports_df(dataset_path, num_reports, prior_hashes)
@@ -1242,6 +1274,23 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument("--comment", type=str, default="LLM pipeline run", help="Optional: comment to save in config.")
+    p.add_argument(
+        "--runtime-profile-id",
+        default="llama-cpp-python-default",
+        help="Stable identifier recorded for the llama.cpp execution profile.",
+    )
+    p.add_argument("--n-ctx", type=int, default=None)
+    p.add_argument("--n-gpu-layers", type=int, default=None)
+    p.add_argument("--n-batch", type=int, default=None)
+    p.add_argument("--n-ubatch", type=int, default=None)
+    p.add_argument("--n-threads", type=int, default=None)
+    p.add_argument("--n-threads-batch", type=int, default=None)
+    p.add_argument(
+        "--flash-attn",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Explicitly enable or disable llama.cpp Flash Attention.",
+    )
     # sampling controls
     p.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="Optional: Sampling temperature (0 for greedy). Defaults to 0.")
     p.add_argument("--top-k", dest="top_k", type=int, default=DEFAULT_TOP_K, help="Optional: Top-k sampling cutoff. Defaults to 40.")
@@ -1301,6 +1350,14 @@ def main() -> None:
         capture_classification_logprobs=capture_classification_logprobs,
         classification_mode=args.classification_mode,
         run_explanations=not args.classification_only,
+        runtime_profile_id=args.runtime_profile_id,
+        n_ctx=args.n_ctx,
+        n_gpu_layers=args.n_gpu_layers,
+        n_batch=args.n_batch,
+        n_ubatch=args.n_ubatch,
+        n_threads=args.n_threads,
+        n_threads_batch=args.n_threads_batch,
+        flash_attn=args.flash_attn,
     )
 
     # Helpful env overrides recorded in config output

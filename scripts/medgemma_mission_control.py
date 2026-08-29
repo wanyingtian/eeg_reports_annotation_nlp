@@ -147,6 +147,13 @@ def prefix_receipt(path: Path, target: int) -> dict[str, Any]:
     }
 
 
+def csv_record_count(path: Path) -> int:
+    if not path.exists():
+        return 0
+    with path.open(newline="", encoding="utf-8") as stream:
+        return sum(1 for _ in csv.DictReader(stream))
+
+
 def classify_health(
     execution_state: str,
     supervisor_alive: bool,
@@ -425,6 +432,70 @@ class MissionControl:
         atomic_json(destination, payload)
         return payload
 
+    def maintenance_checkpoint(self, reason: str) -> dict[str, Any]:
+        self.refresh_public_status()
+        compute_state = read_json(self.run_dir / "state.json")
+        if compute_state["status"] not in {"stopped", "completed"}:
+            raise RuntimeError("Maintenance checkpoints require a stopped or completed run")
+        status = read_json(self.public_status_path)
+        products = []
+        for raw_path in sorted((self.run_dir / "products").glob("*/raw.csv")):
+            products.append(
+                {
+                    "path": str(raw_path.relative_to(self.run_dir)),
+                    "records": csv_record_count(raw_path),
+                    "size_bytes": raw_path.stat().st_size,
+                    "sha256": sha256_file(raw_path),
+                }
+            )
+        stage_receipts = []
+        for stage_path in sorted((self.run_dir / "stages").glob("*.done.json")):
+            stage_receipts.append(
+                {
+                    "path": str(stage_path.relative_to(self.run_dir)),
+                    "sha256": sha256_file(stage_path),
+                }
+            )
+        created_at = utc_now()
+        payload = {
+            "schema_version": MISSION_SCHEMA_VERSION,
+            "checkpoint_type": "governed_live_maintenance",
+            "created_at_utc": created_at,
+            "reason": reason,
+            "study_id": status["study_id"],
+            "execution_state": compute_state["status"],
+            "state_sha256": sha256_file(self.run_dir / "state.json"),
+            "execution_plan_sha256": sha256_file(self.tier_plan_path),
+            "compute_repository": git_revision(self.compute_repo),
+            "mission_control_repository": git_revision(
+                Path(__file__).resolve().parents[1]
+            ),
+            "completed_records": int(status["completed_records"]),
+            "target_records": int(status["target_records"]),
+            "completed_tiers": status["completed_tiers"],
+            "current_tier": status.get("current_tier"),
+            "current_stage": status.get("current_stage"),
+            "products": products,
+            "stage_receipts": stage_receipts,
+            "resume_policy": {
+                "resumable": compute_state["status"] == "stopped",
+                "exact_key_resume": True,
+                "automatic_restart": False,
+                "rule": (
+                    "Resume only after the maintenance change has its own committed revision, "
+                    "runtime receipt, and result-blind validation gate."
+                ),
+            },
+            "reporting_boundary": (
+                "Operational maintenance receipt only; no report text, report keys, reference "
+                "outcomes, partial performance metrics, or manuscript admission."
+            ),
+        }
+        timestamp = created_at.replace(":", "").replace("+00:00", "Z").replace("-", "")
+        destination = self.receipt_dir / f"maintenance-checkpoint-{timestamp}.json"
+        atomic_json(destination, payload)
+        return {**payload, "receipt_path": str(destination.relative_to(self.run_dir))}
+
     def tick(self) -> dict[str, Any]:
         self.refresh_public_status()
         control = self.control_state()
@@ -515,7 +586,7 @@ def controller_from_args(args: argparse.Namespace) -> MissionControl:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["adopt", "status", "watch"])
+    parser.add_argument("command", choices=["adopt", "status", "watch", "checkpoint"])
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--compute-repo", type=Path, required=True)
     parser.add_argument("--tier-plan", type=Path, required=True)
@@ -524,12 +595,19 @@ def main() -> None:
     parser.add_argument("--poll-seconds", type=float, default=15.0)
     parser.add_argument("--stall-seconds", type=float, default=300.0)
     parser.add_argument("--max-orphan-resumes", type=int, default=1)
+    parser.add_argument(
+        "--reason",
+        default="bounded live maintenance",
+        help="Reason recorded by the governed maintenance checkpoint command.",
+    )
     args = parser.parse_args()
     controller = controller_from_args(args)
     if args.command == "adopt":
         print(json.dumps(controller.adopt(), indent=2))
     elif args.command == "status":
         print(json.dumps(controller.tick(), indent=2))
+    elif args.command == "checkpoint":
+        print(json.dumps(controller.maintenance_checkpoint(args.reason), indent=2))
     else:
         controller.watch()
 
