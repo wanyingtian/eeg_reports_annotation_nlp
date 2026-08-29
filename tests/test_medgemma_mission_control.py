@@ -67,3 +67,29 @@ def test_supervisor_identity_is_bound_to_runner_and_run_directory(
     )
     assert MODULE.supervisor_identity_matches(123, tmp_path)
     assert not MODULE.supervisor_identity_matches(123, tmp_path / "other")
+
+
+def test_public_status_refresh_is_owned_by_mission_control(
+    monkeypatch, tmp_path: Path
+) -> None:
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
+    controller = MODULE.MissionControl(
+        run_dir=tmp_path / "run",
+        compute_repo=tmp_path / "repo",
+        tier_plan=tmp_path / "plan.json",
+        public_status=tmp_path / "progress.json",
+        public_heartbeat=tmp_path / "heartbeat.json",
+        poll_seconds=15,
+        stall_seconds=300,
+        max_orphan_resumes=1,
+    )
+    controller.refresh_public_status()
+    assert "status" in captured["command"]
+    assert "--tier-plan" in captured["command"]
+    assert captured["kwargs"]["check"] is True

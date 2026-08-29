@@ -203,6 +203,26 @@ class MissionControl:
         state["updated_at_utc"] = utc_now()
         atomic_json(self.control_state_path, state)
 
+    def refresh_public_status(self) -> None:
+        subprocess.run(
+            [
+                str(self.compute_repo / ".venv/bin/python"),
+                str(self.compute_repo / "scripts/run_tiered_medgemma_study.py"),
+                "status",
+                "--run-dir",
+                str(self.run_dir),
+                "--tier-plan",
+                str(self.tier_plan_path),
+                "--public-status-output",
+                str(self.public_status_path),
+            ],
+            cwd=self.compute_repo,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+        )
+
     def adopt(self) -> dict[str, Any]:
         state = read_json(self.run_dir / "state.json")
         supervisor_pid = int(state.get("supervisor_pid") or 0)
@@ -232,6 +252,7 @@ class MissionControl:
                 "max_orphan_resumes": self.max_orphan_resumes,
                 "restart_failed_or_stopped_run": False,
                 "restart_only_orphaned_running_state": True,
+                "refresh_public_status_each_tick": True,
             },
         }
         atomic_json(self.receipt_dir / "adoption.json", receipt)
@@ -389,6 +410,7 @@ class MissionControl:
         return payload
 
     def tick(self) -> dict[str, Any]:
+        self.refresh_public_status()
         control = self.control_state()
         compute_state = read_json(self.run_dir / "state.json")
         status = read_json(self.public_status_path)

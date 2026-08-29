@@ -129,8 +129,9 @@ caffeinate -dimsu python scripts/medgemma_mission_control.py watch \
 
 `adopt` records both repository revisions and the frozen plan hash. `watch`
 checks supervisor liveness and progress, emits immutable per-tier prefix
-receipts, and creates a final governed transfer manifest after successful
-completion. It may make one automatic recovery attempt only when the operating
+receipts, refreshes the public-safe operational status without a separate shell
+loop, and creates a final governed transfer manifest after successful completion.
+It may make one automatic recovery attempt only when the operating
 system process is gone while the governed state still says `running`; it never
 restarts a `failed` or intentionally `stopped` run. Its public heartbeat contains
 operational counts and health only—not report keys, text, labels, reference
