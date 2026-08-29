@@ -575,8 +575,68 @@ class MissionControl:
                 return
             time.sleep(self.poll_seconds)
 
+    def launch_watch(self) -> dict[str, Any]:
+        watcher_path = self.receipt_dir / "watcher.json"
+        if watcher_path.exists():
+            prior = read_json(watcher_path)
+            if process_alive(int(prior.get("pid") or 0)):
+                raise RuntimeError(f"Mission-control watcher {prior['pid']} is already running")
+        command = [
+            str(self.python_executable),
+            str(Path(__file__).resolve()),
+            "watch",
+            "--run-dir",
+            str(self.run_dir),
+            "--compute-repo",
+            str(self.compute_repo),
+            "--tier-plan",
+            str(self.tier_plan_path),
+            "--public-status",
+            str(self.public_status_path),
+            "--public-heartbeat",
+            str(self.public_heartbeat_path),
+            "--python-executable",
+            str(self.python_executable),
+            "--poll-seconds",
+            str(self.poll_seconds),
+            "--stall-seconds",
+            str(self.stall_seconds),
+            "--max-orphan-resumes",
+            str(self.max_orphan_resumes),
+        ]
+        log_path = self.run_dir / "logs/mission-control-watch.log"
+        with log_path.open("a", encoding="utf-8") as log:
+            process = subprocess.Popen(
+                command,
+                cwd=Path(__file__).resolve().parents[1],
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                start_new_session=True,
+            )
+        receipt = {
+            "schema_version": MISSION_SCHEMA_VERSION,
+            "pid": process.pid,
+            "created_at_utc": utc_now(),
+            "command": command,
+            "log": str(log_path.relative_to(self.run_dir)),
+        }
+        atomic_json(watcher_path, receipt)
+        time.sleep(1)
+        if process.poll() is not None:
+            raise RuntimeError(f"Mission-control watcher exited; inspect {log_path}")
+        return receipt
+
 
 def controller_from_args(args: argparse.Namespace) -> MissionControl:
+    python_executable = (
+        args.python_executable.expanduser().absolute()
+        if args.python_executable
+        else None
+    )
+    if python_executable is not None and not python_executable.exists():
+        raise FileNotFoundError(f"Python executable not found: {python_executable}")
     return MissionControl(
         run_dir=args.run_dir.expanduser().resolve(strict=True),
         compute_repo=args.compute_repo.expanduser().resolve(strict=True),
@@ -586,17 +646,15 @@ def controller_from_args(args: argparse.Namespace) -> MissionControl:
         poll_seconds=args.poll_seconds,
         stall_seconds=args.stall_seconds,
         max_orphan_resumes=args.max_orphan_resumes,
-        python_executable=(
-            args.python_executable.expanduser().resolve(strict=True)
-            if args.python_executable
-            else None
-        ),
+        python_executable=python_executable,
     )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["adopt", "status", "watch", "checkpoint"])
+    parser.add_argument(
+        "command", choices=["adopt", "status", "watch", "launch-watch", "checkpoint"]
+    )
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--compute-repo", type=Path, required=True)
     parser.add_argument("--tier-plan", type=Path, required=True)
@@ -623,6 +681,8 @@ def main() -> None:
         print(json.dumps(controller.tick(), indent=2))
     elif args.command == "checkpoint":
         print(json.dumps(controller.maintenance_checkpoint(args.reason), indent=2))
+    elif args.command == "launch-watch":
+        print(json.dumps(controller.launch_watch(), indent=2))
     else:
         controller.watch()
 
