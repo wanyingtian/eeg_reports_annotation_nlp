@@ -116,17 +116,6 @@ def prefix_receipt(path: Path, target: int) -> dict[str, Any]:
         for row in csv.DictReader(stream):
             if rows >= target:
                 break
-            canonical = {
-                "Hashed_ReportURN": row.get("Hashed_ReportURN"),
-                "classifications": row.get("classifications"),
-                "classify_elapsed_seconds": row.get("classify_elapsed_seconds"),
-                "classify_prompt_tokens": row.get("classify_prompt_tokens"),
-                "classify_completion_tokens": row.get("classify_completion_tokens"),
-            }
-            digest.update(
-                (json.dumps(canonical, sort_keys=True, separators=(",", ":")) + "\n").encode()
-            )
-            rows += 1
             try:
                 parsed = json.loads(row.get("classifications", ""))
                 if not isinstance(parsed, dict) or set(parsed) != EXPECTED_LABELS:
@@ -135,8 +124,23 @@ def prefix_receipt(path: Path, target: int) -> dict[str, Any]:
                     raise ValueError("classification contains an invalid level")
             except (json.JSONDecodeError, TypeError, ValueError):
                 invalid += 1
+                canonical_classification: dict[str, int] | str = row.get(
+                    "classifications", ""
+                )
             else:
                 valid += 1
+                canonical_classification = {
+                    key: int(str(parsed[key]).strip()) for key in sorted(parsed)
+                }
+            canonical = {
+                "Hashed_ReportURN": row.get("Hashed_ReportURN"),
+                "runtime_profile_id": row.get("runtime_profile_id"),
+                "classifications": canonical_classification,
+            }
+            digest.update(
+                (json.dumps(canonical, sort_keys=True, separators=(",", ":")) + "\n").encode()
+            )
+            rows += 1
     if rows != target:
         raise ValueError(f"{path.name}: expected {target} prefix rows, found {rows}")
     return {
@@ -327,6 +331,7 @@ class MissionControl:
                 )
             receipt = {
                 "schema_version": MISSION_SCHEMA_VERSION,
+                "prefix_hash_schema": "stable-key-runtime-classification-v2",
                 "stage": tier_id,
                 "completed_at_utc": utc_now(),
                 "execution_plan_sha256": sha256_file(self.tier_plan_path),
@@ -340,15 +345,15 @@ class MissionControl:
             receipt_path = self.run_dir / f"stages/{tier_id}.done.json"
             if receipt_path.exists():
                 existing = read_json(receipt_path)
-                if existing != receipt:
-                    comparable_existing = {
-                        key: value for key, value in existing.items() if key != "completed_at_utc"
-                    }
-                    comparable_new = {
-                        key: value for key, value in receipt.items() if key != "completed_at_utc"
-                    }
-                    if comparable_existing != comparable_new:
-                        raise RuntimeError(f"{tier_id}: immutable tier receipt no longer matches")
+                for key in ("stage", "execution_plan_sha256", "targets"):
+                    if existing.get(key) != receipt[key]:
+                        raise RuntimeError(f"{tier_id}: immutable tier metadata no longer matches")
+                if (
+                    existing.get("prefix_hash_schema")
+                    == "stable-key-runtime-classification-v2"
+                    and existing.get("prefix_outputs") != receipt["prefix_outputs"]
+                ):
+                    raise RuntimeError(f"{tier_id}: immutable tier prefix no longer matches")
             else:
                 atomic_json(receipt_path, receipt)
                 newly_receipted.append(tier_id)

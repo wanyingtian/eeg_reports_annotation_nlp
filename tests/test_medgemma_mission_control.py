@@ -49,6 +49,38 @@ def test_prefix_receipt_is_stable_when_later_rows_are_appended(tmp_path: Path) -
     assert before["valid_structured_outputs"] == 2
 
 
+def test_prefix_receipt_ignores_csv_float_reformatting(tmp_path: Path) -> None:
+    path = tmp_path / "raw.csv"
+    fields = [
+        "Hashed_ReportURN",
+        "runtime_profile_id",
+        "classifications",
+        "classify_elapsed_seconds",
+    ]
+
+    def write(elapsed: str) -> None:
+        with path.open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fieldnames=fields)
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "Hashed_ReportURN": "key-1",
+                    "runtime_profile_id": "profile",
+                    "classifications": json.dumps(
+                        {label: 1 for label in MODULE.EXPECTED_LABELS}
+                    ),
+                    "classify_elapsed_seconds": elapsed,
+                }
+            )
+
+    write("2.0000000000000000")
+    before = MODULE.prefix_receipt(path, 1)
+    write("2.0")
+    after = MODULE.prefix_receipt(path, 1)
+
+    assert before == after
+
+
 def test_health_only_recovers_an_orphaned_running_state() -> None:
     assert MODULE.classify_health("running", False, 10, 300) == "orphaned_recoverable"
     assert MODULE.classify_health("failed", False, 10, 300) == "terminal_failed"
