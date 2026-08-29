@@ -255,7 +255,23 @@ class MissionControl:
                 "refresh_public_status_each_tick": True,
             },
         }
-        atomic_json(self.receipt_dir / "adoption.json", receipt)
+        initial_adoption = self.receipt_dir / "adoption.json"
+        if initial_adoption.exists():
+            prior_adoption = read_json(initial_adoption)
+            if (
+                prior_adoption["mission_control_repository"]["revision"]
+                == mission_revision["revision"]
+                and prior_adoption["execution_plan_sha256"]
+                == receipt["execution_plan_sha256"]
+            ):
+                return prior_adoption
+            receipt["prior_adoption_sha256"] = sha256_file(initial_adoption)
+            adoption_path = self.receipt_dir / (
+                f"adoption-upgrade-{mission_revision['revision'][:12]}.json"
+            )
+        else:
+            adoption_path = initial_adoption
+        atomic_json(adoption_path, receipt)
         atomic_json(
             self.run_dir / "supervisor.json",
             {
@@ -446,6 +462,9 @@ class MissionControl:
             "schema_version": MISSION_SCHEMA_VERSION,
             "updated_at_utc": utc_now(),
             "study_id": status["study_id"],
+            "mission_control_revision": git_revision(
+                Path(__file__).resolve().parents[1]
+            )["revision"],
             "mission_control_health": health,
             "supervisor_alive": alive,
             "supervisor_pid": supervisor_pid,

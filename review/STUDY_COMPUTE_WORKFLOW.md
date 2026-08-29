@@ -131,6 +131,8 @@ caffeinate -dimsu python scripts/medgemma_mission_control.py watch \
 checks supervisor liveness and progress, emits immutable per-tier prefix
 receipts, refreshes the public-safe operational status without a separate shell
 loop, and creates a final governed transfer manifest after successful completion.
+If mission control itself is upgraded during a live run, the original adoption
+receipt is retained and a hash-linked upgrade receipt records the new revision.
 It may make one automatic recovery attempt only when the operating
 system process is gone while the governed state still says `running`; it never
 restarts a `failed` or intentionally `stopped` run. Its public heartbeat contains
