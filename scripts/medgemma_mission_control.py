@@ -1,0 +1,497 @@
+#!/usr/bin/env python3
+"""Adopt and supervise a running tiered MedGemma study without changing its science."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import os
+import platform
+import socket
+import subprocess
+import time
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+MISSION_SCHEMA_VERSION = 1
+TERMINAL_STATES = {"completed", "failed", "stopped"}
+TRANSIENT_NAMES = {".tiered-run.lock", "run.lock", "heartbeat.json"}
+TRANSIENT_RELATIVE_PATHS = {"receipts/mission-control/state.json"}
+EXPECTED_LABELS = {
+    "focal_epileptiform_activity",
+    "generalized_epileptiform_activity",
+    "focal_non_epileptiform_activity",
+    "generalized_non_epileptiform_activity",
+    "abnormality",
+}
+
+
+def utc_now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def parse_time(value: str) -> datetime:
+    return datetime.fromisoformat(value)
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def atomic_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
+    path.chmod(0o600)
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def process_alive(pid: int | None) -> bool:
+    if not pid or pid < 1:
+        return False
+    try:
+        os.kill(pid, 0)
+    except (OSError, ProcessLookupError):
+        return False
+    return True
+
+
+def process_command(pid: int) -> str | None:
+    result = subprocess.run(
+        ["ps", "-p", str(pid), "-o", "command="],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    value = result.stdout.strip()
+    return value or None
+
+
+def supervisor_identity_matches(pid: int, run_dir: Path) -> bool:
+    command = process_command(pid)
+    return bool(
+        command
+        and "run_tiered_medgemma_study.py" in command
+        and str(run_dir) in command
+    )
+
+
+def git_revision(repository: Path) -> dict[str, Any]:
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    dirty = bool(
+        subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repository,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    )
+    return {"revision": revision, "worktree_dirty": dirty}
+
+
+def prefix_receipt(path: Path, target: int) -> dict[str, Any]:
+    digest = hashlib.sha256()
+    rows = 0
+    valid = 0
+    invalid = 0
+    with path.open(newline="", encoding="utf-8") as stream:
+        for row in csv.DictReader(stream):
+            if rows >= target:
+                break
+            canonical = {
+                "Hashed_ReportURN": row.get("Hashed_ReportURN"),
+                "classifications": row.get("classifications"),
+                "classify_elapsed_seconds": row.get("classify_elapsed_seconds"),
+                "classify_prompt_tokens": row.get("classify_prompt_tokens"),
+                "classify_completion_tokens": row.get("classify_completion_tokens"),
+            }
+            digest.update(
+                (json.dumps(canonical, sort_keys=True, separators=(",", ":")) + "\n").encode()
+            )
+            rows += 1
+            try:
+                parsed = json.loads(row.get("classifications", ""))
+                if not isinstance(parsed, dict) or set(parsed) != EXPECTED_LABELS:
+                    raise ValueError("unexpected classification object")
+                if any(str(value).strip() not in {"1", "2", "3", "4"} for value in parsed.values()):
+                    raise ValueError("classification contains an invalid level")
+            except (json.JSONDecodeError, TypeError, ValueError):
+                invalid += 1
+            else:
+                valid += 1
+    if rows != target:
+        raise ValueError(f"{path.name}: expected {target} prefix rows, found {rows}")
+    return {
+        "prefix_records": rows,
+        "prefix_sha256": digest.hexdigest(),
+        "valid_structured_outputs": valid,
+        "invalid_structured_outputs": invalid,
+    }
+
+
+def classify_health(
+    execution_state: str,
+    supervisor_alive: bool,
+    seconds_since_progress: float,
+    stall_seconds: float,
+) -> str:
+    if execution_state in TERMINAL_STATES:
+        return f"terminal_{execution_state}"
+    if not supervisor_alive:
+        return "orphaned_recoverable" if execution_state == "running" else "supervisor_missing"
+    if execution_state == "running" and seconds_since_progress > stall_seconds:
+        return "running_stalled"
+    return "running_healthy"
+
+
+class MissionControl:
+    def __init__(
+        self,
+        run_dir: Path,
+        compute_repo: Path,
+        tier_plan: Path,
+        public_status: Path,
+        public_heartbeat: Path,
+        poll_seconds: float,
+        stall_seconds: float,
+        max_orphan_resumes: int,
+    ) -> None:
+        self.run_dir = run_dir
+        self.compute_repo = compute_repo
+        self.tier_plan_path = tier_plan
+        self.public_status_path = public_status
+        self.public_heartbeat_path = public_heartbeat
+        self.poll_seconds = poll_seconds
+        self.stall_seconds = stall_seconds
+        self.max_orphan_resumes = max_orphan_resumes
+        self.receipt_dir = run_dir / "receipts/mission-control"
+        self.control_state_path = self.receipt_dir / "state.json"
+
+    def control_state(self) -> dict[str, Any]:
+        if self.control_state_path.exists():
+            return read_json(self.control_state_path)
+        status = read_json(self.public_status_path)
+        return {
+            "schema_version": MISSION_SCHEMA_VERSION,
+            "adopted_at_utc": utc_now(),
+            "last_completed_records": int(status["completed_records"]),
+            "last_progress_at_utc": status["updated_at_utc"],
+            "receipted_tiers": [],
+            "orphan_resume_attempts": 0,
+            "finalized": False,
+        }
+
+    def save_control_state(self, state: dict[str, Any]) -> None:
+        state["updated_at_utc"] = utc_now()
+        atomic_json(self.control_state_path, state)
+
+    def adopt(self) -> dict[str, Any]:
+        state = read_json(self.run_dir / "state.json")
+        supervisor_pid = int(state.get("supervisor_pid") or 0)
+        if not process_alive(supervisor_pid) or not supervisor_identity_matches(
+            supervisor_pid, self.run_dir
+        ):
+            raise RuntimeError("Cannot adopt a live matching tiered-study supervisor")
+        compute_revision = git_revision(self.compute_repo)
+        mission_revision = git_revision(Path(__file__).resolve().parents[1])
+        receipt = {
+            "schema_version": MISSION_SCHEMA_VERSION,
+            "study_id": read_json(self.run_dir / "job.json")["study_id"],
+            "adopted_at_utc": utc_now(),
+            "supervisor": {
+                "pid": supervisor_pid,
+                "alive_at_adoption": True,
+                "hostname": socket.gethostname(),
+                "command": process_command(supervisor_pid),
+                "started_at_utc": state.get("started_at_utc"),
+            },
+            "compute_repository": compute_revision,
+            "mission_control_repository": mission_revision,
+            "execution_plan_sha256": sha256_file(self.tier_plan_path),
+            "policy": {
+                "poll_seconds": self.poll_seconds,
+                "stall_seconds": self.stall_seconds,
+                "max_orphan_resumes": self.max_orphan_resumes,
+                "restart_failed_or_stopped_run": False,
+                "restart_only_orphaned_running_state": True,
+            },
+        }
+        atomic_json(self.receipt_dir / "adoption.json", receipt)
+        atomic_json(
+            self.run_dir / "supervisor.json",
+            {
+                "pid": supervisor_pid,
+                "hostname": socket.gethostname(),
+                "platform": platform.platform(),
+                "python": platform.python_version(),
+                "repository_revision_at_start": compute_revision["revision"],
+                "started_at_utc": state.get("started_at_utc"),
+                "adopted_by_mission_control": True,
+            },
+        )
+        atomic_json(
+            self.run_dir / "launcher.json",
+            {
+                "launcher_pid": os.getppid(),
+                "hostname": socket.gethostname(),
+                "command": process_command(supervisor_pid),
+                "launched_at_utc": state.get("started_at_utc"),
+                "adopted_at_utc": utc_now(),
+                "log": "tier-specific logs under logs/",
+            },
+        )
+        control = self.control_state()
+        self.save_control_state(control)
+        return receipt
+
+    def tier_receipts(self, control: dict[str, Any]) -> list[str]:
+        state = read_json(self.run_dir / "state.json")
+        plan = read_json(self.tier_plan_path)
+        newly_receipted = []
+        for tier in plan["tiers"]:
+            tier_id = tier["tier_id"]
+            if tier_id not in state.get("completed_tiers", []):
+                continue
+            outputs = {}
+            for cohort_id, target_value in tier["targets"].items():
+                target = int(target_value)
+                if target == 0:
+                    continue
+                outputs[cohort_id] = prefix_receipt(
+                    self.run_dir / f"products/{cohort_id}/raw.csv", target
+                )
+            receipt = {
+                "schema_version": MISSION_SCHEMA_VERSION,
+                "stage": tier_id,
+                "completed_at_utc": utc_now(),
+                "execution_plan_sha256": sha256_file(self.tier_plan_path),
+                "targets": tier["targets"],
+                "prefix_outputs": outputs,
+                "interpretation": (
+                    "Immutable prefix hashes and operational validity only; no reference "
+                    "outcomes or partial performance metrics."
+                ),
+            }
+            receipt_path = self.run_dir / f"stages/{tier_id}.done.json"
+            if receipt_path.exists():
+                existing = read_json(receipt_path)
+                if existing != receipt:
+                    comparable_existing = {
+                        key: value for key, value in existing.items() if key != "completed_at_utc"
+                    }
+                    comparable_new = {
+                        key: value for key, value in receipt.items() if key != "completed_at_utc"
+                    }
+                    if comparable_existing != comparable_new:
+                        raise RuntimeError(f"{tier_id}: immutable tier receipt no longer matches")
+            else:
+                atomic_json(receipt_path, receipt)
+                newly_receipted.append(tier_id)
+            if tier_id not in control["receipted_tiers"]:
+                control["receipted_tiers"].append(tier_id)
+        return newly_receipted
+
+    def resume_orphan(self, control: dict[str, Any]) -> int:
+        attempt = int(control["orphan_resume_attempts"]) + 1
+        log_path = self.run_dir / f"logs/mission-control-resume-{attempt}.log"
+        command = [
+            str(self.compute_repo / ".venv/bin/python"),
+            str(self.compute_repo / "scripts/run_tiered_medgemma_study.py"),
+            "run",
+            "--run-dir",
+            str(self.run_dir),
+            "--public-status-output",
+            str(self.public_status_path),
+        ]
+        if platform.system() == "Darwin" and Path("/usr/bin/caffeinate").exists():
+            command = ["/usr/bin/caffeinate", "-dimsu", *command]
+        with log_path.open("a", encoding="utf-8") as log:
+            process = subprocess.Popen(
+                command,
+                cwd=self.compute_repo,
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                start_new_session=True,
+            )
+        control["orphan_resume_attempts"] = attempt
+        atomic_json(
+            self.receipt_dir / f"orphan-resume-{attempt}.json",
+            {
+                "schema_version": MISSION_SCHEMA_VERSION,
+                "created_at_utc": utc_now(),
+                "launcher_pid": process.pid,
+                "command": command,
+                "policy_reason": "supervisor missing while governed state remained running",
+                "log": str(log_path.relative_to(self.run_dir)),
+            },
+        )
+        return process.pid
+
+    def final_transfer_manifest(self) -> dict[str, Any]:
+        destination = self.run_dir / "final-transfer-manifest.json"
+        files = []
+        for path in sorted(self.run_dir.rglob("*")):
+            if (
+                not path.is_file()
+                or path == destination
+                or path.name in TRANSIENT_NAMES
+                or str(path.relative_to(self.run_dir)) in TRANSIENT_RELATIVE_PATHS
+            ):
+                continue
+            relative = path.relative_to(self.run_dir)
+            first = relative.parts[0]
+            sensitivity = (
+                "governed_case_level_or_derived_product"
+                if first in {"inputs", "manifests", "comparators", "products", "analysis"}
+                else "operational_metadata_or_aggregate_receipt"
+            )
+            files.append(
+                {
+                    "path": str(relative),
+                    "size_bytes": path.stat().st_size,
+                    "sha256": sha256_file(path),
+                    "sensitivity": sensitivity,
+                }
+            )
+        payload = {
+            "schema_version": MISSION_SCHEMA_VERSION,
+            "created_at_utc": utc_now(),
+            "study_id": read_json(self.run_dir / "job.json")["study_id"],
+            "compute_repository": git_revision(self.compute_repo),
+            "mission_control_repository": git_revision(Path(__file__).resolve().parents[1]),
+            "transfer_rule": (
+                "Transfer only through an approved governed channel; preserve relative paths "
+                "and verify every SHA-256 before validation or resume."
+            ),
+            "files": files,
+        }
+        atomic_json(destination, payload)
+        return payload
+
+    def tick(self) -> dict[str, Any]:
+        control = self.control_state()
+        compute_state = read_json(self.run_dir / "state.json")
+        status = read_json(self.public_status_path)
+        completed = int(status["completed_records"])
+        if completed > int(control["last_completed_records"]):
+            control["last_completed_records"] = completed
+            control["last_progress_at_utc"] = status["updated_at_utc"]
+        elapsed = (datetime.now(UTC) - parse_time(control["last_progress_at_utc"])).total_seconds()
+        supervisor_pid = int(compute_state.get("supervisor_pid") or 0)
+        alive = process_alive(supervisor_pid) and supervisor_identity_matches(
+            supervisor_pid, self.run_dir
+        )
+        health = classify_health(
+            compute_state["status"], alive, elapsed, self.stall_seconds
+        )
+        resumed = False
+        if (
+            health == "orphaned_recoverable"
+            and int(control["orphan_resume_attempts"]) < self.max_orphan_resumes
+        ):
+            self.resume_orphan(control)
+            resumed = True
+            health = "orphan_resume_launched"
+        newly_receipted = self.tier_receipts(control)
+        if compute_state["status"] == "completed" and not control["finalized"]:
+            manifest = self.final_transfer_manifest()
+            control["finalized"] = True
+            control["final_transfer_manifest_sha256"] = sha256_file(
+                self.run_dir / "final-transfer-manifest.json"
+            )
+            control["final_transfer_file_count"] = len(manifest["files"])
+        heartbeat = {
+            "schema_version": MISSION_SCHEMA_VERSION,
+            "updated_at_utc": utc_now(),
+            "study_id": status["study_id"],
+            "mission_control_health": health,
+            "supervisor_alive": alive,
+            "supervisor_pid": supervisor_pid,
+            "execution_state": compute_state["status"],
+            "current_tier": compute_state.get("current_tier"),
+            "current_stage": compute_state.get("current_stage"),
+            "completed_records": completed,
+            "target_records": int(status["target_records"]),
+            "last_progress_at_utc": control["last_progress_at_utc"],
+            "seconds_since_progress": elapsed,
+            "stall_threshold_seconds": self.stall_seconds,
+            "newly_receipted_tiers": newly_receipted,
+            "receipted_tiers": control["receipted_tiers"],
+            "orphan_resume_attempts": control["orphan_resume_attempts"],
+            "orphan_resume_launched_this_tick": resumed,
+            "finalized": control["finalized"],
+            "reporting_boundary": (
+                "Operational supervision only; no report text, keys, reference outcomes, "
+                "partial performance metrics, or manuscript admission."
+            ),
+        }
+        atomic_json(self.receipt_dir / "heartbeat.json", heartbeat)
+        public = {key: value for key, value in heartbeat.items() if key != "supervisor_pid"}
+        atomic_json(self.public_heartbeat_path, public)
+        self.save_control_state(control)
+        return heartbeat
+
+    def watch(self) -> None:
+        while True:
+            heartbeat = self.tick()
+            if heartbeat["execution_state"] in TERMINAL_STATES:
+                return
+            time.sleep(self.poll_seconds)
+
+
+def controller_from_args(args: argparse.Namespace) -> MissionControl:
+    return MissionControl(
+        run_dir=args.run_dir.expanduser().resolve(strict=True),
+        compute_repo=args.compute_repo.expanduser().resolve(strict=True),
+        tier_plan=args.tier_plan.expanduser().resolve(strict=True),
+        public_status=args.public_status.expanduser().resolve(strict=True),
+        public_heartbeat=args.public_heartbeat.expanduser().resolve(),
+        poll_seconds=args.poll_seconds,
+        stall_seconds=args.stall_seconds,
+        max_orphan_resumes=args.max_orphan_resumes,
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=["adopt", "status", "watch"])
+    parser.add_argument("--run-dir", type=Path, required=True)
+    parser.add_argument("--compute-repo", type=Path, required=True)
+    parser.add_argument("--tier-plan", type=Path, required=True)
+    parser.add_argument("--public-status", type=Path, required=True)
+    parser.add_argument("--public-heartbeat", type=Path, required=True)
+    parser.add_argument("--poll-seconds", type=float, default=15.0)
+    parser.add_argument("--stall-seconds", type=float, default=300.0)
+    parser.add_argument("--max-orphan-resumes", type=int, default=1)
+    args = parser.parse_args()
+    controller = controller_from_args(args)
+    if args.command == "adopt":
+        print(json.dumps(controller.adopt(), indent=2))
+    elif args.command == "status":
+        print(json.dumps(controller.tick(), indent=2))
+    else:
+        controller.watch()
+
+
+if __name__ == "__main__":
+    main()

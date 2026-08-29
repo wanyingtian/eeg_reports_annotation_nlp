@@ -104,6 +104,38 @@ the report currently in progress is repeated. BERT embeddings are written as
 validated batch chunks. Run `launch` again to resume from the last valid stage,
 row, or embedding batch.
 
+### Adopt a live tiered comparator run
+
+The result-blind MedGemma tier runner can be adopted by the same durable
+mission-control pattern without restarting inference or changing the frozen
+scientific plan. Run the controller from a separate clean checkout so that its
+own revision can advance while the inference checkout remains pinned and clean:
+
+```sh
+python scripts/medgemma_mission_control.py adopt \
+  --run-dir /approved/governed/path/to/run \
+  --compute-repo /path/to/pinned/inference-checkout \
+  --tier-plan /path/to/pinned/inference-checkout/review/model-receipts/medgemma-independent-tiered-execution.preregistered.json \
+  --public-status /path/to/public-safe-progress.json \
+  --public-heartbeat /path/to/public-safe-mission-control.json
+
+caffeinate -dimsu python scripts/medgemma_mission_control.py watch \
+  --run-dir /approved/governed/path/to/run \
+  --compute-repo /path/to/pinned/inference-checkout \
+  --tier-plan /path/to/pinned/inference-checkout/review/model-receipts/medgemma-independent-tiered-execution.preregistered.json \
+  --public-status /path/to/public-safe-progress.json \
+  --public-heartbeat /path/to/public-safe-mission-control.json
+```
+
+`adopt` records both repository revisions and the frozen plan hash. `watch`
+checks supervisor liveness and progress, emits immutable per-tier prefix
+receipts, and creates a final governed transfer manifest after successful
+completion. It may make one automatic recovery attempt only when the operating
+system process is gone while the governed state still says `running`; it never
+restarts a `failed` or intentionally `stopped` run. Its public heartbeat contains
+operational counts and health only—not report keys, text, labels, reference
+outcomes, or partial performance metrics.
+
 ## Computed stages
 
 The job covers all currently executable planned products:
