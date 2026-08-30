@@ -10,6 +10,10 @@ PLAN = (
     REPOSITORY_ROOT
     / "review/model-receipts/medgemma-independent-comparator.preregistered.json"
 )
+NATIVE_INTERFACE_PLAN = (
+    REPOSITORY_ROOT
+    / "review/model-receipts/medgemma-native-interface-sensitivity.preregistered.json"
+)
 
 
 def issue_fields(result: dict) -> set[str]:
@@ -83,3 +87,17 @@ def test_prompt_or_grammar_drift_blocks_execution(tmp_path: Path) -> None:
     result = validate_comparator_study(write_variant(tmp_path, change))
 
     assert "interface.prompt_sha256" in issue_fields(result)
+
+
+def test_native_interface_sensitivity_cannot_replace_primary_or_start_evaluation() -> None:
+    plan = json.loads(NATIVE_INTERFACE_PLAN.read_text(encoding="utf-8"))
+
+    assert plan["status"] == "preregistered_post_primary_pending_author_approval"
+    assert plan["primary_result_immutability"]["completed_before_this_plan"] is True
+    assert plan["primary_result_immutability"]["replacement_allowed"] is False
+    assert plan["sensitivity_configuration"]["weights_or_training_change_allowed"] is False
+    assert plan["development_stage"]["records"] == 100
+    assert plan["evaluation_stage"]["status"] == "not_authorized"
+    assert "author approval of the scientific question" in plan["evaluation_stage"][
+        "unlock_requirements"
+    ]

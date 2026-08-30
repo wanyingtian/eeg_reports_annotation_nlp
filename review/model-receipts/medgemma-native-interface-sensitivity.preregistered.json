@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_post_primary_pending_author_approval",
+  "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
+  "scientific_role": "bounded interface sensitivity after completion of the matched-historical primary comparator",
+  "primary_result_immutability": {
+    "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-matched-interface-q2-v1",
+    "completed_before_this_plan": true,
+    "replacement_allowed": false,
+    "interpretive_boundary": "This sensitivity cannot replace, tune, suppress, or retrospectively redefine the completed matched-historical result."
+  },
+  "sensitivity_configuration": {
+    "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+    "model_identity_rule": "Use the exact Q2_K artifact, quantization, model SHA-256, context size, grammar, and deterministic sampling receipt from the completed primary configuration.",
+    "only_planned_change": "Apply the model-native chat template and a frozen task message instead of raw-completion serialization.",
+    "chat_template_receipt_status": "pending_exact_template_bytes_and_sha256",
+    "task_message_receipt_status": "pending_author_approved_bytes_and_sha256",
+    "weights_or_training_change_allowed": false,
+    "explanation_stage_run": false
+  },
+  "development_stage": {
+    "cohort_id": "zoe_development_transport_100",
+    "records": 100,
+    "allowed_use": [
+      "validate template transport and structured-output compatibility",
+      "describe invalidity, degeneracy, truncation, latency, and label operating points",
+      "make one author-approved freeze decision before protected evaluation"
+    ],
+    "prohibited_use": [
+      "search multiple templates, prompts, quantizations, or seeds for the best score",
+      "use Zoe evaluation or Maria outcomes for selection",
+      "treat development performance as independent evidence"
+    ]
+  },
+  "evaluation_stage": {
+    "status": "not_authorized",
+    "cohorts": ["zoe_evaluation_1395", "maria_evaluation_499"],
+    "unlock_requirements": [
+      "author approval of the scientific question",
+      "exact native-template and task-message receipts",
+      "one frozen configuration selected without protected-evaluation access",
+      "new immutable run identifier and producing-bundle intake"
+    ],
+    "analysis_rule": "If unlocked, use the same exact-key paired analysis, report-level limitations, multiplicity family, and unfavorable-result policy as the completed primary comparator."
+  },
+  "distribution_status": {
+    "source_configuration": "source_config_publishable",
+    "weights": "weights_not_redistributed",
+    "keyed_outputs": "outputs_governed",
+    "aggregate_receipts": "author_review_before_publication"
+  }
+}

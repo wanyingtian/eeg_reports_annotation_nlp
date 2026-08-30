@@ -153,3 +153,20 @@ intake for this independent configuration, run the existing evaluation and
 paired-comparison commands, and seek author-group admission before placing a
 new row or bar in the manuscript. Vasily's exact v5g bundle can later enter the
 same route under its own identifier.
+
+## Post-primary native-interface sensitivity
+
+The matched-historical primary run is now complete and remains immutable. Its
+structured-output validity shows that the unfavorable comparison is not a
+transport failure, while its sensitivity/specificity pattern makes interface
+adaptation a scientifically plausible follow-up rather than a repair of the
+primary result.
+
+`review/model-receipts/medgemma-native-interface-sensitivity.preregistered.json`
+therefore freezes a narrow, unrun sensitivity plan. It changes only raw-prompt
+serialization to an exactly receipted model-native chat template and frozen
+task message, initially on the 100-report Zoe development surface. Protected
+Zoe and Maria evaluation remains unauthorized until the authors approve the
+question and exact interface bytes are frozen. The plan prohibits prompt,
+template, quantization, or seed search on protected outcomes and cannot replace
+or suppress the completed matched-interface result.
