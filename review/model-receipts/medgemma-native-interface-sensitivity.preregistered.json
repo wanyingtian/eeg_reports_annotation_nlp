@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "preregistered_post_primary_pending_author_approval",
+  "status": "frozen_for_development_execution",
   "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
   "scientific_role": "bounded interface sensitivity after completion of the matched-historical primary comparator",
   "primary_result_immutability": {
@@ -13,8 +13,16 @@
     "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
     "model_identity_rule": "Use the exact Q2_K artifact, quantization, model SHA-256, context size, grammar, and deterministic sampling receipt from the completed primary configuration.",
     "only_planned_change": "Apply the model-native chat template and a frozen task message instead of raw-completion serialization.",
-    "chat_template_receipt_status": "pending_exact_template_bytes_and_sha256",
-    "task_message_receipt_status": "pending_author_approved_bytes_and_sha256",
+    "chat_template": {
+      "source": "GGUF tokenizer.chat_template metadata",
+      "sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4",
+      "exact_bytes_retained_in_governed_execution_receipt": true
+    },
+    "task_message_template": {
+      "layout": "PROMPT_CLASSIFY + two newline bytes + {REPORT}",
+      "historical_prompt_sha256": "52198221d8330e9857b51a7ad99b017aa18836e1718b08dd0ae355820f5a5e69",
+      "template_sha256": "c0a84d01c54e20a90e8885650fc34955719d0d744ac4ac9a0a5497171d55b441"
+    },
     "weights_or_training_change_allowed": false,
     "explanation_stage_run": false
   },
@@ -26,6 +34,12 @@
       "describe invalidity, degeneracy, truncation, latency, and label operating points",
       "make one author-approved freeze decision before protected evaluation"
     ],
+    "selection_rule": {
+      "candidate_count": 1,
+      "select_if": "All 100 frozen keys complete exactly once, all outputs satisfy the grammar and four-level schema, no context-limit or worker failure occurs, and more than one full five-label output pattern is observed.",
+      "reject_if": "Any select_if condition fails; retain the complete failed outcome and do not search a replacement interface in this experiment.",
+      "reference_metric_used_for_selection": false
+    },
     "prohibited_use": [
       "search multiple templates, prompts, quantizations, or seeds for the best score",
       "use Zoe evaluation or Maria outcomes for selection",
@@ -36,7 +50,7 @@
     "status": "not_authorized",
     "cohorts": ["zoe_evaluation_1395", "maria_evaluation_499"],
     "unlock_requirements": [
-      "author approval of the scientific question",
+      "documented confirmation from the PI, data custodian, or approved study record that this new protected-cohort comparator execution is covered by H18-02728 and its secondary-use authorization",
       "exact native-template and task-message receipts",
       "one frozen configuration selected without protected-evaluation access",
       "new immutable run identifier and producing-bundle intake"

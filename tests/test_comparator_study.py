@@ -6,10 +6,7 @@ from pathlib import Path
 from eeg_review.comparator_study import validate_comparator_study
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-PLAN = (
-    REPOSITORY_ROOT
-    / "review/model-receipts/medgemma-independent-comparator.preregistered.json"
-)
+PLAN = REPOSITORY_ROOT / "review/model-receipts/medgemma-independent-comparator.preregistered.json"
 NATIVE_INTERFACE_PLAN = (
     REPOSITORY_ROOT
     / "review/model-receipts/medgemma-native-interface-sensitivity.preregistered.json"
@@ -17,11 +14,7 @@ NATIVE_INTERFACE_PLAN = (
 
 
 def issue_fields(result: dict) -> set[str]:
-    return {
-        issue["field"]
-        for issue in result["issues"]
-        if issue["severity"] == "blocker"
-    }
+    return {issue["field"] for issue in result["issues"] if issue["severity"] == "blocker"}
 
 
 def write_variant(tmp_path: Path, update) -> Path:
@@ -92,12 +85,17 @@ def test_prompt_or_grammar_drift_blocks_execution(tmp_path: Path) -> None:
 def test_native_interface_sensitivity_cannot_replace_primary_or_start_evaluation() -> None:
     plan = json.loads(NATIVE_INTERFACE_PLAN.read_text(encoding="utf-8"))
 
-    assert plan["status"] == "preregistered_post_primary_pending_author_approval"
+    assert plan["status"] == "frozen_for_development_execution"
     assert plan["primary_result_immutability"]["completed_before_this_plan"] is True
     assert plan["primary_result_immutability"]["replacement_allowed"] is False
     assert plan["sensitivity_configuration"]["weights_or_training_change_allowed"] is False
     assert plan["development_stage"]["records"] == 100
+    assert plan["development_stage"]["selection_rule"]["candidate_count"] == 1
+    assert (
+        plan["development_stage"]["selection_rule"]["reference_metric_used_for_selection"] is False
+    )
     assert plan["evaluation_stage"]["status"] == "not_authorized"
-    assert "author approval of the scientific question" in plan["evaluation_stage"][
-        "unlock_requirements"
-    ]
+    assert any(
+        "H18-02728" in requirement
+        for requirement in plan["evaluation_stage"]["unlock_requirements"]
+    )

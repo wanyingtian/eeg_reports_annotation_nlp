@@ -60,6 +60,14 @@ try:
         extract_binary_core_positive_probabilities,
         extract_core_positive_probabilities,
     )
+    from eeg_review.native_interface import (
+        NATIVE_CHAT_INTERFACE_MODE,
+        RAW_COMPLETION_INTERFACE_MODE,
+        embedded_chat_template_receipt,
+        native_classification_messages,
+        native_task_message_template,
+        sha256_text as native_sha256_text,
+    )
 except ModuleNotFoundError:
     # Preserve the historical `python src/LLM_pipeline/pipeline.py` entry point
     # for environments that installed requirements without installing the
@@ -70,6 +78,14 @@ except ModuleNotFoundError:
         PROBABILITY_COLUMNS,
         extract_binary_core_positive_probabilities,
         extract_core_positive_probabilities,
+    )
+    from eeg_review.native_interface import (
+        NATIVE_CHAT_INTERFACE_MODE,
+        RAW_COMPLETION_INTERFACE_MODE,
+        embedded_chat_template_receipt,
+        native_classification_messages,
+        native_task_message_template,
+        sha256_text as native_sha256_text,
     )
 
 # --------------------------- Defaults / Constants --------------------------- #
@@ -248,6 +264,7 @@ class RunConfig:
     n_threads: int | None = None
     n_threads_batch: int | None = None
     flash_attn: bool | None = None
+    classification_interface: str = RAW_COMPLETION_INTERFACE_MODE
 
 
 @dataclass(frozen=True)
@@ -648,6 +665,44 @@ def llm_json_with_receipt(
     )
 
 
+def llm_chat_json_with_receipt(
+    model: Llama,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    stop: Optional[Iterable[str]],
+    grammar: Optional[LlamaGrammar] = None,
+    top_k: Optional[int] = None,
+    top_p: Optional[float] = None,
+) -> LLMCallReceipt:
+    """Invoke the embedded model-native chat template and retain accounting."""
+    kwargs: dict[str, Any] = {
+        "messages": messages,
+        "grammar": grammar,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stop": stop,
+    }
+    if top_k is not None:
+        kwargs["top_k"] = top_k
+    if top_p is not None:
+        kwargs["top_p"] = top_p
+    started = time.perf_counter()
+    response = model.create_chat_completion(**kwargs)
+    elapsed = time.perf_counter() - started
+    usage = response.get("usage", {})
+    choice = response["choices"][0]
+    content = choice["message"]["content"]
+    return LLMCallReceipt(
+        text=content,
+        elapsed_seconds=elapsed,
+        prompt_tokens=usage.get("prompt_tokens"),
+        completion_tokens=usage.get("completion_tokens"),
+        total_tokens=usage.get("total_tokens"),
+        logprobs=None,
+    )
+
+
 
 # ------------------------------ Core Pipeline ------------------------------ #
 
@@ -658,6 +713,7 @@ def process_completed_csv(
     classification_mode: str = HISTORICAL_FOUR_LEVEL_MODE,
     run_explanations: bool = True,
     runtime_profile_id: str = "llama-cpp-python-default",
+    classification_interface: str = RAW_COMPLETION_INTERFACE_MODE,
 ) -> Tuple[pd.DataFrame, set[str]]:
     """
     Load existing results to resume. Returns (df, set_of_hashed_ids).
@@ -666,6 +722,7 @@ def process_completed_csv(
         "Hashed_ReportURN",
         "Report",
         "runtime_profile_id",
+        "classification_interface_mode",
         "classifications",
         "explanations",
         "report_whitespace_words",
@@ -696,6 +753,20 @@ def process_completed_csv(
         df = pd.read_csv(path)
         if len(df) and "runtime_profile_id" not in df.columns:
             df["runtime_profile_id"] = "llama-cpp-python-default"
+        if len(df) and "classification_interface_mode" not in df.columns:
+            if classification_interface != RAW_COMPLETION_INTERFACE_MODE:
+                raise ValueError(
+                    "A native-chat run cannot resume an output lacking interface identity"
+                )
+            df["classification_interface_mode"] = RAW_COMPLETION_INTERFACE_MODE
+        observed_interfaces = set(
+            df.get("classification_interface_mode", pd.Series(dtype=str)).dropna()
+        )
+        if observed_interfaces and observed_interfaces != {classification_interface}:
+            raise ValueError(
+                "A resumed CSV cannot mix classification interfaces: "
+                f"expected {classification_interface}, found {sorted(observed_interfaces)}"
+            )
         observed_profiles = set(df.get("runtime_profile_id", pd.Series(dtype=str)).dropna())
         if observed_profiles and observed_profiles != {runtime_profile_id}:
             raise ValueError(
@@ -795,6 +866,16 @@ def run_pipeline(
         cfg.capture_classification_logprobs
     ):
         raise ValueError("Binary-core adaptation requires classification log-probability capture")
+    if cfg.classification_interface not in {
+        RAW_COMPLETION_INTERFACE_MODE,
+        NATIVE_CHAT_INTERFACE_MODE,
+    }:
+        raise ValueError(f"Unsupported classification interface: {cfg.classification_interface}")
+    if (
+        cfg.classification_interface == NATIVE_CHAT_INTERFACE_MODE
+        and cfg.capture_classification_logprobs
+    ):
+        raise ValueError("Native-chat sensitivity does not support log-probability capture")
     classification_prompt = (
         PROMPT_CLASSIFY_BINARY_CORE
         if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE
@@ -807,18 +888,34 @@ def run_pipeline(
         report = str(row["Report"])
 
         # 1) Classification
-        classify_prompt = classification_prompt + "\n\n" + report
-        classification_call = llm_json_with_receipt(
-            model=model,
-            prompt=classify_prompt,
-            temperature=cfg.temperature,
-            max_tokens=cfg.max_tokens,
-            stop=cfg.stop,
-            grammar=grammar_classify,
-            top_k=cfg.top_k,
-            top_p=cfg.top_p,
-            logprobs=CLASSIFICATION_LOGPROBS if cfg.capture_classification_logprobs else None,
-        )
+        if cfg.classification_interface == NATIVE_CHAT_INTERFACE_MODE:
+            classification_call = llm_chat_json_with_receipt(
+                model=model,
+                messages=native_classification_messages(classification_prompt, report),
+                temperature=cfg.temperature,
+                max_tokens=cfg.max_tokens,
+                stop=cfg.stop,
+                grammar=grammar_classify,
+                top_k=cfg.top_k,
+                top_p=cfg.top_p,
+            )
+        else:
+            classify_prompt = classification_prompt + "\n\n" + report
+            classification_call = llm_json_with_receipt(
+                model=model,
+                prompt=classify_prompt,
+                temperature=cfg.temperature,
+                max_tokens=cfg.max_tokens,
+                stop=cfg.stop,
+                grammar=grammar_classify,
+                top_k=cfg.top_k,
+                top_p=cfg.top_p,
+                logprobs=(
+                    CLASSIFICATION_LOGPROBS
+                    if cfg.capture_classification_logprobs
+                    else None
+                ),
+            )
         classifications = classification_call.text
         if cfg.capture_classification_logprobs:
             extractor = (
@@ -875,6 +972,7 @@ def run_pipeline(
                         {
                             "Hashed_ReportURN": hashed_id,
                             "runtime_profile_id": cfg.runtime_profile_id,
+                            "classification_interface_mode": cfg.classification_interface,
                             "classifications": classifications,
                             "explanations": explanations,
                             "report_whitespace_words": len(report.split()),
@@ -925,6 +1023,12 @@ def run_pipeline(
     dataset_path = cfg.dataset_path.expanduser().resolve(strict=True)
 
     # Versioned, audit-ready run receipt. The governed path itself is omitted.
+    native_template = (
+        embedded_chat_template_receipt(model)
+        if cfg.classification_interface == NATIVE_CHAT_INTERFACE_MODE
+        else None
+    )
+    task_message_template = native_task_message_template(classification_prompt)
     config_data = {
         "schema_version": 2,
         "created_at_utc": datetime.now(UTC).isoformat(),
@@ -1013,7 +1117,17 @@ def run_pipeline(
             "report_field": "Report",
             "context_limit": model_receipt["load_parameters"].get("n_ctx"),
             "truncation": "none; context-limit errors are surfaced",
-            "classification_chat_template": "raw prompt concatenated with two newlines and report",
+            "classification_interface_mode": cfg.classification_interface,
+            "classification_chat_template": (
+                "GGUF embedded tokenizer.chat_template applied to one user message"
+                if cfg.classification_interface == NATIVE_CHAT_INTERFACE_MODE
+                else "raw prompt concatenated with two newlines and report"
+            ),
+            "embedded_chat_template": native_template,
+            "task_message_template": {
+                "sha256": native_sha256_text(task_message_template),
+                "text": task_message_template,
+            },
             "explanation_chat_template": (
                 "raw prompt plus report and classification JSON"
                 if cfg.run_explanations
@@ -1106,6 +1220,7 @@ def worker_target(
         classification_mode=cfg.classification_mode,
         run_explanations=cfg.run_explanations,
         runtime_profile_id=cfg.runtime_profile_id,
+        classification_interface=cfg.classification_interface,
     )
     logging.info(f"Initial completed count: {len(prior_hashes)}")
     pending = load_reports_df(dataset_path, num_reports, prior_hashes)
@@ -1279,6 +1394,15 @@ def parse_args() -> argparse.Namespace:
         default="llama-cpp-python-default",
         help="Stable identifier recorded for the llama.cpp execution profile.",
     )
+    p.add_argument(
+        "--classification-interface",
+        choices=[RAW_COMPLETION_INTERFACE_MODE, NATIVE_CHAT_INTERFACE_MODE],
+        default=RAW_COMPLETION_INTERFACE_MODE,
+        help=(
+            "Use historical raw completion or the separately preregistered embedded "
+            "model-native chat interface."
+        ),
+    )
     p.add_argument("--n-ctx", type=int, default=None)
     p.add_argument("--n-gpu-layers", type=int, default=None)
     p.add_argument("--n-batch", type=int, default=None)
@@ -1358,6 +1482,7 @@ def main() -> None:
         n_threads=args.n_threads,
         n_threads_batch=args.n_threads_batch,
         flash_attn=args.flash_attn,
+        classification_interface=args.classification_interface,
     )
 
     # Helpful env overrides recorded in config output

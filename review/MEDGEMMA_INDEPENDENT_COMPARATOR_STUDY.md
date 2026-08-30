@@ -163,10 +163,14 @@ adaptation a scientifically plausible follow-up rather than a repair of the
 primary result.
 
 `review/model-receipts/medgemma-native-interface-sensitivity.preregistered.json`
-therefore freezes a narrow, unrun sensitivity plan. It changes only raw-prompt
+therefore freezes a narrow sensitivity plan. It changes only raw-prompt
 serialization to an exactly receipted model-native chat template and frozen
 task message, initially on the 100-report Zoe development surface. Protected
-Zoe and Maria evaluation remains unauthorized until the authors approve the
-question and exact interface bytes are frozen. The plan prohibits prompt,
+Zoe and Maria evaluation remains governance-locked until a PI, data-custodian,
+or approved-study record confirms that this new comparator execution is covered
+by H18-02728 and its secondary-use authorization. The interface bytes are now
+frozen. The singleton development candidate advances only if all 100 keys are
+complete and valid, no execution failure occurs, and the output is not a
+constant full-label pattern; no reference metric selects it. The plan prohibits prompt,
 template, quantization, or seed search on protected outcomes and cannot replace
 or suppress the completed matched-interface result.
