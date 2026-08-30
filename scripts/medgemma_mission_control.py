@@ -16,6 +16,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from eeg_review.protected_execution import (
+    AuthorizationValidation,
+    ProtectedExecutionLocked,
+    authorize_plan_before_governed_access,
+)
+
 MISSION_SCHEMA_VERSION = 1
 TERMINAL_STATES = {"completed", "failed", "stopped"}
 TRANSIENT_NAMES = {".tiered-run.lock", "run.lock", "heartbeat.json"}
@@ -185,6 +191,8 @@ class MissionControl:
         stall_seconds: float,
         max_orphan_resumes: int,
         python_executable: Path | None = None,
+        authorization_path: Path | None = None,
+        authorization: AuthorizationValidation | None = None,
     ) -> None:
         self.run_dir = run_dir
         self.compute_repo = compute_repo
@@ -195,8 +203,24 @@ class MissionControl:
         self.stall_seconds = stall_seconds
         self.max_orphan_resumes = max_orphan_resumes
         self.python_executable = python_executable or compute_repo / ".venv/bin/python"
+        self.authorization_path = authorization_path
+        self.authorization = authorization
         self.receipt_dir = run_dir / "receipts/mission-control"
         self.control_state_path = self.receipt_dir / "state.json"
+
+    def runner_command(self, action: str) -> list[str]:
+        command = [
+            str(self.python_executable),
+            str(self.compute_repo / "scripts/run_tiered_medgemma_study.py"),
+            action,
+            "--run-dir",
+            str(self.run_dir),
+            "--tier-plan",
+            str(self.tier_plan_path),
+        ]
+        if self.authorization_path:
+            command.extend(["--authorization", str(self.authorization_path)])
+        return command
 
     def control_state(self) -> dict[str, Any]:
         if self.control_state_path.exists():
@@ -217,18 +241,10 @@ class MissionControl:
         atomic_json(self.control_state_path, state)
 
     def refresh_public_status(self) -> None:
+        command = self.runner_command("status")
+        command.extend(["--public-status-output", str(self.public_status_path)])
         subprocess.run(
-            [
-                str(self.python_executable),
-                str(self.compute_repo / "scripts/run_tiered_medgemma_study.py"),
-                "status",
-                "--run-dir",
-                str(self.run_dir),
-                "--tier-plan",
-                str(self.tier_plan_path),
-                "--public-status-output",
-                str(self.public_status_path),
-            ],
+            command,
             cwd=self.compute_repo,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
@@ -259,6 +275,9 @@ class MissionControl:
             "compute_repository": compute_revision,
             "mission_control_repository": mission_revision,
             "execution_plan_sha256": sha256_file(self.tier_plan_path),
+            "authorization_receipt_sha256": (
+                self.authorization.receipt_sha256 if self.authorization else None
+            ),
             "policy": {
                 "python_executable": str(self.python_executable),
                 "poll_seconds": self.poll_seconds,
@@ -294,6 +313,9 @@ class MissionControl:
                 "platform": platform.platform(),
                 "python": platform.python_version(),
                 "repository_revision_at_start": compute_revision["revision"],
+                "authorization_receipt_sha256": (
+                    self.authorization.receipt_sha256 if self.authorization else None
+                ),
                 "started_at_utc": state.get("started_at_utc"),
                 "adopted_by_mission_control": True,
             },
@@ -306,6 +328,9 @@ class MissionControl:
                 "command": process_command(supervisor_pid),
                 "launched_at_utc": state.get("started_at_utc"),
                 "adopted_at_utc": utc_now(),
+                "authorization_receipt_sha256": (
+                    self.authorization.receipt_sha256 if self.authorization else None
+                ),
                 "log": "tier-specific logs under logs/",
             },
         )
@@ -364,17 +389,8 @@ class MissionControl:
     def resume_orphan(self, control: dict[str, Any]) -> int:
         attempt = int(control["orphan_resume_attempts"]) + 1
         log_path = self.run_dir / f"logs/mission-control-resume-{attempt}.log"
-        command = [
-            str(self.python_executable),
-            str(self.compute_repo / "scripts/run_tiered_medgemma_study.py"),
-            "run",
-            "--run-dir",
-            str(self.run_dir),
-            "--tier-plan",
-            str(self.tier_plan_path),
-            "--public-status-output",
-            str(self.public_status_path),
-        ]
+        command = self.runner_command("run")
+        command.extend(["--public-status-output", str(self.public_status_path)])
         if platform.system() == "Darwin" and Path("/usr/bin/caffeinate").exists():
             command = ["/usr/bin/caffeinate", "-dimsu", *command]
         with log_path.open("a", encoding="utf-8") as log:
@@ -431,6 +447,9 @@ class MissionControl:
             "schema_version": MISSION_SCHEMA_VERSION,
             "created_at_utc": utc_now(),
             "study_id": read_json(self.run_dir / "job.json")["study_id"],
+            "authorization_receipt_sha256": (
+                self.authorization.receipt_sha256 if self.authorization else None
+            ),
             "compute_repository": git_revision(self.compute_repo),
             "mission_control_repository": git_revision(Path(__file__).resolve().parents[1]),
             "transfer_rule": (
@@ -609,6 +628,8 @@ class MissionControl:
             "--max-orphan-resumes",
             str(self.max_orphan_resumes),
         ]
+        if self.authorization_path:
+            command.extend(["--authorization", str(self.authorization_path)])
         log_path = self.run_dir / "logs/mission-control-watch.log"
         with log_path.open("a", encoding="utf-8") as log:
             process = subprocess.Popen(
@@ -635,6 +656,14 @@ class MissionControl:
 
 
 def controller_from_args(args: argparse.Namespace) -> MissionControl:
+    # Read only the public control plan and documentary receipt before resolving any
+    # governed run or output path.
+    tier_plan = args.tier_plan.expanduser().resolve(strict=True)
+    plan = read_json(tier_plan)
+    authorization_path = (
+        args.authorization.expanduser().resolve(strict=True) if args.authorization else None
+    )
+    authorization = authorize_plan_before_governed_access(plan, authorization_path)
     python_executable = (
         args.python_executable.expanduser().absolute()
         if args.python_executable
@@ -645,13 +674,15 @@ def controller_from_args(args: argparse.Namespace) -> MissionControl:
     return MissionControl(
         run_dir=args.run_dir.expanduser().resolve(strict=True),
         compute_repo=args.compute_repo.expanduser().resolve(strict=True),
-        tier_plan=args.tier_plan.expanduser().resolve(strict=True),
+        tier_plan=tier_plan,
         public_status=args.public_status.expanduser().resolve(strict=True),
         public_heartbeat=args.public_heartbeat.expanduser().resolve(),
         poll_seconds=args.poll_seconds,
         stall_seconds=args.stall_seconds,
         max_orphan_resumes=args.max_orphan_resumes,
         python_executable=python_executable,
+        authorization_path=authorization_path,
+        authorization=authorization,
     )
 
 
@@ -665,6 +696,14 @@ def main() -> None:
     parser.add_argument("--tier-plan", type=Path, required=True)
     parser.add_argument("--public-status", type=Path, required=True)
     parser.add_argument("--public-heartbeat", type=Path, required=True)
+    parser.add_argument(
+        "--authorization",
+        type=Path,
+        help=(
+            "Documentary authorization receipt required by protected tier plans. It is "
+            "validated before any governed run path is resolved or opened."
+        ),
+    )
     parser.add_argument("--poll-seconds", type=float, default=15.0)
     parser.add_argument("--stall-seconds", type=float, default=300.0)
     parser.add_argument("--max-orphan-resumes", type=int, default=1)
@@ -679,7 +718,20 @@ def main() -> None:
         help="Reason recorded by the governed maintenance checkpoint command.",
     )
     args = parser.parse_args()
-    controller = controller_from_args(args)
+    try:
+        controller = controller_from_args(args)
+    except ProtectedExecutionLocked as error:
+        print(
+            json.dumps(
+                {
+                    "mission_control_started": False,
+                    "protected_evaluation_unlocked": False,
+                    "blockers": list(error.blockers),
+                },
+                indent=2,
+            )
+        )
+        raise SystemExit(2) from error
     if args.command == "adopt":
         print(json.dumps(controller.adopt(), indent=2))
     elif args.command == "status":

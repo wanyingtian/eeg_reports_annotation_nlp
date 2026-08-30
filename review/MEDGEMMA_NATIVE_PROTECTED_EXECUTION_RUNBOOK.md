@@ -111,6 +111,35 @@ hash. The public-safe status contains only operational counts, validity/degenera
 signals, timing, tokens, and an updated estimate; it contains no report text or key,
 reference label, keyed prediction, or partial performance metric.
 
+## Mission control and unattended recovery
+
+Mission control now preserves the same authorization receipt through status refreshes,
+detached watching, and its one permitted orphan-recovery attempt. Adopt the live runner
+and then launch the watcher:
+
+```bash
+python scripts/medgemma_mission_control.py adopt \
+  --run-dir "$GOVERNED_NATIVE_RUN" \
+  --compute-repo "$COMPUTE_REPOSITORY" \
+  --tier-plan review/model-receipts/medgemma-native-protected-tiered-execution.preregistered.json \
+  --authorization "$AUTHORIZATION_RECEIPT" \
+  --public-status "$PUBLIC_SAFE_STATUS" \
+  --public-heartbeat "$PUBLIC_SAFE_HEARTBEAT"
+
+python scripts/medgemma_mission_control.py launch-watch \
+  --run-dir "$GOVERNED_NATIVE_RUN" \
+  --compute-repo "$COMPUTE_REPOSITORY" \
+  --tier-plan review/model-receipts/medgemma-native-protected-tiered-execution.preregistered.json \
+  --authorization "$AUTHORIZATION_RECEIPT" \
+  --public-status "$PUBLIC_SAFE_STATUS" \
+  --public-heartbeat "$PUBLIC_SAFE_HEARTBEAT"
+```
+
+Mission control does not restart a failed or deliberately stopped study. It recovers only
+a run whose state remains `running` after its matching supervisor disappears, and only
+within the configured attempt limit. On completion it writes a final governed transfer
+manifest binding the authorization hash and every retained artifact.
+
 ## Schedule and stopping rules
 
 The frozen 100-report development run observed a mean of 17.52 seconds per report. At
@@ -128,3 +157,25 @@ After exact final key coverage, the runner processes both cohorts and performs t
 same-case evaluations against submitted Mistral, reproduced Mistral, and the second
 annotator. It retains null, unfavorable, invalid, and unfinished outcomes. Aggregate
 interpretation, manuscript placement, and release remain author-group decisions.
+
+## Produce the author-review evidence candidate
+
+After mission control records completion and writes `final-transfer-manifest.json`, create
+the public-safe aggregate candidate:
+
+```bash
+python scripts/finalize_medgemma_native_protected_result.py \
+  --run-dir "$GOVERNED_NATIVE_RUN" \
+  --study-plan review/model-receipts/medgemma-native-protected-comparator.preregistered.json \
+  --tier-plan review/model-receipts/medgemma-native-protected-tiered-execution.preregistered.json \
+  --authorization "$AUTHORIZATION_RECEIPT" \
+  --output "$PUBLIC_SAFE_RESULT_CANDIDATE"
+```
+
+The finalizer validates authorization before opening the run, then requires exact final
+coverage, zero invalid or duplicate outputs, the frozen model direction, 2,000
+report-bootstrap replicates with seed `20260718`, Holm adjustment, exact source hashes,
+and complete final-manifest coverage. It emits all 90 prespecified label/effect claim rows
+across both cohorts and three comparators. Directional language is derived only from the
+paired interval and is labeled as an author-review candidate. The output contains no case
+content or identifiers and does not admit itself to the manuscript.

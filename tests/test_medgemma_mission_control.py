@@ -3,9 +3,19 @@ from __future__ import annotations
 import csv
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/medgemma_mission_control.py"
+ROOT = Path(__file__).resolve().parents[1]
+PROTECTED_TIER_PLAN = ROOT / (
+    "review/model-receipts/"
+    "medgemma-native-protected-tiered-execution.preregistered.json"
+)
+PROTECTED_AUTHORIZATION_TEMPLATE = ROOT / (
+    "review/model-receipts/medgemma-native-protected-authorization.template.json"
+)
 SPEC = importlib.util.spec_from_file_location("medgemma_mission_control", SCRIPT)
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -126,6 +136,66 @@ def test_public_status_refresh_is_owned_by_mission_control(
     assert "--tier-plan" in captured["command"]
     assert captured["command"][0].endswith("repo/.venv/bin/python")
     assert captured["kwargs"]["check"] is True
+
+
+def test_protected_authorization_is_forwarded_to_runner_commands(
+    monkeypatch, tmp_path: Path
+) -> None:
+    captured = {}
+    authorization = tmp_path / "authorization.json"
+    authorization.write_text("{}\n", encoding="utf-8")
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+
+    monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
+    controller = MODULE.MissionControl(
+        run_dir=tmp_path / "run",
+        compute_repo=tmp_path / "repo",
+        tier_plan=tmp_path / "plan.json",
+        public_status=tmp_path / "progress.json",
+        public_heartbeat=tmp_path / "heartbeat.json",
+        poll_seconds=15,
+        stall_seconds=300,
+        max_orphan_resumes=1,
+        authorization_path=authorization,
+    )
+
+    controller.refresh_public_status()
+
+    assert captured["command"][captured["command"].index("--authorization") + 1] == str(
+        authorization
+    )
+
+
+def test_protected_mission_control_fails_before_nonexistent_run_path() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "status",
+            "--run-dir",
+            "/definitely/not/a/governed/run",
+            "--compute-repo",
+            str(ROOT),
+            "--tier-plan",
+            str(PROTECTED_TIER_PLAN),
+            "--public-status",
+            "/definitely/not/a/public/status",
+            "--public-heartbeat",
+            "/definitely/not/a/public/heartbeat",
+            "--authorization",
+            str(PROTECTED_AUTHORIZATION_TEMPLATE),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "status must be confirmed" in result.stdout
+    assert "FileNotFoundError" not in result.stderr
 
 
 def test_maintenance_checkpoint_hashes_atomic_products(monkeypatch, tmp_path: Path) -> None:
