@@ -11,6 +11,14 @@ NATIVE_INTERFACE_PLAN = (
     REPOSITORY_ROOT
     / "review/model-receipts/medgemma-native-interface-sensitivity.preregistered.json"
 )
+NATIVE_INTERFACE_FREEZE = (
+    REPOSITORY_ROOT
+    / "review/model-receipts/medgemma-native-interface-development.freeze.json"
+)
+NATIVE_INTERFACE_RESULT = (
+    REPOSITORY_ROOT
+    / "review/model-receipts/medgemma-native-interface-development.result.json"
+)
 
 
 def issue_fields(result: dict) -> set[str]:
@@ -84,8 +92,12 @@ def test_prompt_or_grammar_drift_blocks_execution(tmp_path: Path) -> None:
 
 def test_native_interface_sensitivity_cannot_replace_primary_or_start_evaluation() -> None:
     plan = json.loads(NATIVE_INTERFACE_PLAN.read_text(encoding="utf-8"))
+    freeze = json.loads(NATIVE_INTERFACE_FREEZE.read_text(encoding="utf-8"))
+    result = json.loads(NATIVE_INTERFACE_RESULT.read_text(encoding="utf-8"))
 
-    assert plan["status"] == "frozen_for_development_execution"
+    assert plan["status"] == (
+        "development_completed_configuration_frozen_evaluation_governance_locked"
+    )
     assert plan["primary_result_immutability"]["completed_before_this_plan"] is True
     assert plan["primary_result_immutability"]["replacement_allowed"] is False
     assert plan["sensitivity_configuration"]["weights_or_training_change_allowed"] is False
@@ -95,6 +107,19 @@ def test_native_interface_sensitivity_cannot_replace_primary_or_start_evaluation
         plan["development_stage"]["selection_rule"]["reference_metric_used_for_selection"] is False
     )
     assert plan["evaluation_stage"]["status"] == "not_authorized"
+    assert plan["development_stage"]["result_blind_freeze"]["selected"] is True
+    assert (
+        plan["development_stage"]["result_blind_freeze"][
+            "selected_before_reference_metric_access"
+        ]
+        is True
+    )
+    assert freeze["status"] == "immutable_result_blind_configuration_freeze"
+    assert freeze["selected_for_freeze"] is True
+    assert freeze["blockers"] == []
+    assert result["stage"] == "zoe_development_100_after_result_blind_freeze"
+    assert result["analysis"]["selection_used_reference_metrics"] is False
+    assert any("not run" in boundary for boundary in result["boundaries"])
     assert any(
         "H18-02728" in requirement
         for requirement in plan["evaluation_stage"]["unlock_requirements"]

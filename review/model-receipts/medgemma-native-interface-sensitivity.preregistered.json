@@ -52,6 +52,14 @@
       "run_receipt_sha256": "ff395e8d59dbd56b07c2ea205bdfa2bea183f39ea917881ce1cf9466cc9f1637",
       "selected_before_reference_metric_access": true
     },
+    "descriptive_result": {
+      "computed_after_freeze": true,
+      "receipt": "review/model-receipts/medgemma-native-interface-development.result.json",
+      "reference_records": 100,
+      "exact_key_set": true,
+      "patient_grouped": false,
+      "manuscript_evidence": false
+    },
     "prohibited_use": [
       "search multiple templates, prompts, quantizations, or seeds for the best score",
       "use Zoe evaluation or Maria outcomes for selection",

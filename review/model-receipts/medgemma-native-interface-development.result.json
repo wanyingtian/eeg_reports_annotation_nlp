@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "status": "completed_development_descriptive_result",
+  "created_at_utc": "2026-08-30T03:12:12.243909+00:00",
+  "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+  "stage": "zoe_development_100_after_result_blind_freeze",
+  "population": {
+    "reference_records": 100,
+    "prediction_records": 100,
+    "exact_key_set": true,
+    "invalid_outputs": 0,
+    "patient_key_available": false
+  },
+  "performance": {
+    "Focal Epi": {
+      "core_accuracy": 0.99,
+      "core_accuracy_ci_95": [0.97, 1.0],
+      "native_minus_matched_core_accuracy": 0.24,
+      "paired_difference_ci_95": [0.16, 0.32025],
+      "holm_adjusted_mcnemar_p": 0.0000011920928955078144
+    },
+    "Gen Epi": {
+      "core_accuracy": 0.97,
+      "core_accuracy_ci_95": [0.94, 1.0],
+      "native_minus_matched_core_accuracy": 0.14,
+      "paired_difference_ci_95": [0.07, 0.22],
+      "holm_adjusted_mcnemar_p": 0.004150390625000003
+    },
+    "Focal Non-epi": {
+      "core_accuracy": 0.86,
+      "core_accuracy_ci_95": [0.78, 0.92],
+      "native_minus_matched_core_accuracy": 0.11,
+      "paired_difference_ci_95": [0.04, 0.18],
+      "holm_adjusted_mcnemar_p": 0.029541015625000066
+    },
+    "Gen Non-epi": {
+      "core_accuracy": 0.91,
+      "core_accuracy_ci_95": [0.85, 0.96],
+      "native_minus_matched_core_accuracy": 0.10,
+      "paired_difference_ci_95": [0.03, 0.18],
+      "holm_adjusted_mcnemar_p": 0.042541503906250056
+    },
+    "Abnormality": {
+      "core_accuracy": 0.89,
+      "core_accuracy_ci_95": [0.83, 0.95],
+      "native_minus_matched_core_accuracy": 0.12,
+      "paired_difference_ci_95": [0.05, 0.20],
+      "holm_adjusted_mcnemar_p": 0.025085449218749986
+    }
+  },
+  "analysis": {
+    "bootstrap_iterations": 2000,
+    "seed": 20260718,
+    "bootstrap_unit": "report",
+    "multiplicity": "Holm across five labels by core and four-level correctness",
+    "selection_used_reference_metrics": false
+  },
+  "execution": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "runtime_profile_id": "llama-cpp-python-metal-full-offload-flash-v1",
+    "reports_completed": 100,
+    "elapsed_seconds": 1724.510589838028,
+    "mean_classification_seconds": 17.520623114980552,
+    "producing_repository_revision": "cc2c01dc0a019836404246098b598b6e4208f820"
+  },
+  "artifact_hashes": {
+    "result_blind_freeze_receipt_sha256": "40838c5133e50dbe3fcb8501f1d3b87d29c8fdb7b754cf6a3396645c27faf678",
+    "evaluation_summary_sha256": "8ae13d2f878d723c637260b05c284b96077721283cae445c38443eddd4407815",
+    "paired_comparison_summary_sha256": "83c5f51ea1d1f2f580527b3322f265299a1c85a0ab471df5f66a6050151d7d50",
+    "governed_predictions_db_sha256": "7df51019a07de58ad6f4ef58eb543f90e6b3dfec7cdc09ef36dd0353de5187f2"
+  },
+  "boundaries": [
+    "This is a development-set sensitivity result, not independent evaluation evidence.",
+    "The configuration was frozen by a result-blind structural rule before these metrics were computed.",
+    "The completed matched-historical Q2 result remains immutable primary comparator evidence.",
+    "Protected Zoe and Maria evaluation was not run because coverage for the new post-submission execution is not confirmed from the available governance record.",
+    "Report-level intervals do not establish patient independence.",
+    "Aggregate release and manuscript placement remain author-group decisions."
+  ],
+  "distribution_status": {
+    "this_receipt": "source_config_publishable_after_author_review",
+    "keyed_predictions": "outputs_governed",
+    "weights": "weights_not_redistributed"
+  }
+}
