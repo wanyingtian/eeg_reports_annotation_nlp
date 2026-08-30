@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "frozen_for_development_execution",
+  "status": "development_completed_configuration_frozen_evaluation_governance_locked",
   "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
   "scientific_role": "bounded interface sensitivity after completion of the matched-historical primary comparator",
   "primary_result_immutability": {
@@ -39,6 +39,18 @@
       "select_if": "All 100 frozen keys complete exactly once, all outputs satisfy the grammar and four-level schema, no context-limit or worker failure occurs, and more than one full five-label output pattern is observed.",
       "reject_if": "Any select_if condition fails; retain the complete failed outcome and do not search a replacement interface in this experiment.",
       "reference_metric_used_for_selection": false
+    },
+    "result_blind_freeze": {
+      "selected": true,
+      "selection_receipt": "review/model-receipts/medgemma-native-interface-development.freeze.json",
+      "output_records": 100,
+      "unique_output_keys": 100,
+      "invalid_outputs": 0,
+      "full_pattern_cardinality": 16,
+      "manifest_sha256": "dddbb46edf0ded6e468b01513a8034f205dcad1de4015d6ce97365d5bec8c051",
+      "output_sha256": "f799362d9f6a22523c0ae8240b8ebd71a4cfe7a0187e5d65bd1ec051841bf633",
+      "run_receipt_sha256": "ff395e8d59dbd56b07c2ea205bdfa2bea183f39ea917881ce1cf9466cc9f1637",
+      "selected_before_reference_metric_access": true
     },
     "prohibited_use": [
       "search multiple templates, prompts, quantizations, or seeds for the best score",

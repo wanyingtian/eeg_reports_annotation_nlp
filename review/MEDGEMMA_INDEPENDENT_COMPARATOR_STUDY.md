@@ -169,8 +169,11 @@ task message, initially on the 100-report Zoe development surface. Protected
 Zoe and Maria evaluation remains governance-locked until a PI, data-custodian,
 or approved-study record confirms that this new comparator execution is covered
 by H18-02728 and its secondary-use authorization. The interface bytes are now
-frozen. The singleton development candidate advances only if all 100 keys are
-complete and valid, no execution failure occurs, and the output is not a
-constant full-label pattern; no reference metric selects it. The plan prohibits prompt,
-template, quantization, or seed search on protected outcomes and cannot replace
-or suppress the completed matched-interface result.
+frozen. The singleton development candidate completed all 100 frozen keys with
+valid outputs and 16 distinct full-label patterns, so the preregistered
+result-blind structural rule selected it for an immutable configuration freeze.
+That selection occurred before reference-label metrics were accessed. The
+freeze receipt is
+`review/model-receipts/medgemma-native-interface-development.freeze.json`.
+The plan prohibits prompt, template, quantization, or seed search on protected
+outcomes and cannot replace or suppress the completed matched-interface result.

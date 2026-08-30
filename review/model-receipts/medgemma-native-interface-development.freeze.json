@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "status": "immutable_result_blind_configuration_freeze",
+  "created_at_utc": "2026-08-30T03:12:21.521190+00:00",
+  "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+  "stage": "zoe_development_100_result_blind_selection",
+  "selection_rule": "singleton structural transport rule; no reference metric used",
+  "selected_for_freeze": true,
+  "blockers": [],
+  "population": {
+    "manifest_records": 100,
+    "output_records": 100,
+    "unique_output_keys": 100,
+    "invalid_outputs": 0,
+    "full_pattern_cardinality": 16
+  },
+  "identity": {
+    "model_sha256": "b137aac80f2bcb1c1ed35bfe13387bc496eb18898d5f46425687604f0f714481",
+    "historical_prompt_sha256": "52198221d8330e9857b51a7ad99b017aa18836e1718b08dd0ae355820f5a5e69",
+    "grammar_sha256": "5237e13988062538cda9c21906f1f4e1fc8b99498e2462ea69fe24bface35016",
+    "chat_template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4",
+    "task_message_template_sha256": "c0a84d01c54e20a90e8885650fc34955719d0d744ac4ac9a0a5497171d55b441",
+    "manifest_sha256": "dddbb46edf0ded6e468b01513a8034f205dcad1de4015d6ce97365d5bec8c051",
+    "output_sha256": "f799362d9f6a22523c0ae8240b8ebd71a4cfe7a0187e5d65bd1ec051841bf633",
+    "run_receipt_sha256": "ff395e8d59dbd56b07c2ea205bdfa2bea183f39ea917881ce1cf9466cc9f1637",
+    "producing_repository_revision": "cc2c01dc0a019836404246098b598b6e4208f820"
+  },
+  "boundaries": [
+    "The configuration was selected before reference-label metrics were examined.",
+    "This receipt does not authorize protected-cohort evaluation.",
+    "This configuration cannot replace, suppress, or redefine the completed matched-historical Q2 result.",
+    "Keyed outputs remain in governed storage and are not included in this receipt."
+  ]
+}
