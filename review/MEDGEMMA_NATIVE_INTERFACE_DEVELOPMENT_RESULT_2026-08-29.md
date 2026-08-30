@@ -68,6 +68,7 @@ remain separate author-group decisions.
 - Output SHA-256: `f799362d9f6a22523c0ae8240b8ebd71a4cfe7a0187e5d65bd1ec051841bf633`
 - Development evaluation receipt SHA-256: `8ae13d2f878d723c637260b05c284b96077721283cae445c38443eddd4407815`
 - Paired comparison receipt SHA-256: `83c5f51ea1d1f2f580527b3322f265299a1c85a0ab471df5f66a6050151d7d50`
+- Governed 18-file transfer manifest SHA-256: `e6433ac5c6feb2ed305918561a6dfd20bcef6d8618848f8b9a966810e12c7d8a`
 
 Bootstrap intervals used 2,000 report-level replicates with seed `20260718`.
 No patient key was available, so none of these intervals establishes patient

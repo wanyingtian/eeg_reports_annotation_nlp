@@ -68,7 +68,8 @@
     "result_blind_freeze_receipt_sha256": "40838c5133e50dbe3fcb8501f1d3b87d29c8fdb7b754cf6a3396645c27faf678",
     "evaluation_summary_sha256": "8ae13d2f878d723c637260b05c284b96077721283cae445c38443eddd4407815",
     "paired_comparison_summary_sha256": "83c5f51ea1d1f2f580527b3322f265299a1c85a0ab471df5f66a6050151d7d50",
-    "governed_predictions_db_sha256": "7df51019a07de58ad6f4ef58eb543f90e6b3dfec7cdc09ef36dd0353de5187f2"
+    "governed_predictions_db_sha256": "7df51019a07de58ad6f4ef58eb543f90e6b3dfec7cdc09ef36dd0353de5187f2",
+    "governed_transfer_manifest_sha256": "e6433ac5c6feb2ed305918561a6dfd20bcef6d8618848f8b9a966810e12c7d8a"
   },
   "boundaries": [
     "This is a development-set sensitivity result, not independent evaluation evidence.",
@@ -81,6 +82,7 @@
   "distribution_status": {
     "this_receipt": "source_config_publishable_after_author_review",
     "keyed_predictions": "outputs_governed",
+    "transfer_bundle": "governed_channel_only_with_18_verified_file_receipts",
     "weights": "weights_not_redistributed"
   }
 }
