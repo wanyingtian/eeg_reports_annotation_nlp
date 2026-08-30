@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "status": "frozen_before_any_new_mistral_inference",
+  "classification_records": 100,
+  "evidence_records": 20,
+  "evidence_positions": [0, 20],
+  "max_new_model_calls": 140,
+  "call_cap_semantics": "140 planned completed outputs; interrupted in-flight calls may repeat, never completed checkpoint rows",
+  "classification_comparator": "reuse exact-key subset of completed raw Mistral reproduction",
+  "evidence_fixed_classifications": "same preserved raw Mistral JSON for both explanation interfaces",
+  "evidence_selection": "first 20 keys in frozen first-100 development manifest; no outcome selection",
+  "run_100_regardless_of_interim_accuracy": true,
+  "interim_reference_metrics_allowed": false,
+  "protected_evaluation_allowed": false,
+  "automatic_expansion_allowed": false,
+  "grammar_relaxation_allowed": false,
+  "fuzzy_semantic_and_learned_polarity_jobs": "deferred; not part of this small execution",
+  "stop_rule": "finish all prespecified calls unless structural/runtime validation fails; retain failures",
+  "interpretation": "descriptive development sensitivity, not proof of equivalence or clinical causality"
+}

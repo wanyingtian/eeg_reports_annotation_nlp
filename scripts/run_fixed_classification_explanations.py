@@ -95,7 +95,19 @@ def completed_prefix(output: Path, expected_keys: list[str], interface: str) -> 
     return frame
 
 
+def bind_execution_contract(path: Path, contract: dict[str, Any], output_exists: bool) -> None:
+    if path.exists():
+        if json.loads(path.read_text(encoding="utf-8")) != contract:
+            raise ValueError("fixed-evidence execution contract changed; refuse mixed resume")
+    elif output_exists:
+        raise ValueError("partial evidence output lacks its pre-inference execution contract")
+    else:
+        atomic_write_json(path, contract)
+        path.chmod(0o600)
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
+    os.umask(0o077)
     dataset = args.dataset.expanduser().resolve(strict=True)
     predictions = args.predictions.expanduser().resolve(strict=True)
     manifest = args.manifest.expanduser().resolve(strict=True)
@@ -129,6 +141,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         args.interface,
     )
     completed = len(existing)
+    for index, row in existing.iterrows():
+        if row["fixed_classifications"] != fixed.iloc[index][args.classification_column]:
+            raise ValueError("resumed fixed classification differs from the frozen source")
 
     load_overrides = {
         "n_ctx": args.n_ctx,
@@ -139,15 +154,42 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "n_threads_batch": args.n_threads_batch,
         "flash_attn": args.flash_attn,
     }
+    grammar_path = PIPELINE_ROOT / "result_grammar_exp.gbnf"
+    grammar_sha = sha256_file(grammar_path)
+    if grammar_sha != args.expected_grammar_sha256:
+        raise ValueError("explanation grammar SHA-256 does not match the frozen plan")
+    prompt_sha = sha256_text(pipeline.PROMPT_EXPLAIN)
+    if prompt_sha != args.expected_prompt_sha256:
+        raise ValueError("explanation prompt SHA-256 does not match the frozen plan")
+    from llm_models import MODEL_CONFIGS
+
+    contract = {
+        "run_id": args.run_id,
+        "dataset_sha256": dataset_sha,
+        "predictions_sha256": predictions_sha,
+        "manifest_sha256": manifest_sha,
+        "model": MODEL_CONFIGS[args.model],
+        "load_overrides": load_overrides,
+        "interface": args.interface,
+        "chat_template_sha256": args.expected_chat_template_sha256,
+        "prompt_sha256": prompt_sha,
+        "grammar_sha256": grammar_sha,
+        "sampling": [args.temperature, args.top_k, args.top_p, args.max_tokens],
+        "records": len(fixed),
+        "columns": [args.table, args.id_column, args.report_column, args.classification_column],
+        "source_revision": git_receipt(),
+    }
+    bind_execution_contract(output.with_suffix(".execution.json"), contract, output.exists())
+    if completed == len(fixed) and receipt_path.exists():
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if receipt["output"]["sha256"] != sha256_file(output):
+            raise ValueError("completed evidence output checksum changed")
+        return receipt  # A completed resume must not load the model again.
     model, model_receipt = pipeline.download_model_with_receipt(
         args.model,
         load_overrides=load_overrides,
         local_files_only=True,
     )
-    grammar_path = PIPELINE_ROOT / "result_grammar_exp.gbnf"
-    grammar_sha = sha256_file(grammar_path)
-    if grammar_sha != args.expected_grammar_sha256:
-        raise ValueError("explanation grammar SHA-256 does not match the frozen plan")
     grammar = pipeline.load_gbnf(grammar_path)
     template_receipt = (
         embedded_chat_template_receipt(model)
@@ -294,6 +336,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--expected-predictions-sha256", required=True)
     parser.add_argument("--expected-manifest-sha256", required=True)
     parser.add_argument("--expected-chat-template-sha256")
+    parser.add_argument(
+        "--expected-prompt-sha256",
+        default="09e7e46d13d9fd1f6ebd14e4caecf32766354ead048ef22aa834c5b6064cd05f",
+    )
     parser.add_argument(
         "--expected-grammar-sha256",
         default="718d3b0b16499d04d97723893f5e1de67aa1f342ba8b455a293a3d93084cd315",

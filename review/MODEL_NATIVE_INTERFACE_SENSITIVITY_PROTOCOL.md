@@ -118,10 +118,15 @@ receipt. The keyed evidence CSV remains governed.
    development manifest. Expected model time is about 15--25 minutes based on
    the completed raw Mistral reproduction.
 3. Freeze structural validity before opening reference metrics.
-4. Run the fixed-classification explanation comparison. Two Mistral
-   explanation surfaces are expected to require roughly one hour in total.
-5. Add a MedGemma explanation comparison only as a separately receipted
-   development sensitivity; do not reinterpret its classification result.
+4. Run the fixed-classification explanation comparison on the **first 20 keys**
+   of this same frozen development manifest, not on the full 100. Reuse the
+   preserved raw Mistral classification JSON identically for both interfaces.
+   The 100 native classifications plus 20 raw and 20 native explanations are
+   expected to need roughly 30--45 minutes in total. This is an estimate, not
+   a runtime guarantee.
+5. A MedGemma explanation comparison is **not in this queue**. It would require
+   a separately receipted development sensitivity; do not reinterpret its
+   classification result.
 6. Decide with the authors whether any frozen configuration merits protected
    evaluation and manuscript placement.
 
@@ -140,6 +145,43 @@ evaluation cohorts, and thesis-derived evidence checks remain stable. The
 submitted raw-completion Mistral study remains historical source evidence; the
 native Mistral result is a named post-submission sensitivity.
 
-If Mistral does not improve, retain that result. It would show that MedGemma's
-interface sensitivity is model-specific rather than a universal pipeline
-effect.
+If Mistral does not improve, retain that result. That would provide no evidence
+of a Mistral benefit on this development sample; it would not establish
+equivalence or prove that interface sensitivity is model-specific.
+
+## Capped unattended follow-up
+
+The additional execution policy is
+`model-receipts/mistral-native-interface-small-followup.execution.json`.
+It narrows execution without changing the scientific parent record. The first
+20 evidence keys are chosen before any new results; the full 100 classification
+cases run regardless of interim accuracy. There is no early performance look,
+automatic expansion, protected evaluation, model swap, or grammar relaxation.
+The 140-call count is the planned completed workload; an interrupted in-flight
+call may be repeated, but completed checkpoint rows are not rerun.
+
+`scripts/mistral_interface_followup.py` prepares and supervises the job using
+the existing `study_job.Supervisor`. The macOS LaunchAgent waits for the exact
+MedGemma dependency job to complete all 1,894 records, finalize its transfer
+receipt, and release its compute lock. It then runs classification, freezes
+structural validity before metrics, runs both evidence surfaces, and uses the
+existing paired evaluator for all five categories. No new model search occurs.
+Invalid/unfavorable products are retained; structural/runtime failures stop
+for review. Each stage has a two-hour safety limit.
+
+The queue binds the producing Git revision, source hashes, manifests, model,
+prompts, grammar, template and runtime settings. Its dedicated worktree must
+remain clean and unchanged. Evidence resume also checks an immutable execution
+contract and the exact fixed classification JSON. After a crash or login, the
+supervisor resumes atomic checkpoints; a manual `pause` remains held until
+`resume`. Existing process locks prevent overlapping attempts. After shutdown,
+execution can resume only once the user logs in and the run directory is
+available. This is not a guarantee against power-loss/storage corruption.
+
+The `status`, `pause`, and `resume` actions take `--run-dir`. Counts and state
+are written to the job's aggregate status path. At completion, adjacent
+`-result.json` and `-result.md` files provide the complete author-review summary.
+Keyed products and transfer receipts remain in governed storage. The queue
+does not generate a PDF, send mail, publish results, or change manuscript
+admission. Fuzzy/semantic factuality and learned polarity jobs remain deferred
+in this small run; exact verbatim traceability is not clinical validation.

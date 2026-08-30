@@ -775,8 +775,11 @@ def csv_progress(path: Path, target_rows: int | None) -> dict[str, Any]:
 
 
 class Supervisor:
-    def __init__(self, run_dir: Path) -> None:
+    def __init__(self, run_dir: Path, stages: list[Stage] | None = None,
+                 progress_callback: Any = None) -> None:
         self.run_dir = run_dir
+        self.stages = stages
+        self.progress_callback = progress_callback
         self.child: subprocess.Popen[str] | None = None
         self.interrupted = False
 
@@ -814,7 +817,7 @@ class Supervisor:
                 },
             )
             self.update_state(status="running", current_stage=None)
-            for stage in stages_for(self.run_dir):
+            for stage in self.stages if self.stages is not None else stages_for(self.run_dir):
                 if stage_is_complete(self.run_dir, stage):
                     continue
                 self.update_state(status="running", current_stage=stage.name)
@@ -839,8 +842,22 @@ class Supervisor:
                         stderr=subprocess.STDOUT,
                         text=True,
                         start_new_session=True,
+                        pass_fds=(lock.fileno(),),
                     )
-                    returncode = self.child.wait()
+                    try:
+                        while self.child.poll() is None:
+                            if self.progress_callback is not None:
+                                self.progress_callback(self, stage)
+                            time.sleep(1)
+                    finally:
+                        if self.child.poll() is None:
+                            os.killpg(self.child.pid, signal.SIGTERM)
+                            try:
+                                self.child.wait(timeout=15)
+                            except subprocess.TimeoutExpired:
+                                os.killpg(self.child.pid, signal.SIGKILL)
+                                self.child.wait()
+                    returncode = self.child.returncode
                     self.child = None
                     log.write(f"[{utc_now()}] EXIT {returncode}\n")
                 if self.interrupted:
@@ -1021,7 +1038,7 @@ def sensitivity(path: Path, run_dir: Path) -> str:
     relative = path.relative_to(run_dir)
     if relative.parts[0] == "inputs":
         return "governed_report_data_or_case_level_input"
-    if relative.parts[0] in {"products", "cache"}:
+    if relative.parts[0] in {"products", "cache", "analysis"}:
         return "governed_case_level_or_derived_product"
     return "operational_metadata"
 
@@ -1045,7 +1062,7 @@ def write_transfer_manifest(run_dir: Path) -> dict[str, Any]:
     payload = {
         "schema_version": 1,
         "created_at_utc": utc_now(),
-        "study_id": "jbhi-02463-2026-native-reproduction",
+        "study_id": job.get("study_id", "jbhi-02463-2026-native-reproduction"),
         "repository_revision": job.get("repository_revision"),
         "job_repository_revision": job.get("repository_revision"),
         "manifest_generation_repository_revision": generation_revision,

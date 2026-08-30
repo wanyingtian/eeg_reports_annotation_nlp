@@ -145,12 +145,15 @@ def load_fixed_evidence_inputs(
 
     records: list[dict[str, Any]] = []
     for key in manifest_keys:
+        report = source_index.at[key, report_column]
+        if not isinstance(report, str) or not report.strip():
+            raise ValueError("dataset contains a missing or empty report")
         classification = str(prediction_index.at[key, classification_column])
         classification_levels(classification)
         records.append(
             {
                 id_column: key,
-                report_column: str(source_index.at[key, report_column]),
+                report_column: report,
                 classification_column: classification,
             }
         )
