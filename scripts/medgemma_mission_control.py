@@ -19,6 +19,7 @@ from typing import Any
 from eeg_review.protected_execution import (
     AuthorizationValidation,
     ProtectedExecutionLocked,
+    assert_governed_run_active,
     authorize_plan_before_governed_access,
 )
 
@@ -671,8 +672,10 @@ def controller_from_args(args: argparse.Namespace) -> MissionControl:
     )
     if python_executable is not None and not python_executable.exists():
         raise FileNotFoundError(f"Python executable not found: {python_executable}")
+    run_dir = args.run_dir.expanduser().resolve(strict=True)
+    assert_governed_run_active(run_dir)
     return MissionControl(
-        run_dir=args.run_dir.expanduser().resolve(strict=True),
+        run_dir=run_dir,
         compute_repo=args.compute_repo.expanduser().resolve(strict=True),
         tier_plan=tier_plan,
         public_status=args.public_status.expanduser().resolve(strict=True),

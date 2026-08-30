@@ -60,7 +60,8 @@
     "accepted_documentary_sources": [
       "applicable approved-study record",
       "written confirmation by the principal investigator",
-      "written confirmation by an authorized data custodian"
+      "written confirmation by an authorized data custodian",
+      "written confirmation by an authorized study researcher documenting existing study scope and data access"
     ],
     "interpretive_boundary": "The validator checks the documentary execution contract; it does not make an ethics or legal determination."
   },
@@ -116,7 +117,9 @@
     "resume_by_exact_report_key": true,
     "partial_reference_metrics_allowed": false,
     "configuration_search_allowed": false,
+    "network_mode": "offline_local_model_artifact_only",
     "protected_outputs_governed": true,
+    "governance_eclipse_supported": true,
     "aggregate_release_requires_author_review": true
   }
 }

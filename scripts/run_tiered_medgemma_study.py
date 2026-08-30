@@ -23,6 +23,7 @@ from typing import Any
 
 from eeg_review.protected_execution import (
     ProtectedExecutionLocked,
+    assert_governed_run_active,
     authorize_plan_before_governed_access,
     validate_protected_job_binding,
 )
@@ -397,12 +398,28 @@ def process_alive(pid: int) -> bool:
 
 
 def run_command(run_dir: Path, stage: str, command: list[str]) -> None:
+    assert_governed_run_active(run_dir)
     log_path = run_dir / "logs" / f"{stage}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    environment = os.environ.copy()
+    if "--local-model-only" in command:
+        environment.update(
+            {
+                "HF_HUB_OFFLINE": "1",
+                "HF_HUB_DISABLE_TELEMETRY": "1",
+            }
+        )
     with log_path.open("a", encoding="utf-8") as log:
         log.write(f"\n[{utc_now()}] {' '.join(command)}\n")
         log.flush()
-        subprocess.run(command, cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
+        subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            env=environment,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            check=True,
+        )
 
 
 def inference_command(job: dict[str, Any], cohort_id: str, target: int) -> list[str]:
@@ -577,6 +594,7 @@ def main() -> None:
         raise SystemExit(2) from error
 
     run_dir = args.run_dir.expanduser().resolve(strict=True)
+    assert_governed_run_active(run_dir)
     study_plan = run_dir / "study-plan.json"
     job = read_json(run_dir / "job.json")
     validate_plan(plan, job, study_plan)

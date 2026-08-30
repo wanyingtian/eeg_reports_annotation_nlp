@@ -265,6 +265,7 @@ class RunConfig:
     n_threads_batch: int | None = None
     flash_attn: bool | None = None
     classification_interface: str = RAW_COMPLETION_INTERFACE_MODE
+    local_model_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -1152,6 +1153,8 @@ def run_pipeline(
             "receipt_write_git": git_receipt(),
             "slurm_job_id_present": bool(os.getenv("SLURM_JOB_ID")),
             "cuda_visible_devices_set": "CUDA_VISIBLE_DEVICES" in os.environ,
+            "hf_hub_offline": os.getenv("HF_HUB_OFFLINE") == "1",
+            "hf_hub_telemetry_disabled": os.getenv("HF_HUB_DISABLE_TELEMETRY") == "1",
         },
         "provenance_limits": [
             "This receipt identifies the executed prompt but does not reconstruct historical prompt-development decisions.",
@@ -1210,6 +1213,7 @@ def worker_target(
         model_name,
         logits_all=cfg.capture_classification_logprobs,
         load_overrides=load_overrides,
+        local_files_only=cfg.local_model_only,
     )
     model_receipt["runtime_profile_id"] = cfg.runtime_profile_id
 
@@ -1403,6 +1407,14 @@ def parse_args() -> argparse.Namespace:
             "model-native chat interface."
         ),
     )
+    p.add_argument(
+        "--local-model-only",
+        action="store_true",
+        help=(
+            "Resolve the pinned GGUF from the existing local cache only. "
+            "Fail rather than contact the model registry when it is absent."
+        ),
+    )
     p.add_argument("--n-ctx", type=int, default=None)
     p.add_argument("--n-gpu-layers", type=int, default=None)
     p.add_argument("--n-batch", type=int, default=None)
@@ -1483,6 +1495,7 @@ def main() -> None:
         n_threads_batch=args.n_threads_batch,
         flash_attn=args.flash_attn,
         classification_interface=args.classification_interface,
+        local_model_only=args.local_model_only,
     )
 
     # Helpful env overrides recorded in config output

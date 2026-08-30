@@ -16,7 +16,13 @@ CONFIGURATION_ID = (
 )
 PROTOCOL_ID = "H18-02728"
 COHORTS = {"zoe_evaluation_1395": 1395, "maria_evaluation_499": 499}
-AUTHORITY_ROLES = {"principal_investigator", "authorized_data_custodian", "approved_study_record"}
+AUTHORITY_ROLES = {
+    "principal_investigator",
+    "authorized_data_custodian",
+    "approved_study_record",
+    "authorized_study_researcher",
+}
+ECLIPSE_MARKER = "ECLIPSED.json"
 
 
 @dataclass(frozen=True)
@@ -116,6 +122,8 @@ def validate_authorization_receipt(path: Path) -> AuthorizationValidation:
         "keyed_outputs_remain_governed": True,
         "aggregate_release_requires_author_review": True,
         "weights_not_redistributed": True,
+        "local_model_inference_only": True,
+        "governance_eclipse_supported": True,
         "patient_grouped_claims_not_authorized_without_patient_key": True,
     }
     if not isinstance(controls, dict):
@@ -182,6 +190,19 @@ def authorize_plan_before_governed_access(
             ["execution-plan authorization protocol_identifier mismatch"]
         )
     return validation
+
+
+def assert_governed_run_active(run_dir: Path) -> None:
+    """Reject execution or result release after a governance eclipse marker exists."""
+
+    marker = run_dir / ECLIPSE_MARKER
+    if marker.exists():
+        raise ProtectedExecutionLocked(
+            [
+                f"governed run is eclipsed by {ECLIPSE_MARKER}; execution, analysis, "
+                "and result release are disabled"
+            ]
+        )
 
 
 def validate_frozen_parent_receipts(plan: dict[str, Any], repository_root: Path) -> None:
@@ -256,6 +277,10 @@ def validate_protected_job_binding(
             raise ProtectedExecutionLocked([f"{stage} is not bound to native_chat"])
         if "--classification-only" not in command:
             raise ProtectedExecutionLocked([f"{stage} is not classification-only"])
+        if "--local-model-only" not in command:
+            raise ProtectedExecutionLocked(
+                [f"{stage} does not require offline local model resolution"]
+            )
         if "--capture-classification-logprobs" in command:
             raise ProtectedExecutionLocked(
                 [f"{stage} unexpectedly enables development probability capture"]

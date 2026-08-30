@@ -9,6 +9,7 @@ import pytest
 
 from eeg_review.protected_execution import (
     ProtectedExecutionLocked,
+    assert_governed_run_active,
     authorize_plan_before_governed_access,
     build_unlock_receipt,
     validate_authorization_receipt,
@@ -76,6 +77,13 @@ def test_authorship_is_not_an_authorizing_role(tmp_path: Path) -> None:
     result = validate_authorization_receipt(write(tmp_path, payload))
     assert result.valid is False
     assert any("accepted confirming role" in blocker for blocker in result.blockers)
+
+
+def test_authorized_study_researcher_can_document_existing_scope(tmp_path: Path) -> None:
+    payload = confirmed()
+    payload["authority"]["role"] = "authorized_study_researcher"
+    result = validate_authorization_receipt(write(tmp_path, payload))
+    assert result.valid is True
 
 
 def test_cohort_scope_cannot_be_reduced_or_expanded_silently(tmp_path: Path) -> None:
@@ -154,6 +162,7 @@ def protected_job(receipt_sha256: str, plan: dict) -> dict:
                     "python",
                     "pipeline.py",
                     "--classification-only",
+                    "--local-model-only",
                     "--classification-interface",
                     "native_chat",
                 ],
@@ -243,3 +252,10 @@ def test_runner_fails_on_authorization_before_nonexistent_governed_path() -> Non
     assert result.returncode == 2
     assert "status must be confirmed" in result.stdout
     assert "FileNotFoundError" not in result.stderr
+
+
+def test_eclipse_marker_blocks_governed_run(tmp_path: Path) -> None:
+    assert_governed_run_active(tmp_path)
+    (tmp_path / "ECLIPSED.json").write_text("{}\n", encoding="utf-8")
+    with pytest.raises(ProtectedExecutionLocked, match="eclipsed"):
+        assert_governed_run_active(tmp_path)

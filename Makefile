@@ -1,6 +1,6 @@
 UV ?= uv
 
-.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize medgemma-native-author-bundle
+.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize medgemma-native-author-bundle governed-run-eclipse
 
 sync:
 	$(UV) sync
@@ -9,7 +9,7 @@ sync-all:
 	$(UV) sync --extra reports --extra baselines --extra llm --extra evidence
 
 lint:
-	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/smoke_classification.py scripts/preload_model.py scripts/study_job.py scripts/prepare_medgemma_study.py scripts/run_tiered_medgemma_study.py scripts/medgemma_mission_control.py scripts/benchmark_medgemma_runtime.py scripts/finalize_medgemma_result_candidate.py scripts/finalize_medgemma_native_development.py scripts/finalize_medgemma_native_protected_result.py scripts/render_medgemma_native_author_bundle.py scripts/check_medgemma_native_protected_authorization.py src/LLM_pipeline/llm_models.py
+	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/smoke_classification.py scripts/preload_model.py scripts/study_job.py scripts/prepare_medgemma_study.py scripts/run_tiered_medgemma_study.py scripts/medgemma_mission_control.py scripts/benchmark_medgemma_runtime.py scripts/finalize_medgemma_result_candidate.py scripts/finalize_medgemma_native_development.py scripts/finalize_medgemma_native_protected_result.py scripts/render_medgemma_native_author_bundle.py scripts/check_medgemma_native_protected_authorization.py scripts/eclipse_governed_run.py src/LLM_pipeline/llm_models.py
 
 test:
 	$(UV) run --extra baselines pytest
@@ -129,3 +129,10 @@ medgemma-native-author-bundle:
 	$(UV) run python scripts/render_medgemma_native_author_bundle.py \
 		--candidate "$(RESULT_CANDIDATE)" --output-dir "$(AUTHOR_BUNDLE_DIR)" \
 		$(if $(strip $(ADMISSION)),--admission "$(ADMISSION)",)
+
+governed-run-eclipse:
+	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed run directory" && exit 2)
+	@test -n "$(ACTOR)" || (echo "Set ACTOR to the recorded actor" && exit 2)
+	@test -n "$(REASON)" || (echo "Set REASON to the governance reason" && exit 2)
+	PYTHONPATH=src $(UV) run python scripts/eclipse_governed_run.py \
+		--run-dir "$(RUN_DIR)" --actor "$(ACTOR)" --reason "$(REASON)"

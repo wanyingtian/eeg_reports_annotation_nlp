@@ -66,6 +66,30 @@ def test_load_parameters_reject_unknown_and_incoherent_values() -> None:
         llm_models.validated_load_parameters(
             logits_all=False, load_overrides={"unreceipted_switch": True}
         )
+
+
+def test_local_model_resolution_is_fail_closed_and_receipted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact = tmp_path / "model.gguf"
+    artifact.write_bytes(b"local-model-test")
+    observed: dict[str, object] = {}
+
+    def fake_download(**kwargs):
+        observed.update(kwargs)
+        return str(artifact)
+
+    monkeypatch.setattr(llm_models, "hf_hub_download", fake_download)
+    path, receipt = llm_models.resolve_model_artifact(
+        "deepseek", local_files_only=True
+    )
+
+    assert path == artifact
+    assert observed["local_files_only"] is True
+    assert receipt["artifact_access"] == {
+        "mode": "local_cache_only",
+        "network_lookup_allowed": False,
+    }
     with pytest.raises(ValueError, match="n_ubatch cannot exceed n_batch"):
         llm_models.validated_load_parameters(
             logits_all=False,

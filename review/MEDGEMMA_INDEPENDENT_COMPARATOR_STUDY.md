@@ -166,9 +166,11 @@ primary result.
 therefore freezes a narrow sensitivity plan. It changes only raw-prompt
 serialization to an exactly receipted model-native chat template and frozen
 task message, initially on the 100-report Zoe development surface. Protected
-Zoe and Maria evaluation remains governance-locked until a PI, data-custodian,
-or approved-study record confirms that this new comparator execution is covered
-by H18-02728 and its secondary-use authorization. The interface bytes are now
+Zoe and Maria evaluation remains governance-locked until an applicable
+approved-study record or written confirmation by a PI, data custodian, or
+authorized study researcher documents that this comparator execution is within
+the existing H18-02728 secondary-use scope. Authorship alone is not such
+documentation. The interface bytes are now
 frozen. The singleton development candidate completed all 100 frozen keys with
 valid outputs and 16 distinct full-label patterns, so the preregistered
 result-blind structural rule selected it for an immutable configuration freeze.
@@ -178,10 +180,13 @@ freeze receipt is
 The plan prohibits prompt, template, quantization, or seed search on protected
 outcomes and cannot replace or suppress the completed matched-interface result.
 
-The authorization boundary is executable rather than narrative. Populate
+The authorization boundary is executable rather than narrative. Governed
+inference resolves the already cached, checksum-pinned GGUF in local-only mode;
+no report, prompt, prediction, or inference request is sent to a remote model
+service. Populate
 `review/model-receipts/medgemma-native-protected-authorization.template.json`
-only from the applicable approved-study record or written PI/data-custodian
-confirmation, preserve the source record and its SHA-256 in governed storage,
+only from one of the documented sources above, preserve the source record and
+its SHA-256 in governed storage,
 and run:
 
 ```bash
@@ -195,3 +200,8 @@ configuration or cohort drift, missing secondary-use coverage, or relaxed
 distribution controls. Passing it validates the documented technical gate; it
 does not make an ethics or legal determination and does not admit results into
 the manuscript.
+
+Each protected run is isolated in its own governed directory. The eclipse
+command can place that computation under a fail-closed governance hold: runners,
+analysis, finalization, and result release then refuse the run. The local record
+is retained until a separate retention, archival, or deletion decision is made.

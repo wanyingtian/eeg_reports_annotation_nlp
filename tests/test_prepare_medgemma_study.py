@@ -77,6 +77,7 @@ def test_native_interface_is_explicit_in_inference_and_comparison_commands(
 
     assert inference[inference.index("--classification-interface") + 1] == "native_chat"
     assert "--classification-only" in inference
+    assert "--local-model-only" in inference
     assert "--capture-classification-logprobs" not in inference
     assert comparison[comparison.index("--model-a-id") + 1] == (
         "medgemma-independent-native-interface-q2-v1"

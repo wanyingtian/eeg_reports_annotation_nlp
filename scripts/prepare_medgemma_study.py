@@ -219,6 +219,7 @@ def command_plan(
                         "--flush-every",
                         "1",
                         "--classification-only",
+                        "--local-model-only",
                         "--classification-interface",
                         classification_interface,
                         "--temperature",
@@ -572,6 +573,14 @@ def main() -> None:
             "This run directory is governed. Inputs, manifests, and comparator surfaces contain "
             "report-level data or pseudonymous keys."
         ),
+        "governance_control": {
+            "eclipse_marker": "ECLIPSED.json",
+            "initial_state": "active_governed",
+            "eclipse_effect": (
+                "Blocks further execution, analysis, finalization, and result release while "
+                "preserving a reviewable local record pending a separate retention decision."
+            ),
+        },
     }
     atomic_json(output / "job.json", job)
     atomic_json(

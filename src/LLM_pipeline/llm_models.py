@@ -119,8 +119,14 @@ def resolve_model_artifact(
     *,
     logits_all: bool = False,
     load_overrides: dict[str, Any] | None = None,
+    local_files_only: bool = False,
 ) -> tuple[Path, dict]:
-    """Download/cache a GGUF model and return its validated provenance."""
+    """Resolve a GGUF model and return its validated provenance.
+
+    Governed runs pass ``local_files_only=True`` so model resolution fails
+    closed when the pinned artifact is absent instead of contacting the Hub.
+    Report data are never inputs to artifact resolution.
+    """
     if model_name not in MODEL_CONFIGS:
         available = list(MODEL_CONFIGS.keys())
         raise ValueError(f"Unsupported model '{model_name}'. Available: {available}")
@@ -132,6 +138,7 @@ def resolve_model_artifact(
             repo_id=cfg["repo_id"],
             filename=cfg["filename"],
             revision=cfg.get("revision"),
+            local_files_only=local_files_only,
         )
     )
     model_sha256 = sha256_file(model_path)
@@ -155,6 +162,10 @@ def resolve_model_artifact(
         "expected_sha256": expected_sha256,
         "size_bytes": model_path.stat().st_size,
         "load_parameters": load_parameters,
+        "artifact_access": {
+            "mode": "local_cache_only" if local_files_only else "hub_cache_allowed",
+            "network_lookup_allowed": not local_files_only,
+        },
     }
     return model_path, receipt
 
@@ -164,12 +175,14 @@ def download_model_with_receipt(
     *,
     logits_all: bool = False,
     load_overrides: dict[str, Any] | None = None,
+    local_files_only: bool = False,
 ) -> tuple[Llama, dict]:
     """Download and load a GGUF model, returning immutable model provenance."""
     model_path, receipt = resolve_model_artifact(
         model_name,
         logits_all=logits_all,
         load_overrides=load_overrides,
+        local_files_only=local_files_only,
     )
     logging.info("Loading model into llama.cpp...")
     started = time.perf_counter()

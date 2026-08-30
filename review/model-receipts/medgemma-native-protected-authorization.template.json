@@ -26,7 +26,9 @@
     "keyed_outputs_remain_governed": true,
     "aggregate_release_requires_author_review": true,
     "weights_not_redistributed": true,
+    "local_model_inference_only": true,
+    "governance_eclipse_supported": true,
     "patient_grouped_claims_not_authorized_without_patient_key": true
   },
-  "note": "Populate only from an applicable approved-study record or written confirmation by the PI or authorized data custodian. Do not infer confirmation from authorship or data possession."
+  "note": "Populate from an applicable approved-study record or written confirmation by a PI, authorized data custodian, or authorized study researcher who documents the existing study scope and data access. Authorship alone remains insufficient."
 }

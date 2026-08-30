@@ -13,6 +13,7 @@ from typing import Any
 from eeg_review.protected_execution import (
     AuthorizationValidation,
     ProtectedExecutionLocked,
+    assert_governed_run_active,
     authorize_plan_before_governed_access,
     validate_frozen_parent_receipts,
     validate_protected_job_binding,
@@ -443,6 +444,7 @@ def main() -> None:
         raise SystemExit(2) from error
 
     run_dir = args.run_dir.expanduser().resolve(strict=True)
+    assert_governed_run_active(run_dir)
     output = args.output.expanduser().absolute()
     receipt = build_receipt(
         run_dir, study_plan_path, tier_plan_path, authorization

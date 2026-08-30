@@ -140,6 +140,7 @@ def prepared_completed_run(tmp_path: Path, authorization) -> Path:
                     "python",
                     "pipeline.py",
                     "--classification-only",
+                    "--local-model-only",
                     "--classification-interface",
                     "native_chat",
                 ],

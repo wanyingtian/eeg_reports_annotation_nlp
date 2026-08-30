@@ -6,7 +6,7 @@
   "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
   "configuration_change": false,
   "purpose": "Execute the single result-blind-frozen native-interface sensitivity on the exact protected evaluation cohorts after documentary authorization, with resumable checkpoints and no partial reference metrics.",
-  "source_study_plan_sha256": "070da8895a33aeb76ed90af65c10523aa3fbb1a6e70669d48cb4e3afbb67d445",
+  "source_study_plan_sha256": "9125764c7c0a226cb26464f58372bae866ff9e9ccb5a6a26046e7305a8030bda",
   "authorization_gate": {
     "required": true,
     "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
@@ -44,6 +44,12 @@
   },
   "planning_seconds_per_report": 17.520623114980552,
   "planning_basis": "Observed mean classification time from the frozen 100-report native-interface development run; analysis and setup time are additional.",
+  "network_boundary": {
+    "inference_location": "local llama.cpp process",
+    "model_artifact_resolution": "existing pinned local cache only",
+    "remote_model_or_inference_api_allowed": false,
+    "report_or_prediction_egress_allowed": false
+  },
   "early_view": {
     "target_elapsed_hours": 0.4,
     "minimum_completed_by_cohort": {
@@ -138,6 +144,11 @@
     "contains_report_or_patient_keys": false,
     "contains_reference_labels": false,
     "contains_partial_performance_metrics": false
+  },
+  "governance_eclipse": {
+    "marker": "ECLIPSED.json",
+    "effect": "fail closed for further execution, analysis, finalization, and result release",
+    "record_retention": "local governed record remains pending a separate retention or deletion decision"
   },
   "change_control": "No prompt, template, grammar, model, quantization, sampling, cohort, key manifest, or analysis change is permitted after authorization. Operational repair requires a new receipted attempt and may not inspect partial reference metrics."
 }
