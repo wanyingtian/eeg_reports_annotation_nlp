@@ -1,6 +1,6 @@
 UV ?= uv
 
-.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run
+.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check
 
 sync:
 	$(UV) sync
@@ -9,7 +9,7 @@ sync-all:
 	$(UV) sync --extra reports --extra baselines --extra llm --extra evidence
 
 lint:
-	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/smoke_classification.py scripts/preload_model.py scripts/study_job.py scripts/prepare_medgemma_study.py scripts/run_tiered_medgemma_study.py scripts/medgemma_mission_control.py scripts/benchmark_medgemma_runtime.py scripts/finalize_medgemma_result_candidate.py scripts/finalize_medgemma_native_development.py src/LLM_pipeline/llm_models.py
+	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/smoke_classification.py scripts/preload_model.py scripts/study_job.py scripts/prepare_medgemma_study.py scripts/run_tiered_medgemma_study.py scripts/medgemma_mission_control.py scripts/benchmark_medgemma_runtime.py scripts/finalize_medgemma_result_candidate.py scripts/finalize_medgemma_native_development.py scripts/check_medgemma_native_protected_authorization.py src/LLM_pipeline/llm_models.py
 
 test:
 	$(UV) run --extra baselines pytest
@@ -80,3 +80,9 @@ medgemma-tier-run:
 	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed MedGemma run directory" && exit 2)
 	$(UV) run --extra llm python scripts/run_tiered_medgemma_study.py run \
 		--run-dir "$(RUN_DIR)" $(TIER_RUN_ARGS)
+
+medgemma-native-authorization-check:
+	@test -n "$(AUTHORIZATION)" || (echo "Set AUTHORIZATION to the governed documentary receipt" && exit 2)
+	@test -n "$(UNLOCK_RECEIPT)" || (echo "Set UNLOCK_RECEIPT to a governed output path" && exit 2)
+	PYTHONPATH=src $(UV) run python scripts/check_medgemma_native_protected_authorization.py \
+		--authorization "$(AUTHORIZATION)" --output "$(UNLOCK_RECEIPT)"

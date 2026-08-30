@@ -177,3 +177,21 @@ freeze receipt is
 `review/model-receipts/medgemma-native-interface-development.freeze.json`.
 The plan prohibits prompt, template, quantization, or seed search on protected
 outcomes and cannot replace or suppress the completed matched-interface result.
+
+The authorization boundary is executable rather than narrative. Populate
+`review/model-receipts/medgemma-native-protected-authorization.template.json`
+only from the applicable approved-study record or written PI/data-custodian
+confirmation, preserve the source record and its SHA-256 in governed storage,
+and run:
+
+```bash
+PYTHONPATH=src python scripts/check_medgemma_native_protected_authorization.py \
+  --authorization /governed/path/authorization.json \
+  --output /governed/path/protected-evaluation-unlock.json
+```
+
+The checker fails closed for pending status, authorship-only assertions,
+configuration or cohort drift, missing secondary-use coverage, or relaxed
+distribution controls. Passing it validates the documented technical gate; it
+does not make an ethics or legal determination and does not admit results into
+the manuscript.

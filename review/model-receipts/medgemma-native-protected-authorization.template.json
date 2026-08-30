@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "status": "pending",
+  "authorization_id": null,
+  "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+  "protocol_identifier": "H18-02728",
+  "coverage_statement": null,
+  "authority": {
+    "role": null,
+    "name_or_record": null,
+    "confirmation_source": null,
+    "confirmation_source_sha256": null,
+    "confirmed_at_utc": null
+  },
+  "scope": {
+    "operation": "post_submission_model_inference_and_aggregate_analysis",
+    "cohorts": {
+      "zoe_evaluation_1395": 1395,
+      "maria_evaluation_499": 499
+    },
+    "already_transferred_deidentified_reports": null,
+    "secondary_use_covered": null
+  },
+  "controls": {
+    "keyed_outputs_remain_governed": true,
+    "aggregate_release_requires_author_review": true,
+    "weights_not_redistributed": true,
+    "patient_grouped_claims_not_authorized_without_patient_key": true
+  },
+  "note": "Populate only from an applicable approved-study record or written confirmation by the PI or authorized data custodian. Do not infer confirmation from authorship or data possession."
+}
