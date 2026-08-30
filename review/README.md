@@ -66,6 +66,16 @@ Its aggregate finalizer retains every prespecified effect, and its deterministic
 bundle remains non-admitted unless a separate candidate-hash-bound decision record covers
 all primary table rows and the named supplement/reviewer-response destinations.
 
+The MedGemma interface finding also motivates one narrower, model-symmetric
+development check. [`MODEL_NATIVE_INTERFACE_SENSITIVITY_PROTOCOL.md`](MODEL_NATIVE_INTERFACE_SENSITIVITY_PROTOCOL.md)
+freezes a single Mistral native-interface candidate and an independently
+controlled explanation-interface comparison. In both cases the historical
+prompts, report order, sampling, and GBNF grammars remain fixed. A chat template
+is treated as the model-facing input envelope, not as a replacement for the
+structured-output contract. The explanation layer is described as
+self-prompted evidence extraction and explicitly does not claim causal
+faithfulness. No Mistral native-interface inference has yet been run.
+
 A potential Mistral extension is governed separately by
 [`MISTRAL_TASK_ADAPTATION_PROTOCOL.md`](MISTRAL_TASK_ADAPTATION_PROTOCOL.md).
 It preregisters a proposed `post_submission_mistral_adapted` layer grounded in

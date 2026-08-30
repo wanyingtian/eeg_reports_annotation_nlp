@@ -129,4 +129,65 @@ def test_legacy_resume_is_explicitly_labeled_default_runtime(tmp_path: Path) -> 
     frame, completed = PIPELINE.process_completed_csv(path)
 
     assert set(frame["runtime_profile_id"]) == {"llama-cpp-python-default"}
+    assert set(frame["explanation_interface_mode"]) == {"raw_completion"}
     assert completed == {"case-1"}
+
+
+def test_resume_refuses_to_mix_explanation_interfaces(tmp_path: Path) -> None:
+    path = tmp_path / "raw.csv"
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(
+            stream,
+            fieldnames=[
+                "Hashed_ReportURN",
+                "runtime_profile_id",
+                "classification_interface_mode",
+                "explanation_interface_mode",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "Hashed_ReportURN": "case-1",
+                "runtime_profile_id": "llama-cpp-python-default",
+                "classification_interface_mode": "raw_completion",
+                "explanation_interface_mode": "raw_completion",
+            }
+        )
+
+    with pytest.raises(ValueError, match="cannot mix explanation interfaces"):
+        PIPELINE.process_completed_csv(
+            path,
+            explanation_interface="native_chat",
+        )
+
+
+def test_chat_completion_keeps_grammar_active() -> None:
+    observed: dict[str, object] = {}
+    grammar = object()
+
+    class FakeChatModel:
+        def create_chat_completion(self, **kwargs):
+            observed.update(kwargs)
+            return {
+                "choices": [{"message": {"content": '{"answer": 4}'}}],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 4,
+                    "total_tokens": 14,
+                },
+            }
+
+    receipt = PIPELINE.llm_chat_json_with_receipt(
+        model=FakeChatModel(),
+        messages=[{"role": "user", "content": "task"}],
+        temperature=0,
+        max_tokens=32,
+        stop=None,
+        grammar=grammar,
+        top_k=40,
+        top_p=0.95,
+    )
+
+    assert observed["grammar"] is grammar
+    assert receipt.text == '{"answer": 4}'

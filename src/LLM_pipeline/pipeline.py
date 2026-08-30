@@ -64,7 +64,10 @@ try:
         NATIVE_CHAT_INTERFACE_MODE,
         RAW_COMPLETION_INTERFACE_MODE,
         embedded_chat_template_receipt,
+        explanation_input,
+        explanation_task_message_template,
         native_classification_messages,
+        native_explanation_messages,
         native_task_message_template,
         sha256_text as native_sha256_text,
     )
@@ -83,7 +86,10 @@ except ModuleNotFoundError:
         NATIVE_CHAT_INTERFACE_MODE,
         RAW_COMPLETION_INTERFACE_MODE,
         embedded_chat_template_receipt,
+        explanation_input,
+        explanation_task_message_template,
         native_classification_messages,
+        native_explanation_messages,
         native_task_message_template,
         sha256_text as native_sha256_text,
     )
@@ -265,6 +271,7 @@ class RunConfig:
     n_threads_batch: int | None = None
     flash_attn: bool | None = None
     classification_interface: str = RAW_COMPLETION_INTERFACE_MODE
+    explanation_interface: str = RAW_COMPLETION_INTERFACE_MODE
     local_model_only: bool = False
 
 
@@ -715,6 +722,7 @@ def process_completed_csv(
     run_explanations: bool = True,
     runtime_profile_id: str = "llama-cpp-python-default",
     classification_interface: str = RAW_COMPLETION_INTERFACE_MODE,
+    explanation_interface: str = RAW_COMPLETION_INTERFACE_MODE,
 ) -> Tuple[pd.DataFrame, set[str]]:
     """
     Load existing results to resume. Returns (df, set_of_hashed_ids).
@@ -724,6 +732,7 @@ def process_completed_csv(
         "Report",
         "runtime_profile_id",
         "classification_interface_mode",
+        "explanation_interface_mode",
         "classifications",
         "explanations",
         "report_whitespace_words",
@@ -760,6 +769,16 @@ def process_completed_csv(
                     "A native-chat run cannot resume an output lacking interface identity"
                 )
             df["classification_interface_mode"] = RAW_COMPLETION_INTERFACE_MODE
+        expected_explanation_interface = (
+            explanation_interface if run_explanations else "not_executed"
+        )
+        if len(df) and "explanation_interface_mode" not in df.columns:
+            if expected_explanation_interface == NATIVE_CHAT_INTERFACE_MODE:
+                raise ValueError(
+                    "A native-chat explanation run cannot resume an output lacking "
+                    "explanation interface identity"
+                )
+            df["explanation_interface_mode"] = expected_explanation_interface
         observed_interfaces = set(
             df.get("classification_interface_mode", pd.Series(dtype=str)).dropna()
         )
@@ -767,6 +786,18 @@ def process_completed_csv(
             raise ValueError(
                 "A resumed CSV cannot mix classification interfaces: "
                 f"expected {classification_interface}, found {sorted(observed_interfaces)}"
+            )
+        observed_explanation_interfaces = set(
+            df.get("explanation_interface_mode", pd.Series(dtype=str)).dropna()
+        )
+        if (
+            observed_explanation_interfaces
+            and observed_explanation_interfaces != {expected_explanation_interface}
+        ):
+            raise ValueError(
+                "A resumed CSV cannot mix explanation interfaces: "
+                f"expected {expected_explanation_interface}, "
+                f"found {sorted(observed_explanation_interfaces)}"
             )
         observed_profiles = set(df.get("runtime_profile_id", pd.Series(dtype=str)).dropna())
         if observed_profiles and observed_profiles != {runtime_profile_id}:
@@ -872,6 +903,15 @@ def run_pipeline(
         NATIVE_CHAT_INTERFACE_MODE,
     }:
         raise ValueError(f"Unsupported classification interface: {cfg.classification_interface}")
+    if cfg.explanation_interface not in {
+        RAW_COMPLETION_INTERFACE_MODE,
+        NATIVE_CHAT_INTERFACE_MODE,
+    }:
+        raise ValueError(f"Unsupported explanation interface: {cfg.explanation_interface}")
+    if not cfg.run_explanations and cfg.explanation_interface != RAW_COMPLETION_INTERFACE_MODE:
+        raise ValueError(
+            "A classification-only run cannot declare a native explanation interface"
+        )
     if (
         cfg.classification_interface == NATIVE_CHAT_INTERFACE_MODE
         and cfg.capture_classification_logprobs
@@ -934,24 +974,36 @@ def run_pipeline(
         # 2) Explanations (feed classification JSON verbatim), unless a
         # separately receipted comparator is classification-only.
         if cfg.run_explanations:
-            explain_input = (
-                PROMPT_EXPLAIN
-                + "\n\n---\nEEG Report:\n"
-                + report
-                + "\n\nClassification JSON:\n"
-                + classifications
-                + "\n"
-            )
-            explanation_call = llm_json_with_receipt(
-                model=model,
-                prompt=explain_input,
-                temperature=cfg.temperature,
-                max_tokens=cfg.max_tokens,
-                stop=cfg.stop,
-                grammar=grammar_explain,
-                top_k=cfg.top_k,
-                top_p=cfg.top_p,
-            )
+            if cfg.explanation_interface == NATIVE_CHAT_INTERFACE_MODE:
+                explanation_call = llm_chat_json_with_receipt(
+                    model=model,
+                    messages=native_explanation_messages(
+                        PROMPT_EXPLAIN,
+                        report,
+                        classifications,
+                    ),
+                    temperature=cfg.temperature,
+                    max_tokens=cfg.max_tokens,
+                    stop=cfg.stop,
+                    grammar=grammar_explain,
+                    top_k=cfg.top_k,
+                    top_p=cfg.top_p,
+                )
+            else:
+                explanation_call = llm_json_with_receipt(
+                    model=model,
+                    prompt=explanation_input(
+                        PROMPT_EXPLAIN,
+                        report,
+                        classifications,
+                    ),
+                    temperature=cfg.temperature,
+                    max_tokens=cfg.max_tokens,
+                    stop=cfg.stop,
+                    grammar=grammar_explain,
+                    top_k=cfg.top_k,
+                    top_p=cfg.top_p,
+                )
             explanations = explanation_call.text
         else:
             explanation_call = LLMCallReceipt(
@@ -974,6 +1026,11 @@ def run_pipeline(
                             "Hashed_ReportURN": hashed_id,
                             "runtime_profile_id": cfg.runtime_profile_id,
                             "classification_interface_mode": cfg.classification_interface,
+                            "explanation_interface_mode": (
+                                cfg.explanation_interface
+                                if cfg.run_explanations
+                                else "not_executed"
+                            ),
                             "classifications": classifications,
                             "explanations": explanations,
                             "report_whitespace_words": len(report.split()),
@@ -1026,10 +1083,12 @@ def run_pipeline(
     # Versioned, audit-ready run receipt. The governed path itself is omitted.
     native_template = (
         embedded_chat_template_receipt(model)
-        if cfg.classification_interface == NATIVE_CHAT_INTERFACE_MODE
+        if NATIVE_CHAT_INTERFACE_MODE
+        in {cfg.classification_interface, cfg.explanation_interface}
         else None
     )
     task_message_template = native_task_message_template(classification_prompt)
+    explanation_message_template = explanation_task_message_template(PROMPT_EXPLAIN)
     config_data = {
         "schema_version": 2,
         "created_at_utc": datetime.now(UTC).isoformat(),
@@ -1129,10 +1188,24 @@ def run_pipeline(
                 "sha256": native_sha256_text(task_message_template),
                 "text": task_message_template,
             },
+            "explanation_interface_mode": (
+                cfg.explanation_interface if cfg.run_explanations else "not_executed"
+            ),
             "explanation_chat_template": (
-                "raw prompt plus report and classification JSON"
+                "GGUF embedded tokenizer.chat_template applied to one user message"
+                if cfg.run_explanations
+                and cfg.explanation_interface == NATIVE_CHAT_INTERFACE_MODE
+                else "raw prompt plus report and classification JSON"
                 if cfg.run_explanations
                 else "not executed"
+            ),
+            "explanation_task_message_template": (
+                {
+                    "sha256": native_sha256_text(explanation_message_template),
+                    "text": explanation_message_template,
+                }
+                if cfg.run_explanations
+                else None
             ),
         },
         "execution_surface": {
@@ -1225,6 +1298,7 @@ def worker_target(
         run_explanations=cfg.run_explanations,
         runtime_profile_id=cfg.runtime_profile_id,
         classification_interface=cfg.classification_interface,
+        explanation_interface=cfg.explanation_interface,
     )
     logging.info(f"Initial completed count: {len(prior_hashes)}")
     pending = load_reports_df(dataset_path, num_reports, prior_hashes)
@@ -1408,6 +1482,15 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--explanation-interface",
+        choices=[RAW_COMPLETION_INTERFACE_MODE, NATIVE_CHAT_INTERFACE_MODE],
+        default=RAW_COMPLETION_INTERFACE_MODE,
+        help=(
+            "Use the historical raw explanation payload or wrap the exact same payload "
+            "in the model's embedded chat template. The explanation grammar remains active."
+        ),
+    )
+    p.add_argument(
         "--local-model-only",
         action="store_true",
         help=(
@@ -1495,6 +1578,7 @@ def main() -> None:
         n_threads_batch=args.n_threads_batch,
         flash_attn=args.flash_attn,
         classification_interface=args.classification_interface,
+        explanation_interface=args.explanation_interface,
         local_model_only=args.local_model_only,
     )
 

@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_not_run_compute_deferred_while_medgemma_protected_job_active",
+  "study_id": "jbhi-02463-post-submission-mistral-native-interface-sensitivity-v1",
+  "scientific_role": "bounded model-interface sensitivity preserving the submitted Mistral study and completed raw-completion reproduction",
+  "historical_evidence_immutability": {
+    "submitted_study_replacement_allowed": false,
+    "completed_reproduction_replacement_allowed": false,
+    "unfavorable_results_must_be_retained": true
+  },
+  "model": {
+    "registry_name": "mistral",
+    "repo_id": "TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
+    "filename": "mistral-7b-instruct-v0.2.Q5_K_M.gguf",
+    "revision": "3a6fbf4a41a1d52e415a4958cde6856d34b2db93",
+    "sha256": "b85cdd596ddd76f3194047b9108a73c74d77ba04bef49255a50fc0cfbda83d32",
+    "quantization": "Q5_K_M",
+    "artifact_availability": "present_in_local_cache_checksum_verified_before_execution",
+    "weights_or_training_change_allowed": false
+  },
+  "classification_interface": {
+    "configuration_id": "jbhi-02463/mistral-7b-instruct-v0.2/configuration/native-interface-development-v1",
+    "candidate_count": 1,
+    "only_planned_change": "Apply the exact GGUF tokenizer.chat_template to the unchanged one-user-message task payload instead of raw-completion serialization.",
+    "chat_format": "mistral-instruct",
+    "chat_template_source": "GGUF tokenizer.chat_template metadata",
+    "chat_template_sha256": "26a59556925c987317ce5291811ba3b7f32ec4c647c400c6cc7e3a9993007ba7",
+    "task_message_layout": "PROMPT_CLASSIFY + two newline bytes + {REPORT}",
+    "classification_prompt_sha256": "52198221d8330e9857b51a7ad99b017aa18836e1718b08dd0ae355820f5a5e69",
+    "task_message_template_sha256": "c0a84d01c54e20a90e8885650fc34955719d0d744ac4ac9a0a5497171d55b441",
+    "grammar_filename": "result_grammar.gbnf",
+    "grammar_sha256": "5237e13988062538cda9c21906f1f4e1fc8b99498e2462ea69fe24bface35016",
+    "grammar_applied": true,
+    "sampling": {
+      "temperature": 0.0,
+      "top_k": 40,
+      "top_p": 0.95,
+      "max_tokens": 3000,
+      "stop_sequences": null
+    }
+  },
+  "development_surface": {
+    "cohort_id": "zoe_development_first_100_ra",
+    "records": 100,
+    "source_database_sha256": "7af5de9c8561d2c3347b89517fb245caf1fc8fb7001900582c6337e58142034e",
+    "manifest_sha256": "5b1b6c81ecee99a2dee6d2fc48a92734bdc288b428781590093fa9296cfa4f57",
+    "manifest_key_set_sha256": "f7a8302c0bd769c7761bbc197291864f3f9bd5df3b752dcff2e8bebca409933d",
+    "manifest_ordered_key_sha256": "3fc075b2dd52b9d3f62c9ad7b0771ef89d8b5f69f5d3bc8424dae71a635c2bf8",
+    "ordering_semantics": "sqlite_rowid_ascending",
+    "selection_rule": {
+      "select_if": "All 100 frozen keys complete exactly once, all outputs satisfy the classification grammar and four-level schema, no context-limit or worker failure occurs, and more than one full five-label output pattern is observed.",
+      "reject_if": "Any select_if condition fails; retain the outcome and do not search another template, prompt, seed, quantization, or sampling configuration.",
+      "reference_metric_used_for_selection": false
+    }
+  },
+  "paired_raw_comparator": {
+    "identity": "exact-key first-100 subset of completed fresh raw-completion Mistral reproduction",
+    "full_output_sha256": "eeade3d2b8fc7ffddb194a2cffdadfdb4df10c19e4e0b26003c0a534c9914dea",
+    "full_run_receipt_sha256": "bda88bdb040f84dc824c71f38a0af2890ab31d4d446876ac5fcb76422c52feea",
+    "same_model_prompt_grammar_and_sampling_required": true,
+    "new_raw_baseline_search_allowed": false
+  },
+  "explanation_interface_followup": {
+    "status": "fixed_classification_execution_path_implemented_not_run",
+    "scientific_name": "self-prompted_evidence_extraction_interface_sensitivity",
+    "classification_json_must_be_held_fixed_between_interfaces": true,
+    "explanation_prompt_sha256": "09e7e46d13d9fd1f6ebd14e4caecf32766354ead048ef22aa834c5b6064cd05f",
+    "task_message_template_sha256": "610e0088b0fbf012b57245f14be9e96b2c10998518cab4fbe68c4e5864c5192e",
+    "grammar_filename": "result_grammar_exp.gbnf",
+    "grammar_sha256": "718d3b0b16499d04d97723893f5e1de67aa1f342ba8b455a293a3d93084cd315",
+    "grammar_applied_to_raw_and_native": true,
+    "causal_faithfulness_claim_allowed": false,
+    "metrics": [
+      "completion_and_structured_output_validity",
+      "decision_copy_fidelity",
+      "exact_substring_traceability_for_nonfallback_evidence",
+      "thesis_factuality_proxy",
+      "thesis_polarity_alignment_proxy",
+      "fallback_frequency",
+      "evidence_count_distribution",
+      "paired_latency_and_token_counts"
+    ]
+  },
+  "evaluation_stage": {
+    "status": "not_planned_until_development_result_is_frozen_and_interpreted",
+    "protected_outcomes_may_not_be_used_for_interface_selection": true,
+    "manuscript_admission_requires_author_review": true
+  },
+  "execution_policy": {
+    "run_after_active_medgemma_protected_job": true,
+    "reason": "avoid unified-memory and runtime contention with the frozen active evaluation",
+    "local_inference_only": true,
+    "model_resolution": "local_cache_only",
+    "network_inference_allowed": false,
+    "resumable_checkpointing_required": true
+  },
+  "distribution_status": {
+    "source_configuration": "source_config_publishable_after_author_review",
+    "weights": "weights_not_redistributed",
+    "keyed_outputs": "outputs_governed",
+    "aggregate_receipts": "author_review_before_publication"
+  }
+}
