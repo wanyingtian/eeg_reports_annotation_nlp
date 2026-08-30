@@ -17,6 +17,12 @@ from typing import Any
 
 import pandas as pd
 
+from eeg_review.protected_execution import (
+    ProtectedExecutionLocked,
+    authorize_plan_before_governed_access,
+    validate_frozen_parent_receipts,
+)
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 LABELS = ["Focal Epi", "Gen Epi", "Focal Non-epi", "Gen Non-epi", "Abnormality"]
 
@@ -51,6 +57,22 @@ def complete_predicate() -> str:
     return " AND ".join(
         f'CAST("{label}" AS INTEGER) IN (1, 2, 3, 4)' for label in LABELS
     )
+
+
+def source_population(path: Path) -> dict[str, int]:
+    with sqlite3.connect(path) as connection:
+        candidate = int(connection.execute('SELECT COUNT(*) FROM "reports"').fetchone()[0])
+        complete = int(
+            connection.execute(
+                f'SELECT COUNT(*) FROM "reports" WHERE {complete_predicate()}'
+            ).fetchone()[0]
+        )
+    return {
+        "candidate_records": candidate,
+        "complete_records": complete,
+        "excluded_incomplete_records": candidate - complete,
+        "execute_records": complete,
+    }
 
 
 def prepare_database(source: Path, destination: Path) -> list[str]:
@@ -152,7 +174,20 @@ def command_plan(
     run_dir: Path,
     cohorts: list[dict[str, Any]],
     runtime_amendment: dict[str, Any] | None = None,
+    classification_interface: str = "raw_completion",
 ) -> list[dict[str, Any]]:
+    if classification_interface not in {"raw_completion", "native_chat"}:
+        raise ValueError(f"Unsupported classification interface: {classification_interface}")
+    comparator_id = (
+        "medgemma-independent-native-interface-q2-v1"
+        if classification_interface == "native_chat"
+        else "medgemma-independent-matched-interface-q2-v1"
+    )
+    comment = (
+        "JBHI additive independent MedGemma native-interface sensitivity"
+        if classification_interface == "native_chat"
+        else "JBHI additive independent MedGemma matched-interface comparator"
+    )
     py = "python"
     commands: list[dict[str, Any]] = []
     for cohort in cohorts:
@@ -184,6 +219,8 @@ def command_plan(
                         "--flush-every",
                         "1",
                         "--classification-only",
+                        "--classification-interface",
+                        classification_interface,
                         "--temperature",
                         "0",
                         "--top-k",
@@ -194,7 +231,7 @@ def command_plan(
                         "256",
                         *runtime_arguments(runtime_amendment),
                         "--comment",
-                        "JBHI additive independent MedGemma matched-interface comparator",
+                        comment,
                     ],
                 },
                 {
@@ -253,7 +290,7 @@ def command_plan(
                             "--predictions-b",
                             str(run_dir / f"comparators/{cohort_id}_submitted_mistral.csv"),
                             "--model-a-id",
-                            "medgemma-independent-matched-interface-q2-v1",
+                            comparator_id,
                             "--model-b-id",
                             "submitted-mistral",
                             "--output-dir",
@@ -282,7 +319,7 @@ def command_plan(
                             "--predictions-b",
                             str(run_dir / f"comparators/{cohort_id}_reproduced_mistral.csv"),
                             "--model-a-id",
-                            "medgemma-independent-matched-interface-q2-v1",
+                            comparator_id,
                             "--model-b-id",
                             "reproduced-mistral",
                             "--output-dir",
@@ -311,7 +348,7 @@ def command_plan(
                             "--predictions-b",
                             str(run_dir / f"comparators/{cohort_id}_second_annotator.csv"),
                             "--model-a-id",
-                            "medgemma-independent-matched-interface-q2-v1",
+                            comparator_id,
                             "--model-b-id",
                             "second-annotator",
                             "--output-dir",
@@ -374,12 +411,42 @@ def main() -> None:
     parser.add_argument("--source-run", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--runtime-amendment", type=Path)
+    parser.add_argument(
+        "--authorization",
+        type=Path,
+        help=(
+            "Documentary authorization receipt required by protected execution plans. "
+            "It is validated before --source-run or --output-dir is resolved or opened."
+        ),
+    )
     parser.add_argument("--acknowledge-governed-output", action="store_true")
     args = parser.parse_args()
     if not args.acknowledge_governed_output:
         parser.error("--acknowledge-governed-output is required")
 
+    # The plan and documentary receipt are public/administrative control inputs. For a
+    # protected plan, validate them before resolving or touching either governed path.
     plan_path = args.plan.expanduser().resolve(strict=True)
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    authorization_path = (
+        args.authorization.expanduser().resolve(strict=True) if args.authorization else None
+    )
+    try:
+        authorization = authorize_plan_before_governed_access(plan, authorization_path)
+        if authorization is not None:
+            validate_frozen_parent_receipts(plan, REPOSITORY_ROOT)
+    except ProtectedExecutionLocked as error:
+        print(
+            json.dumps(
+                {
+                    "prepared": False,
+                    "protected_evaluation_unlocked": False,
+                    "blockers": list(error.blockers),
+                },
+                indent=2,
+            )
+        )
+        raise SystemExit(2) from error
     runtime_amendment_path = (
         args.runtime_amendment.expanduser().resolve(strict=True)
         if args.runtime_amendment
@@ -399,13 +466,20 @@ def main() -> None:
     for relative in ["inputs", "manifests", "comparators", "products", "analysis", "logs"]:
         (output / relative).mkdir(parents=True, exist_ok=True, mode=0o700)
 
-    plan = json.loads(plan_path.read_text(encoding="utf-8"))
     shutil.copy2(plan_path, output / "study-plan.json")
     (output / "study-plan.json").chmod(0o600)
     prepared: list[dict[str, Any]] = []
     for cohort in plan["cohorts"]:
         cohort_id = cohort["cohort_id"]
         source = source_run / cohort["input"]["path"]
+        if sha256_file(source) != cohort["input"]["sha256"]:
+            raise ValueError(f"{cohort_id}: governed source database hash mismatch")
+        observed_population = source_population(source)
+        if observed_population != cohort["population"]:
+            raise ValueError(
+                f"{cohort_id}: source population arithmetic mismatch: "
+                f"observed {observed_population}, expected {cohort['population']}"
+            )
         destination = output / "inputs" / f"{cohort_id}.db"
         keys = prepare_database(source, destination)
         expected = cohort["population"]["execute_records"]
@@ -461,7 +535,14 @@ def main() -> None:
             "transfer_manifest_sha256": sha256_file(source_run / "transfer-manifest.json"),
         },
         "cohorts": prepared,
-        "commands": command_plan(output, prepared, runtime_amendment),
+        "commands": command_plan(
+            output,
+            prepared,
+            runtime_amendment,
+            plan["independent_configuration"]["interface"].get(
+                "pipeline_mode", "raw_completion"
+            ),
+        ),
         "runtime_amendment": (
             {
                 "amendment_id": runtime_amendment["amendment_id"],
@@ -473,6 +554,19 @@ def main() -> None:
             if runtime_amendment and runtime_amendment_path
             else None
         ),
+        "protected_authorization": (
+            {
+                "receipt_sha256": authorization.receipt_sha256,
+                "study_id": plan["study_id"],
+                "configuration_id": plan["independent_configuration"][
+                    "configuration_id"
+                ],
+                "scope": plan["authorization_gate"]["cohorts"],
+            }
+            if authorization is not None
+            else None
+        ),
+        "frozen_parent_receipts": plan.get("frozen_parent_receipts"),
         "status": "prepared_no_inference",
         "privacy_boundary": (
             "This run directory is governed. Inputs, manifests, and comparator surfaces contain "

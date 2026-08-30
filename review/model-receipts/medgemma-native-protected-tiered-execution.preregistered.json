@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_before_inference",
+  "execution_plan_id": "jbhi-02463/medgemma-native-interface/protected-tiered-execution/metal-v1",
+  "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+  "configuration_change": false,
+  "purpose": "Execute the single result-blind-frozen native-interface sensitivity on the exact protected evaluation cohorts after documentary authorization, with resumable checkpoints and no partial reference metrics.",
+  "source_study_plan_sha256": "070da8895a33aeb76ed90af65c10523aa3fbb1a6e70669d48cb4e3afbb67d445",
+  "authorization_gate": {
+    "required": true,
+    "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
+    "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+    "protocol_identifier": "H18-02728",
+    "cohorts": {
+      "zoe_evaluation_1395": 1395,
+      "maria_evaluation_499": 499
+    }
+  },
+  "frozen_development_parent": {
+    "receipt": "review/model-receipts/medgemma-native-interface-development.freeze.json",
+    "sha256": "61e8d0e4b18dbaad92f8d91c357cfa4c17e9e1847be61d6822e7d37dbe27c7d8",
+    "records": 100,
+    "rerun_as_part_of_protected_evaluation": false
+  },
+  "frozen_parent_receipts": {
+    "native_sensitivity_plan": {
+      "path": "review/model-receipts/medgemma-native-interface-sensitivity.preregistered.json",
+      "sha256": "e02e32b0831420ea558c9b2516a21fe2a4a681a75561d28934e21e81f280718f"
+    },
+    "development_freeze": {
+      "path": "review/model-receipts/medgemma-native-interface-development.freeze.json",
+      "sha256": "61e8d0e4b18dbaad92f8d91c357cfa4c17e9e1847be61d6822e7d37dbe27c7d8"
+    },
+    "development_result": {
+      "path": "review/model-receipts/medgemma-native-interface-development.result.json",
+      "sha256": "741f4b3857b8039f0d7a2ae29e062a554d43a55a75b07ff011c8f0ba6af907f4"
+    }
+  },
+  "runtime_amendment": {
+    "amendment_id": "jbhi-02463/medgemma/runtime-amendment/metal-full-offload-flash-v1",
+    "sha256": "5cff50930893842a91c307505df322f1cdf53a8db7b45a6cddae8f7570f618b0",
+    "runtime_profile_id": "llama-cpp-python-metal-full-offload-flash-v1"
+  },
+  "planning_seconds_per_report": 17.520623114980552,
+  "planning_basis": "Observed mean classification time from the frozen 100-report native-interface development run; analysis and setup time are additional.",
+  "early_view": {
+    "target_elapsed_hours": 0.4,
+    "minimum_completed_by_cohort": {
+      "zoe_evaluation_1395": 50,
+      "maria_evaluation_499": 25
+    },
+    "permitted_reporting": [
+      "completed and remaining record counts",
+      "valid and invalid structured-output counts",
+      "aggregate predicted-label distribution for degeneracy detection",
+      "latency and token summaries",
+      "recalibrated completion estimate"
+    ],
+    "prohibited_reporting": [
+      "partial-cohort accuracy, agreement, confidence intervals, or significance tests",
+      "partial comparison with Mistral, annotators, or v5g",
+      "configuration, prompt, runtime, or stopping changes based on reference outcomes",
+      "manuscript performance claims"
+    ]
+  },
+  "transport_gate": {
+    "cohort_id": "zoe_evaluation_1395",
+    "target_records": 50,
+    "must_complete_before_later_tiers": true,
+    "stop_on_any_invalid_structured_output": true,
+    "stop_on_single_full_classification_pattern": true,
+    "reference_outcomes_accessed": false,
+    "interpretation": "Operational safety gate for a configuration already frozen on development data; it is not a selection stage."
+  },
+  "tiers": [
+    {
+      "tier_id": "T1_cross_cohort_operational_gate",
+      "targets": {
+        "zoe_evaluation_1395": 50,
+        "maria_evaluation_499": 25
+      },
+      "estimated_cumulative_hours": 0.365,
+      "reporting_state": "operational_only"
+    },
+    {
+      "tier_id": "T2_first_quartile",
+      "targets": {
+        "zoe_evaluation_1395": 300,
+        "maria_evaluation_499": 125
+      },
+      "estimated_cumulative_hours": 2.069,
+      "reporting_state": "running_result_blind"
+    },
+    {
+      "tier_id": "T3_midpoint",
+      "targets": {
+        "zoe_evaluation_1395": 700,
+        "maria_evaluation_499": 250
+      },
+      "estimated_cumulative_hours": 4.624,
+      "reporting_state": "running_result_blind"
+    },
+    {
+      "tier_id": "T4_three_quarters",
+      "targets": {
+        "zoe_evaluation_1395": 1100,
+        "maria_evaluation_499": 375
+      },
+      "estimated_cumulative_hours": 7.179,
+      "reporting_state": "running_result_blind"
+    },
+    {
+      "tier_id": "T5_complete_inference",
+      "targets": {
+        "zoe_evaluation_1395": 1395,
+        "maria_evaluation_499": 499
+      },
+      "estimated_cumulative_hours": 9.218,
+      "reporting_state": "complete_inference_pending_analysis"
+    }
+  ],
+  "post_inference": {
+    "run_only_after_exact_final_key_coverage": true,
+    "steps": [
+      "process both complete cohort outputs",
+      "evaluate complete Zoe and Maria cohorts",
+      "compare on identical report keys with submitted Mistral",
+      "compare on identical report keys with reproduced Mistral",
+      "compare on identical report keys with the second annotator",
+      "retain multiplicity-controlled paired results and every unfavorable output"
+    ],
+    "partial_reference_metrics_allowed": false
+  },
+  "status_contract": {
+    "public_safe": true,
+    "contains_report_text": false,
+    "contains_report_or_patient_keys": false,
+    "contains_reference_labels": false,
+    "contains_partial_performance_metrics": false
+  },
+  "change_control": "No prompt, template, grammar, model, quantization, sampling, cohort, key manifest, or analysis change is permitted after authorization. Operational repair requires a new receipted attempt and may not inspect partial reference metrics."
+}

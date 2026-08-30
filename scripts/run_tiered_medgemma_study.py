@@ -21,6 +21,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from eeg_review.protected_execution import (
+    ProtectedExecutionLocked,
+    authorize_plan_before_governed_access,
+    validate_protected_job_binding,
+)
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 JSON_LABELS = [
     "focal_epileptiform_activity",
@@ -328,6 +334,8 @@ def launch_run(
     run_dir: Path,
     tier_plan: Path,
     public_output: Path | None,
+    authorization_path: Path | None,
+    authorization_sha256: str | None,
 ) -> dict[str, Any]:
     state = read_state(run_dir)
     supervisor_pid = int(state.get("supervisor_pid") or 0)
@@ -344,6 +352,8 @@ def launch_run(
     ]
     if public_output:
         command.extend(["--public-status-output", str(public_output)])
+    if authorization_path:
+        command.extend(["--authorization", str(authorization_path)])
     if platform.system() == "Darwin" and Path("/usr/bin/caffeinate").exists():
         command = ["/usr/bin/caffeinate", "-dimsu", *command]
     log_path = run_dir / "logs/supervisor.log"
@@ -366,6 +376,7 @@ def launch_run(
         "launched_at_utc": utc_now(),
         "repository": git_revision(),
         "execution_plan_sha256": sha256_file(tier_plan),
+        "authorization_receipt_sha256": authorization_sha256,
         "log": str(log_path.relative_to(run_dir)),
     }
     atomic_json(run_dir / "launcher.json", receipt)
@@ -532,15 +543,44 @@ def main() -> None:
         / "review/model-receipts/medgemma-independent-tiered-execution.preregistered.json",
     )
     parser.add_argument("--public-status-output", type=Path)
+    parser.add_argument(
+        "--authorization",
+        type=Path,
+        help=(
+            "Documentary authorization receipt required by protected execution plans. "
+            "It is validated before --run-dir is resolved or opened."
+        ),
+    )
     parser.add_argument("--stop-after-tier")
     args = parser.parse_args()
 
-    run_dir = args.run_dir.expanduser().resolve(strict=True)
+    # Tier plans are public control records. Validate their documentary gate before
+    # resolving, reading, or writing the governed run directory.
     plan_path = args.tier_plan.expanduser().resolve(strict=True)
+    plan = read_json(plan_path)
+    authorization_path = (
+        args.authorization.expanduser().resolve(strict=True) if args.authorization else None
+    )
+    try:
+        authorization = authorize_plan_before_governed_access(plan, authorization_path)
+    except ProtectedExecutionLocked as error:
+        print(
+            json.dumps(
+                {
+                    "valid": False,
+                    "protected_evaluation_unlocked": False,
+                    "blockers": list(error.blockers),
+                },
+                indent=2,
+            )
+        )
+        raise SystemExit(2) from error
+
+    run_dir = args.run_dir.expanduser().resolve(strict=True)
     study_plan = run_dir / "study-plan.json"
     job = read_json(run_dir / "job.json")
-    plan = read_json(plan_path)
     validate_plan(plan, job, study_plan)
+    validate_protected_job_binding(plan, job, authorization)
     validate_run_inputs(run_dir, job)
     state = read_state(run_dir)
     public_output = (
@@ -558,7 +598,18 @@ def main() -> None:
     elif args.command == "launch":
         if git_revision()["worktree_dirty"]:
             raise RuntimeError("Governed execution requires a clean repository revision")
-        print(json.dumps(launch_run(run_dir, plan_path, public_output), indent=2))
+        print(
+            json.dumps(
+                launch_run(
+                    run_dir,
+                    plan_path,
+                    public_output,
+                    authorization_path,
+                    authorization.receipt_sha256 if authorization else None,
+                ),
+                indent=2,
+            )
+        )
     else:
         if git_revision()["worktree_dirty"]:
             raise RuntimeError("Governed execution requires a clean repository revision")

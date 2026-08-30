@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_before_protected_inference",
+  "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
+  "scientific_role": "protected evaluation of the single native-interface configuration frozen on the 100-report Zoe development set",
+  "primary_result_immutability": {
+    "completed_configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-matched-interface-q2-v1",
+    "replacement_allowed": false,
+    "rule": "The completed unfavorable matched-historical Q2 result remains the primary comparator evidence and cannot be replaced, suppressed, or redefined by this sensitivity."
+  },
+  "independent_configuration": {
+    "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+    "status": "frozen_after_result_blind_development_transport",
+    "model": {
+      "upstream_release": "google/medgemma-27b-text-it",
+      "distribution_repo_id": "unsloth/medgemma-27b-text-it-GGUF",
+      "distribution_revision": "334fbf6811c963d223f6ac107a459347353f068d",
+      "filename": "medgemma-27b-text-it-Q2_K.gguf",
+      "quantization": "Q2_K",
+      "sha256": "b137aac80f2bcb1c1ed35bfe13387bc496eb18898d5f46425687604f0f714481",
+      "weights_redistributed": false
+    },
+    "interface": {
+      "pipeline_mode": "native_chat",
+      "chat_template_source": "GGUF tokenizer.chat_template metadata",
+      "chat_template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4",
+      "task_message_template_sha256": "c0a84d01c54e20a90e8885650fc34955719d0d744ac4ac9a0a5497171d55b441",
+      "historical_prompt_sha256": "52198221d8330e9857b51a7ad99b017aa18836e1718b08dd0ae355820f5a5e69",
+      "grammar_sha256": "5237e13988062538cda9c21906f1f4e1fc8b99498e2462ea69fe24bface35016",
+      "classification_only": true,
+      "temperature": 0.0,
+      "top_k": 40,
+      "top_p": 0.95,
+      "max_tokens": 256
+    }
+  },
+  "frozen_parent_receipts": {
+    "native_sensitivity_plan": {
+      "path": "review/model-receipts/medgemma-native-interface-sensitivity.preregistered.json",
+      "sha256": "e02e32b0831420ea558c9b2516a21fe2a4a681a75561d28934e21e81f280718f"
+    },
+    "development_freeze": {
+      "path": "review/model-receipts/medgemma-native-interface-development.freeze.json",
+      "sha256": "61e8d0e4b18dbaad92f8d91c357cfa4c17e9e1847be61d6822e7d37dbe27c7d8"
+    },
+    "development_result": {
+      "path": "review/model-receipts/medgemma-native-interface-development.result.json",
+      "sha256": "741f4b3857b8039f0d7a2ae29e062a554d43a55a75b07ff011c8f0ba6af907f4"
+    }
+  },
+  "authorization_gate": {
+    "required": true,
+    "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
+    "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+    "protocol_identifier": "H18-02728",
+    "cohorts": {
+      "zoe_evaluation_1395": 1395,
+      "maria_evaluation_499": 499
+    },
+    "accepted_documentary_sources": [
+      "applicable approved-study record",
+      "written confirmation by the principal investigator",
+      "written confirmation by an authorized data custodian"
+    ],
+    "interpretive_boundary": "The validator checks the documentary execution contract; it does not make an ethics or legal determination."
+  },
+  "cohorts": [
+    {
+      "cohort_id": "zoe_evaluation_1395",
+      "role": "evaluation",
+      "input": {
+        "path": "inputs/zoe_evaluation_1400.db",
+        "sha256": "5d72fad45cc6d8d7f62060cbbb1528c68453d2dc5381665c7985518155e522f4"
+      },
+      "historical_source_ranges": [[100, 500], [1000, 2000]],
+      "population": {
+        "candidate_records": 1400,
+        "complete_records": 1395,
+        "excluded_incomplete_records": 5,
+        "execute_records": 1395
+      }
+    },
+    {
+      "cohort_id": "maria_evaluation_499",
+      "role": "evaluation",
+      "input": {
+        "path": "inputs/maria_evaluation_500.db",
+        "sha256": "37ac1f1d509fde90db0550938b716318cfcc77f153d5d23045e60ff3769dcd9d"
+      },
+      "historical_source_ranges": [[0, 500]],
+      "population": {
+        "candidate_records": 500,
+        "complete_records": 499,
+        "excluded_incomplete_records": 1,
+        "execute_records": 499
+      }
+    }
+  ],
+  "analysis_plan": {
+    "exact_key_pairing_required": true,
+    "comparators": [
+      "submitted Mistral",
+      "reproduced Mistral",
+      "second annotator"
+    ],
+    "confidence_level": 0.95,
+    "bootstrap_iterations": 2000,
+    "bootstrap_seed": 20260718,
+    "multiplicity": "Holm adjustment across the frozen five-label family",
+    "patient_grouped_inference": "gated pending a confirmed stable patient key",
+    "report_level_fallback": "Report-level paired intervals and exact McNemar results must carry the non-independence limitation.",
+    "unfavorable_result_policy": "Retain every invalid, unfinished, null, degenerate, and unfavorable outcome."
+  },
+  "execution_policy": {
+    "checkpoint_every_records": 1,
+    "resume_by_exact_report_key": true,
+    "partial_reference_metrics_allowed": false,
+    "configuration_search_allowed": false,
+    "protected_outputs_governed": true,
+    "aggregate_release_requires_author_review": true
+  }
+}

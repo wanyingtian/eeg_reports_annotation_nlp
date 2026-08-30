@@ -1,12 +1,31 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
-from eeg_review.protected_execution import build_unlock_receipt, validate_authorization_receipt
+import pytest
+
+from eeg_review.protected_execution import (
+    ProtectedExecutionLocked,
+    authorize_plan_before_governed_access,
+    build_unlock_receipt,
+    validate_authorization_receipt,
+    validate_frozen_parent_receipts,
+    validate_protected_job_binding,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "review/model-receipts/medgemma-native-protected-authorization.template.json"
+STUDY_PLAN = (
+    ROOT
+    / "review/model-receipts/medgemma-native-protected-comparator.preregistered.json"
+)
+TIER_PLAN = (
+    ROOT
+    / "review/model-receipts/medgemma-native-protected-tiered-execution.preregistered.json"
+)
 
 
 def confirmed() -> dict:
@@ -105,3 +124,122 @@ def test_confirmation_timestamp_must_include_timezone(tmp_path: Path) -> None:
     result = validate_authorization_receipt(write(tmp_path, payload))
     assert result.valid is False
     assert any("timezone-aware" in blocker for blocker in result.blockers)
+
+
+def test_public_plan_requires_authorization_before_governed_access() -> None:
+    plan = json.loads(STUDY_PLAN.read_text(encoding="utf-8"))
+    with pytest.raises(ProtectedExecutionLocked, match="--authorization"):
+        authorize_plan_before_governed_access(plan, None)
+
+
+def test_frozen_parent_receipts_match_repository() -> None:
+    plan = json.loads(STUDY_PLAN.read_text(encoding="utf-8"))
+    validate_frozen_parent_receipts(plan, ROOT)
+
+
+def test_frozen_parent_drift_is_rejected() -> None:
+    plan = json.loads(STUDY_PLAN.read_text(encoding="utf-8"))
+    plan["frozen_parent_receipts"]["development_freeze"]["sha256"] = "0" * 64
+    with pytest.raises(ProtectedExecutionLocked, match="hash mismatch"):
+        validate_frozen_parent_receipts(plan, ROOT)
+
+
+def protected_job(receipt_sha256: str, plan: dict) -> dict:
+    commands = []
+    for cohort_id in ["zoe_evaluation_1395", "maria_evaluation_499"]:
+        commands.append(
+            {
+                "stage": f"{cohort_id}_inference",
+                "command": [
+                    "python",
+                    "pipeline.py",
+                    "--classification-only",
+                    "--classification-interface",
+                    "native_chat",
+                ],
+            }
+        )
+    return {
+        "study_id": plan["study_id"],
+        "configuration_id": plan["configuration_id"],
+        "cohorts": [
+            {"cohort_id": cohort_id, "records": records}
+            for cohort_id, records in plan["authorization_gate"]["cohorts"].items()
+        ],
+        "commands": commands,
+        "protected_authorization": {
+            "receipt_sha256": receipt_sha256,
+            "study_id": plan["study_id"],
+            "configuration_id": plan["configuration_id"],
+        },
+        "frozen_parent_receipts": plan["frozen_parent_receipts"],
+    }
+
+
+def test_frozen_job_binding_accepts_only_native_exact_cohorts(tmp_path: Path) -> None:
+    plan = json.loads(TIER_PLAN.read_text(encoding="utf-8"))
+    authorization_path = write(tmp_path, confirmed())
+    authorization = authorize_plan_before_governed_access(plan, authorization_path)
+    assert authorization is not None
+    validate_protected_job_binding(
+        plan, protected_job(authorization.receipt_sha256, plan), authorization
+    )
+
+
+def test_job_cannot_silently_switch_back_to_raw_completion(tmp_path: Path) -> None:
+    plan = json.loads(TIER_PLAN.read_text(encoding="utf-8"))
+    authorization_path = write(tmp_path, confirmed())
+    authorization = authorize_plan_before_governed_access(plan, authorization_path)
+    assert authorization is not None
+    job = protected_job(authorization.receipt_sha256, plan)
+    job["commands"][0]["command"][-1] = "raw_completion"
+    with pytest.raises(ProtectedExecutionLocked, match="native_chat"):
+        validate_protected_job_binding(plan, job, authorization)
+
+
+def test_prepare_fails_on_authorization_before_nonexistent_governed_paths() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/prepare_medgemma_study.py"),
+            "--plan",
+            str(STUDY_PLAN),
+            "--source-run",
+            "/definitely/not/a/governed/source",
+            "--output-dir",
+            "/definitely/not/a/governed/output",
+            "--authorization",
+            str(TEMPLATE),
+            "--acknowledge-governed-output",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "status must be confirmed" in result.stdout
+    assert "FileNotFoundError" not in result.stderr
+
+
+def test_runner_fails_on_authorization_before_nonexistent_governed_path() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/run_tiered_medgemma_study.py"),
+            "dry-run",
+            "--run-dir",
+            "/definitely/not/a/governed/run",
+            "--tier-plan",
+            str(TIER_PLAN),
+            "--authorization",
+            str(TEMPLATE),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "status must be confirmed" in result.stdout
+    assert "FileNotFoundError" not in result.stderr

@@ -15,6 +15,7 @@ SPEC.loader.exec_module(MODULE)
 inspect_output = MODULE.inspect_output
 sha256_file = MODULE.sha256_file
 validate_plan = MODULE.validate_plan
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_tier_plan_reaches_every_cohort_and_has_result_blind_partial_reporting(
@@ -146,3 +147,33 @@ def test_operational_output_summary_excludes_keys_and_reference_metrics(tmp_path
     assert summary["classification_seconds_mean"] == 5.0
     assert "secret-key" not in serialized
     assert "accuracy" not in serialized
+
+
+def test_native_protected_tier_plan_binds_exact_evaluation_populations() -> None:
+    study_plan = (
+        ROOT
+        / "review/model-receipts/medgemma-native-protected-comparator.preregistered.json"
+    )
+    tier_plan = json.loads(
+        (
+            ROOT
+            / "review/model-receipts/medgemma-native-protected-tiered-execution.preregistered.json"
+        ).read_text(encoding="utf-8")
+    )
+    job = {
+        "study_id": tier_plan["study_id"],
+        "configuration_id": tier_plan["configuration_id"],
+        "cohorts": [
+            {"cohort_id": "zoe_evaluation_1395", "records": 1395},
+            {"cohort_id": "maria_evaluation_499", "records": 499},
+        ],
+        "runtime_amendment": tier_plan["runtime_amendment"],
+    }
+
+    validate_plan(tier_plan, job, study_plan)
+    assert tier_plan["authorization_gate"]["required"] is True
+    assert tier_plan["post_inference"]["partial_reference_metrics_allowed"] is False
+    assert set(tier_plan["tiers"][-1]["targets"]) == {
+        "zoe_evaluation_1395",
+        "maria_evaluation_499",
+    }
