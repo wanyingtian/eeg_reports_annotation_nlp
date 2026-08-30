@@ -25,3 +25,10 @@ numerator/denominator. Its own run manifest records the Git revision and input
 hashes. Manuscript destination, display rounding, reviewer-comment ID, and
 claim-clearance status remain deliberate authoring decisions and are not
 inferred by the generator.
+
+For the separately frozen MedGemma native-interface sensitivity,
+`render_medgemma_native_author_bundle.py` converts a completed public-safe candidate into
+a deterministic 20-row primary LaTeX table, 90-row full effect ledger, and bounded
+methods/results/reviewer-response fragments. Without a hash-bound manuscript-admission
+receipt, every fragment remains author-working. The admission validator refuses partial
+primary-table selection, so null or unfavorable primary rows cannot be silently dropped.

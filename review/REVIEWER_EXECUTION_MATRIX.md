@@ -28,6 +28,7 @@ supplies the required inputs. It does not mean the scientific result is known.
 | Four-level rubric | Versioned annotation guide | Historical instructions/examples | Blocked on source material |
 | Clinical workflow comparison | Workflow and escalation description | Vasily/clinical collaborators | Team-authored clinical material |
 | Ethics, consent/waiver, secondary use | Approved statement and document receipt | PI/data custodian/REB records for H18-02728 | Non-code blocker |
+| Deterministic contemporary-comparator display | `render_medgemma_native_author_bundle.py`; 20-row LaTeX table, methods/results fragments, reviewer-response fragment, 90-row claim ledger, and hash-bound bundle receipt | Completed protected aggregate candidate; separate author admission receipt for promotion beyond author-working status | Implemented and synthetically verified; no protected result or manuscript admission is inferred |
 | Proposed-pipeline figure | Reproducible diagram source | Actual authoring source and verified pipeline stages | Manuscript phase |
 | Table/text inconsistencies | `study_job.py ledger`; source-hashed long-form result tables for the table-to-claim ledger | Exact Zoe baseline report rows still needed | Aggregate ledger implemented and exercised; submitted aggregate matrices recover all baseline displays, but current Zoe CSVs remain a different prediction version |
 
@@ -41,7 +42,7 @@ supplies the required inputs. It does not mean the scientific result is known.
    mismatch among reported cohort sizes.
 3. Rerun clustered comparisons and grouped folds if a governed patient key is
    supplied; add exact historical Zoe baseline rows if recovered.
-4. Add deterministic manuscript table/figure
-   generation, including null and unfavorable outcomes.
+4. Render the implemented deterministic MedGemma authoring bundle after a protected
+   candidate exists; promote it only through the hash-bound admission contract.
 5. Obtain clinical-team approval for the implemented governed error-review
    protocol, then review the sampled cases inside the approved environment.

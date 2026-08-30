@@ -179,3 +179,50 @@ and complete final-manifest coverage. It emits all 90 prespecified label/effect 
 across both cohorts and three comparators. Directional language is derived only from the
 paired interval and is labeled as an author-review candidate. The output contains no case
 content or identifiers and does not admit itself to the manuscript.
+
+## Render deterministic manuscript candidates
+
+Render the completed aggregate receipt into an author-working bundle without an admission
+receipt:
+
+```bash
+python scripts/render_medgemma_native_author_bundle.py \
+  --candidate "$PUBLIC_SAFE_RESULT_CANDIDATE" \
+  --output-dir "$AUTHOR_WORKING_BUNDLE"
+```
+
+The bundle contains:
+
+- a 20-row LaTeX core-accuracy table covering both cohorts and both Mistral
+  comparators;
+- separate LaTeX methods and results paragraphs;
+- a Markdown reviewer-response paragraph;
+- a 90-row CSV claim ledger retaining core accuracy, certainty-adjusted accuracy, and
+  false-negative-rate effects for all three comparators; and
+- a deterministic bundle receipt binding every fragment to the aggregate source hashes.
+
+All fragments say that they are author-working and not admitted. Re-running with `--check`
+verifies byte-for-byte freshness.
+
+The separate template
+`review/model-receipts/medgemma-native-manuscript-admission.template.json` controls any
+later promotion. An approved receipt must be hash-bound to the exact candidate, cover all
+20 primary table claims without cherry-picking, name both the supplement and reviewer
+response as approved destinations, retain the report-level non-independence limitation,
+preserve the completed matched-historical Q2 result, and keep external v5g separate. It
+does not authorize protected computation or make an ethics, legal, or clinical
+determination.
+
+After such a decision exists, rerender with:
+
+```bash
+python scripts/render_medgemma_native_author_bundle.py \
+  --candidate "$PUBLIC_SAFE_RESULT_CANDIDATE" \
+  --admission "$MANUSCRIPT_ADMISSION_RECEIPT" \
+  --output-dir "$ADMITTED_AUTHOR_BUNDLE"
+```
+
+The renderer refuses partial primary-claim admission, candidate-hash drift, missing
+decision provenance, patient-grouped claims, altered distribution controls, or a pending
+template. It does not edit the manuscript directly; the paper repository can intake the
+verified fragments through its existing claim-evidence ledger and build checks.

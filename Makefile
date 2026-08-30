@@ -1,6 +1,6 @@
 UV ?= uv
 
-.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize
+.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize medgemma-native-author-bundle
 
 sync:
 	$(UV) sync
@@ -9,7 +9,7 @@ sync-all:
 	$(UV) sync --extra reports --extra baselines --extra llm --extra evidence
 
 lint:
-	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/smoke_classification.py scripts/preload_model.py scripts/study_job.py scripts/prepare_medgemma_study.py scripts/run_tiered_medgemma_study.py scripts/medgemma_mission_control.py scripts/benchmark_medgemma_runtime.py scripts/finalize_medgemma_result_candidate.py scripts/finalize_medgemma_native_development.py scripts/finalize_medgemma_native_protected_result.py scripts/check_medgemma_native_protected_authorization.py src/LLM_pipeline/llm_models.py
+	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/smoke_classification.py scripts/preload_model.py scripts/study_job.py scripts/prepare_medgemma_study.py scripts/run_tiered_medgemma_study.py scripts/medgemma_mission_control.py scripts/benchmark_medgemma_runtime.py scripts/finalize_medgemma_result_candidate.py scripts/finalize_medgemma_native_development.py scripts/finalize_medgemma_native_protected_result.py scripts/render_medgemma_native_author_bundle.py scripts/check_medgemma_native_protected_authorization.py src/LLM_pipeline/llm_models.py
 
 test:
 	$(UV) run --extra baselines pytest
@@ -122,3 +122,10 @@ medgemma-native-finalize:
 		--study-plan review/model-receipts/medgemma-native-protected-comparator.preregistered.json \
 		--tier-plan review/model-receipts/medgemma-native-protected-tiered-execution.preregistered.json \
 		--authorization "$(AUTHORIZATION)" --output "$(RESULT_CANDIDATE)"
+
+medgemma-native-author-bundle:
+	@test -n "$(RESULT_CANDIDATE)" || (echo "Set RESULT_CANDIDATE to the aggregate receipt" && exit 2)
+	@test -n "$(AUTHOR_BUNDLE_DIR)" || (echo "Set AUTHOR_BUNDLE_DIR to the output directory" && exit 2)
+	$(UV) run python scripts/render_medgemma_native_author_bundle.py \
+		--candidate "$(RESULT_CANDIDATE)" --output-dir "$(AUTHOR_BUNDLE_DIR)" \
+		$(if $(strip $(ADMISSION)),--admission "$(ADMISSION)",)

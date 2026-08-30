@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "status": "pending",
+  "manuscript_id": "JBHI-02463-2026",
+  "evidence_id": "JBHI-02463-2026-MEDGEMMA-NATIVE-PROTECTED-RESULT-CANDIDATE",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+  "candidate_receipt_sha256": null,
+  "confirmation": {
+    "role": null,
+    "name_or_record": null,
+    "source": null,
+    "source_sha256": null,
+    "confirmed_at_utc": null
+  },
+  "decisions": {
+    "aggregate_release_approved": null,
+    "approved_destinations": [],
+    "approved_claim_ids": [],
+    "methods_language_approved": null,
+    "results_language_approved": null,
+    "reviewer_response_language_approved": null,
+    "matched_historical_q2_preserved": true,
+    "external_v5g_remains_separate": true,
+    "report_level_nonindependence_limitation_retained": true,
+    "patient_grouped_claims_added": false
+  },
+  "distribution": {
+    "aggregate_candidate": "author_working",
+    "case_level_products": "governed_not_distributed",
+    "model_weights": "not_redistributed"
+  },
+  "note": "Populate only from the applicable author-group or corresponding-author decision record. This contract controls aggregate manuscript admission; it does not authorize protected data execution or make an ethics, legal, or clinical determination."
+}

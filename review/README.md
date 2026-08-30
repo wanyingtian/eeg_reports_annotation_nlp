@@ -59,6 +59,13 @@ the Google/Unsloth artifact, external producing configuration, historical
 evaluation framework, and integration branch as distinct DAG parents. It uses
 bounded contribution and governance roles rather than an ownership field.
 
+The independently frozen MedGemma native-interface sensitivity has a complete
+authorization-first execution and authoring path in
+[`MEDGEMMA_NATIVE_PROTECTED_EXECUTION_RUNBOOK.md`](MEDGEMMA_NATIVE_PROTECTED_EXECUTION_RUNBOOK.md).
+Its aggregate finalizer retains every prespecified effect, and its deterministic authoring
+bundle remains non-admitted unless a separate candidate-hash-bound decision record covers
+all primary table rows and the named supplement/reviewer-response destinations.
+
 A potential Mistral extension is governed separately by
 [`MISTRAL_TASK_ADAPTATION_PROTOCOL.md`](MISTRAL_TASK_ADAPTATION_PROTOCOL.md).
 It preregisters a proposed `post_submission_mistral_adapted` layer grounded in
