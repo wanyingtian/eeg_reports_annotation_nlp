@@ -9,7 +9,7 @@ sync-all:
 	$(UV) sync --extra reports --extra baselines --extra llm --extra evidence
 
 lint:
-	$(UV) run ruff check scripts/diagnose_medgemma_interface.py
+	$(UV) run ruff check scripts/diagnose_medgemma_interface.py scripts/export_medgemma_interface_diagnostic.py
 	$(UV) run ruff check scripts/run_linkage_diagnostic.py scripts/audit_linkage_anchors.py scripts/audit_report_snapshot_join.py
 	$(UV) run ruff check scripts/prepare_comparison_review.py
 	$(UV) run ruff check scripts/mistral_interface_followup.py scripts/run_fixed_classification_explanations.py scripts/medgemma_prompt_v2.py scripts/audit_medgemma_v2_evidence.py scripts/audit_medgemma_v21.py

@@ -1,0 +1,139 @@
+{
+  "actual_inputs_verified": 40,
+  "author_working_not_submission_admitted": true,
+  "call_receipts_sha256": "f3829c11ea97c50988d401483a7d509208163a37def6cbc82925cf5ed894228e",
+  "case_material_included": false,
+  "clinical_or_neural_mechanism_claim": false,
+  "comparisons": {
+    "assembled_vs_assembled_original_stop": {
+      "completed_pairs": 8,
+      "same_five_labels": 8,
+      "same_input_tokens": 8,
+      "same_output_text": 8,
+      "valid_pairs": 8
+    },
+    "historical_vs_native_chat": {
+      "completed_pairs": 8,
+      "same_five_labels": 5,
+      "same_input_tokens": 0,
+      "same_output_text": 0,
+      "valid_pairs": 8
+    },
+    "historical_vs_trim_only": {
+      "completed_pairs": 8,
+      "same_five_labels": 6,
+      "same_input_tokens": 0,
+      "same_output_text": 1,
+      "valid_pairs": 8
+    },
+    "native_chat_vs_assembled": {
+      "completed_pairs": 8,
+      "same_five_labels": 8,
+      "same_input_tokens": 8,
+      "same_output_text": 8,
+      "valid_pairs": 8
+    },
+    "trim_only_vs_native_chat": {
+      "completed_pairs": 8,
+      "same_five_labels": 5,
+      "same_input_tokens": 0,
+      "same_output_text": 0,
+      "valid_pairs": 8
+    }
+  },
+  "completed_at_utc": "2026-08-31T19:59:45.031320+00:00",
+  "completed_calls": 40,
+  "contract_sha256": "aa94d63a3d63e990b373cb7d3a3dfdb763a3e3ae86f12e01e9dd113f459c4234",
+  "execution": {
+    "completion_token_range": [
+      66,
+      78
+    ],
+    "finish_reasons": [
+      "stop"
+    ],
+    "mean_seconds_per_call": 29.870995755201147,
+    "summed_inference_seconds": 1194.839830208046
+  },
+  "grammar_sha256": "5237e13988062538cda9c21906f1f4e1fc8b99498e2462ea69fe24bface35016",
+  "input_sha256": {
+    "database": "7af5de9c8561d2c3347b89517fb245caf1fc8fb7001900582c6337e58142034e",
+    "grammar": "5237e13988062538cda9c21906f1f4e1fc8b99498e2462ea69fe24bface35016",
+    "historical_output": "0e1695c64c735bf4d7f599e3f46aba1c4463bc184e53e6a8a49b07ba6612096e",
+    "historical_receipt": "c8b051cf7a3e0dcf1d9c657b3a7b448be98dbcdeec9e51d3d299ff0edb3c9cfc",
+    "manifest": "dddbb46edf0ded6e468b01513a8034f205dcad1de4015d6ce97365d5bec8c051",
+    "native_output": "f799362d9f6a22523c0ae8240b8ebd71a4cfe7a0187e5d65bd1ec051841bf633",
+    "native_receipt": "ff395e8d59dbd56b07c2ea205bdfa2bea183f39ea917881ce1cf9466cc9f1637"
+  },
+  "invalid_outputs": 0,
+  "model_sha256": "b137aac80f2bcb1c1ed35bfe13387bc496eb18898d5f46425687604f0f714481",
+  "new_accuracy_estimate": false,
+  "policy_sha256": "c1af35076e3eb51897614f2c24c3b24345fe3ede8340dd48bfdf76958973558e",
+  "producing_code_sha256": {
+    "review/MEDGEMMA_INTERFACE_MECHANICS_DIAGNOSTIC.md": "1ea782f4af5f988b24b9487c4f538b50b2009bb970bebaa30743ad75d283d5d2",
+    "scripts/diagnose_medgemma_interface.py": "d4d458961446c0c00f564374a6c145f622fb644d4e52c4932ab8950295d03544",
+    "src/LLM_pipeline/llm_models.py": "f68be262406882190c0c3d5c751536a52f0c809049f92413ebe9fdec6ec90c5c",
+    "src/eeg_review/interface_diagnostic.py": "b55a4cb1a810839cdfe43871b5bf186bcb068ee88ec8e8460a0f16ff9bde4ed1",
+    "src/eeg_review/native_interface.py": "1ec8c08e0c579de42fb12d0e411c803b93cfaf3de82757d6f4e31acdb7d1e1f6"
+  },
+  "prompt_sha256": "52198221d8330e9857b51a7ad99b017aa18836e1718b08dd0ae355820f5a5e69",
+  "protected_evaluation": false,
+  "reference_labels_used": false,
+  "reports_replayed": 8,
+  "runtime_versions": {
+    "huggingface-hub": "0.36.2",
+    "llama-cpp-python": "0.3.34",
+    "pandas": "2.3.3"
+  },
+  "saved_development_disagreements": {
+    "categories": {
+      "abnormality": {
+        "binary_changes": 16,
+        "historical_absent_native_present": 7,
+        "historical_present_native_absent": 9,
+        "ordinal_changes": 20
+      },
+      "focal_epileptiform_activity": {
+        "binary_changes": 24,
+        "historical_absent_native_present": 0,
+        "historical_present_native_absent": 24,
+        "ordinal_changes": 26
+      },
+      "focal_non_epileptiform_activity": {
+        "binary_changes": 15,
+        "historical_absent_native_present": 3,
+        "historical_present_native_absent": 12,
+        "ordinal_changes": 20
+      },
+      "generalized_epileptiform_activity": {
+        "binary_changes": 16,
+        "historical_absent_native_present": 1,
+        "historical_present_native_absent": 15,
+        "ordinal_changes": 17
+      },
+      "generalized_non_epileptiform_activity": {
+        "binary_changes": 16,
+        "historical_absent_native_present": 6,
+        "historical_present_native_absent": 10,
+        "ordinal_changes": 23
+      }
+    },
+    "reference_labels_used": false,
+    "reports": 100,
+    "reports_with_any_ordinal_change": 40
+  },
+  "saved_parent_replay": {
+    "historical": {
+      "completed": 8,
+      "same_five_labels": 8
+    },
+    "native_chat": {
+      "completed": 8,
+      "same_five_labels": 8
+    }
+  },
+  "schema_version": 1,
+  "scope": "posthoc_development_interface_mechanics_not_accuracy_estimation",
+  "source_revision": "f86084915960f538de0d7e0e8fb2a6f8592c4c8f",
+  "template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4"
+}
