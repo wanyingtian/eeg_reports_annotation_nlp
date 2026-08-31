@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "study_id": "jbhi-02463-medgemma-native-scope-v21-development",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-category-scope-v2.1",
+  "status": "frozen_for_preparation_not_yet_run",
+  "scientific_role": "post-submission exploratory development; narrow v2 upgrade, not a replacement result",
+  "prior_protected_results_informed_hypothesis": true,
+  "independent_test_claim_allowed": false,
+  "protected_evaluation_allowed": false,
+  "automatic_expansion_allowed": false,
+  "candidate_count": 1,
+  "classification_records": 100,
+  "evidence_records": 20,
+  "evidence_positions": [0, 20],
+  "planned_committed_model_calls": 120,
+  "interrupted_uncommitted_record_may_repeat_on_resume": true,
+  "primary_hypothesis": "Category-local negation and an explicit independent non-epileptiform check reduce v2 scope-related misses without worsening any category against either preserved parent.",
+  "development_rule_id": "scope-repair-with-parent-guardrails-v1",
+  "development_rule": "Fewer total category errors than v2; fewer false negatives in at least one of Gen Non-epi or Abnormality than v2; no category has more binary errors than either v1 or v2; no increase in focal/generalized epileptiform false negatives against either parent. Otherwise the rule is not met. This is a new explicitly exploratory rule, not the original v2 focal-only rule, and it cannot authorize protected evaluation.",
+  "sources": {
+    "framework": "Chris Tian's original definitions, versioned development method, five labels, confidence meanings, classification grammar and first-100 development boundary",
+    "hypothesis": "Completed v2 development regressions and source-bound diagnostic at shared revision cb237d92a1fe01020adf2523447e818a91fa090b; no case-specific exceptions",
+    "implementation": "Steven Bergner-led post-submission preparation; Vasily's v5g remains separate"
+  },
+  "parent_configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-focal-disambiguation-v2",
+  "comparison_ids": {
+    "v1": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+    "v2": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-focal-disambiguation-v2"
+  },
+  "parent_scientific_manifest_sha256": "12ad8f50e22d0e656d24046a37dbb6a9fd05f2232dc856810c848f02cddedc6c",
+  "source_files": {
+    "development.db": {"path": "inputs/development.db", "sha256": "7af5de9c8561d2c3347b89517fb245caf1fc8fb7001900582c6337e58142034e"},
+    "development.manifest.csv": {"path": "inputs/development.manifest.csv", "sha256": "dddbb46edf0ded6e468b01513a8034f205dcad1de4015d6ce97365d5bec8c051"},
+    "v1.csv": {"path": "inputs/v1.csv", "sha256": "f799362d9f6a22523c0ae8240b8ebd71a4cfe7a0187e5d65bd1ec051841bf633"},
+    "v1.run.json": {"path": "inputs/v1.run.json", "sha256": "ff395e8d59dbd56b07c2ea205bdfa2bea183f39ea917881ce1cf9466cc9f1637"},
+    "v2.csv": {"path": "products/v2.csv", "sha256": "2379a6532674b68894cdd49e095e343a4b75c0cc7603a15e60323fb687f39737"},
+    "v2.run.json": {"path": "products/v2.run.json", "sha256": "8737e5e98d973ef760ec1810afc5dc7d35714d53347d06bfb87332bb697e1916"}
+  },
+  "model": {
+    "registry_name": "medgemma-27b-q2-candidate",
+    "upstream_release": "google/medgemma-27b-text-it",
+    "distribution": "unsloth/medgemma-27b-text-it-GGUF",
+    "revision": "334fbf6811c963d223f6ac107a459347353f068d",
+    "filename": "medgemma-27b-text-it-Q2_K.gguf",
+    "sha256": "b137aac80f2bcb1c1ed35bfe13387bc496eb18898d5f46425687604f0f714481",
+    "weights_or_training_changed": false,
+    "license_reference": "https://developers.google.com/health-ai-developer-foundations/terms",
+    "weights_redistributed": false
+  },
+  "interface": {
+    "mode": "native_chat",
+    "prompt_version": "medgemma-native-category-scope-v2.1",
+    "historical_prompt_sha256": "52198221d8330e9857b51a7ad99b017aa18836e1718b08dd0ae355820f5a5e69",
+    "prompt_sha256": "d0dfeb59ac6da94074669bfac3b04fd45a9f22fd2ecdf9e0360b1e7b9880de1b",
+    "task_message_sha256": "61ac52eb8c35786ab844c05f61e490ed799c574cce75eac5a4141451d1953b9d",
+    "chat_template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4",
+    "grammar_sha256": "5237e13988062538cda9c21906f1f4e1fc8b99498e2462ea69fe24bface35016",
+    "sampling": {"temperature": 0.0, "top_k": 40, "top_p": 0.95, "max_tokens": 256, "stop_sequences": null}
+  },
+  "runtime": {
+    "profile_id": "llama-cpp-python-metal-full-offload-flash-v1",
+    "parameters": {"n_ctx": 4096, "n_gpu_layers": -1, "n_batch": 1024, "n_ubatch": 512, "n_threads": 4, "n_threads_batch": 10, "flash_attn": true}
+  },
+  "evidence": {
+    "interface": "native_chat",
+    "mode": "independent-category-evidence-v1",
+    "classifications_supplied_to_model": false,
+    "used_as_classification_input": false,
+    "classification_source": "v2.1 stored only for subsequent keyed comparison; never included in the audit model message",
+    "prompt_sha256": "f6405c89e0ec25b3d478faa77b3f8718da16f9845010eebfae297384a52e1c32",
+    "task_message_sha256": "4b5a333105a72ce9144c60715cb5a4713804bdbf8631e768c7357464ce1a5876",
+    "grammar_sha256": "46ccad683304b140151c5d103427acfe6e1a5dfbdfe8d70c7379a2a9610d3cc3",
+    "fields": ["present_evidence", "absent_evidence", "qualification_evidence"],
+    "maximum_phrases_per_field": 2,
+    "max_tokens": 3000,
+    "use_for_prompt_selection": false,
+    "clinical_factuality_or_causal_faithfulness_claim_allowed": false,
+    "paired_quality_superiority_claim_allowed": false
+  },
+  "analysis": {
+    "all_five_labels": true,
+    "all_parents": ["v1", "v2"],
+    "metrics": ["tp", "fp", "tn", "fn", "precision", "recall_sensitivity", "specificity", "f1", "core_accuracy", "certainty_adjusted_accuracy", "core_kappa", "four_level_kappa"],
+    "paired_report_bootstrap_iterations": 2000,
+    "seed": 20260718,
+    "multiplicity": "Holm over ten core/four-level tests per comparator, not across both comparator families",
+    "interpretation": "Repeated development and evaluation-informed hypothesis. Descriptive report-level uncertainty, not independent testing or patient-grouped inference.",
+    "retain_all_outcomes": true
+  },
+  "execution": {
+    "local_only": true,
+    "checkpoint_every": 1,
+    "stage_timeout_seconds": 7200,
+    "failure_requires_review": true,
+    "resume_identity_required": true,
+    "eclipse_supported": true,
+    "three_case_saved_live_smoke_required_before_launch": true,
+    "preparation_does_not_launch": true
+  },
+  "distribution": {"source_configuration": "source_config_publishable", "keyed_outputs": "outputs_governed", "aggregates": "author_review_before_publication"}
+}

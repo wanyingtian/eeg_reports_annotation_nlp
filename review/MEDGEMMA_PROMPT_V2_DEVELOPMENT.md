@@ -1,5 +1,9 @@
 # MedGemma native prompt v2: bounded focal-disambiguation development
 
+The completed v2 remains unchanged. The separately prepared
+[v2.1 upgrade](MEDGEMMA_V21_UPGRADE_PREPARATION.md) uses `--variant v21`, a new
+run directory and its own frozen development rule; it has not run yet.
+
 This is a **new, post-submission prompt version** within Chris's original
 classification and evidence-extraction framework. It does not renumber Chris's
 historical V1/V2 work or implement Vasily's external v5g. Steven authorized the

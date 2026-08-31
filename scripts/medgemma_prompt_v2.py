@@ -32,6 +32,7 @@ from study_job import (  # noqa: E402
     utc_now,
 )
 
+from eeg_review import category_evidence  # noqa: E402
 from eeg_review.compare import compare_predictions  # noqa: E402
 from eeg_review.evidence_extraction import (  # noqa: E402
     aggregate_inspections,
@@ -43,8 +44,10 @@ from eeg_review.metrics import evaluate_predictions  # noqa: E402
 from eeg_review.native_interface import native_task_message_template, sha256_text  # noqa: E402
 from eeg_review.prompt_versions import (  # noqa: E402
     MEDGEMMA_FOCAL_V2,
+    MEDGEMMA_SCOPE_V21,
     classification_prompt,
     development_verdict,
+    scope_development_verdict,
     validate_prompt_resume,
 )
 from eeg_review.protected_execution import assert_governed_run_active  # noqa: E402
@@ -54,6 +57,22 @@ SCRIPT = Path(__file__).resolve()
 LABEL = "ca.sbergner.eeg.medgemma-prompt-v2-development"
 STUDY_ID = "jbhi-02463-medgemma-native-focal-v2-development"
 KEY = "Hashed_ReportURN"
+VARIANT = "v2"
+STEM = "v2"
+PROMPT_VERSION = MEDGEMMA_FOCAL_V2
+
+
+def configure(variant):
+    """Explicit per-process variant; never infer a new version on resume."""
+    global VARIANT, STEM, PROMPT_VERSION, PLAN, LABEL, STUDY_ID
+    if variant not in {"v2", "v21"}:
+        raise ValueError("unknown development variant")
+    VARIANT, STEM = variant, variant
+    PROMPT_VERSION = MEDGEMMA_FOCAL_V2 if variant == "v2" else MEDGEMMA_SCOPE_V21
+    suffix = "focal-v2" if variant == "v2" else "scope-v21"
+    PLAN = REPO_ROOT / f"review/model-receipts/medgemma-native-{suffix}.development-plan.json"
+    STUDY_ID = f"jbhi-02463-medgemma-native-{suffix}-development"
+    LABEL = f"ca.sbergner.eeg.medgemma-prompt-{variant}-development"
 
 
 def read(path):
@@ -71,7 +90,7 @@ def prompt_text():
     sys.path.insert(0, str(REPO_ROOT / "src/LLM_pipeline"))
     import pipeline
 
-    return classification_prompt(pipeline.PROMPT_CLASSIFY, MEDGEMMA_FOCAL_V2)
+    return classification_prompt(pipeline.PROMPT_CLASSIFY, PROMPT_VERSION)
 
 
 def validate_plan(plan):
@@ -92,7 +111,7 @@ def validate_plan(plan):
         for key, value in expected.items()
     ):
         raise ValueError("v2 scope or exploratory evidence boundary changed")
-    if plan["interface"]["prompt_version"] != MEDGEMMA_FOCAL_V2:
+    if plan["interface"]["prompt_version"] != PROMPT_VERSION:
         raise ValueError("wrong prompt version")
     if plan["interface"]["mode"] != "native_chat" or plan["execution"]["local_only"] is not True:
         raise ValueError("native/local interface required")
@@ -102,6 +121,18 @@ def validate_plan(plan):
         raise ValueError("evidence cannot select this prompt")
     if not plan["analysis"]["retain_all_outcomes"]:
         raise ValueError("all outcomes must be retained")
+    if VARIANT == "v21" and (
+        plan["evidence"].get("mode") != category_evidence.MODE
+        or plan["evidence"].get("classifications_supplied_to_model") is not False
+        or plan["evidence"].get("used_as_classification_input") is not False
+        or plan.get("development_rule_id") != "scope-repair-with-parent-guardrails-v1"
+        or plan["analysis"].get("all_parents") != ["v1", "v2"]
+        or set(plan.get("comparison_ids", {})) != {"v1", "v2"}
+        or plan["evidence"].get("maximum_phrases_per_field") != 2
+        or plan["evidence"].get("fields") != list(category_evidence.FIELDS)
+        or plan["evidence"].get("paired_quality_superiority_claim_allowed") is not False
+    ):
+        raise ValueError("v2.1 independent audit or development rule changed")
 
 
 def validate_code(plan):
@@ -115,10 +146,23 @@ def validate_code(plan):
         raise ValueError("v2 task layout differs from frozen plan")
     for name, expected in [
         ("result_grammar.gbnf", plan["interface"]["grammar_sha256"]),
-        ("result_grammar_exp.gbnf", plan["evidence"]["grammar_sha256"]),
+        (
+            "result_grammar_exp.gbnf" if VARIANT == "v2"
+            else "result_grammar_category_evidence.gbnf", plan["evidence"]["grammar_sha256"]
+        ),
     ]:
         if sha256_file(REPO_ROOT / "src/LLM_pipeline" / name) != expected:
             raise ValueError("frozen grammar changed")
+    if VARIANT == "v21":
+        import pipeline
+
+        evidence_prompt = category_evidence.audit_prompt(pipeline.PROMPT_CLASSIFY)
+        if sha256_text(evidence_prompt) != plan["evidence"]["prompt_sha256"]:
+            raise ValueError("independent evidence prompt changed")
+        if sha256_text(category_evidence.task_message(evidence_prompt, "{REPORT}")) != (
+            plan["evidence"]["task_message_sha256"]
+        ):
+            raise ValueError("independent evidence task layout changed")
     return prompt
 
 
@@ -130,6 +174,16 @@ def prepare(args):
     if root.exists():
         raise FileExistsError("existing run is never overwritten")
     source = args.source_run.resolve(strict=True)
+    if root.is_relative_to(source) or source.is_relative_to(root):
+        raise ValueError("new run must be separate from its immutable source bundle")
+    if args.public_status.resolve().is_relative_to(source):
+        raise ValueError("status output must not modify the immutable source bundle")
+    assert_governed_run_active(source)
+    if VARIANT == "v21":
+        from audit_medgemma_v2_evidence import validate_source
+
+        if validate_source(source)["sha256"] != plan["parent_scientific_manifest_sha256"]:
+            raise ValueError("completed v2 parent differs from the frozen upgrade plan")
     for item in plan["source_files"].values():
         if sha256_file(source / item["path"]) != item["sha256"]:
             raise ValueError("frozen development parent hash mismatch")
@@ -155,7 +209,13 @@ def prepare(args):
     for name, item in plan["source_files"].items():
         shutil.copyfile(source / item["path"], root / "inputs" / name)
     shutil.copyfile(PLAN, root / "inputs/plan.json")
-    (root / "inputs/prompt-v2.txt").write_text(prompt, encoding="utf-8")
+    (root / f"inputs/prompt-{STEM}.txt").write_text(prompt, encoding="utf-8")
+    if VARIANT == "v21":
+        import pipeline
+
+        (root / "inputs/category-evidence-prompt.txt").write_text(
+            category_evidence.audit_prompt(pipeline.PROMPT_CLASSIFY), encoding="utf-8"
+        )
     atomic_csv(root / "inputs/evidence.manifest.csv", fixed[[KEY]].iloc[:20])
     job = {
         "study_id": STUDY_ID,
@@ -170,7 +230,10 @@ def prepare(args):
             {"path": str(p.relative_to(root)), "sha256": sha256_file(p)}
             for p in sorted((root / "inputs").iterdir())
         ],
-        "authorization": "Steven authorized one local development prompt version in chat.",
+        "authorization": (
+            "Steven authorized one local development prompt version in chat." if VARIANT == "v2"
+            else "Steven requested preparation of the bounded v2.1 rerun; not started by prepare."
+        ),
         "prior_protected_results_informed_hypothesis": True,
         "protected_evaluation": False,
         "planned_committed_model_calls": 120,
@@ -183,7 +246,7 @@ def prepare(args):
             "job_sha256": sha256_file(root / "job.json"),
             "prompt_sha256": sha256_text(prompt),
             "plan_sha256": sha256_file(PLAN),
-            "v2_outputs_exist": False,
+            ("v2_outputs_exist" if VARIANT == "v2" else "candidate_outputs_exist"): False,
             "prior_protected_results_informed_hypothesis": True,
             "independent_confirmation": False,
         },
@@ -239,17 +302,18 @@ def classification_command(root, count=100):
         "--dataset-path",
         str(root / "inputs/development.db"),
         "--dataset-id",
-        "medgemma-native-focal-v2-development",
+        "medgemma-native-focal-v2-development" if VARIANT == "v2"
+        else "medgemma-native-scope-v21-development",
         "--model",
         plan["model"]["registry_name"],
         "--classification-only",
         "--classification-interface",
         "native_chat",
         "--classification-prompt-version",
-        MEDGEMMA_FOCAL_V2,
+        PROMPT_VERSION,
         "--local-model-only",
         "--output-csv",
-        str(root / "products/v2.csv"),
+        str(root / f"products/{STEM}.csv"),
         "--resume-output",
         "--outdir",
         str(root / "products"),
@@ -273,11 +337,11 @@ def evidence_command(root):
         "--dataset",
         str(root / "inputs/development.db"),
         "--predictions",
-        str(root / "products/v2.csv"),
+        str(root / f"products/{STEM}.csv"),
         "--manifest",
         str(root / "inputs/evidence.manifest.csv"),
         "--output-csv",
-        str(root / "products/evidence-v2.csv"),
+        str(root / f"products/evidence-{STEM}.csv"),
         "--model",
         plan["model"]["registry_name"],
         "--interface",
@@ -285,7 +349,7 @@ def evidence_command(root):
         "--expected-dataset-sha256",
         sha256_file(root / "inputs/development.db"),
         "--expected-predictions-sha256",
-        sha256_file(root / "products/v2.csv"),
+        sha256_file(root / f"products/{STEM}.csv"),
         "--expected-manifest-sha256",
         sha256_file(root / "inputs/evidence.manifest.csv"),
         "--expected-records",
@@ -301,23 +365,24 @@ def evidence_command(root):
         "--max-tokens",
         str(plan["evidence"]["max_tokens"]),
         "--resume",
+        *(["--evidence-mode", category_evidence.MODE] if VARIANT == "v21" else []),
         *runtime_arguments(plan),
     ]
 
 
 def inspect_classification(root, count=100):
     job, plan = read(root / "job.json"), read(root / "inputs/plan.json")
-    path = root / "products/v2.csv"
+    path = root / f"products/{STEM}.csv"
     frame, manifest = pd.read_csv(path), pd.read_csv(root / "inputs/development.manifest.csv")
     if frame[KEY].tolist() != manifest[KEY].tolist()[:count] or len(frame) != count:
         raise ValueError("classification output is not the exact frozen manifest prefix")
-    validate_prompt_resume(frame, MEDGEMMA_FOCAL_V2, prompt_text())
+    validate_prompt_resume(frame, PROMPT_VERSION, prompt_text())
     for value in frame["classifications"]:
         classification_levels(value)
     receipt = read(path.with_suffix(".run.json"))
     if receipt["reports_completed"] != count:
         raise ValueError("run receipt count differs from checkpoint")
-    if receipt["prompts"]["classify"]["version"] != MEDGEMMA_FOCAL_V2:
+    if receipt["prompts"]["classify"]["version"] != PROMPT_VERSION:
         raise ValueError("run receipt prompt version differs")
     for field in ["hf_hub_offline", "hf_hub_telemetry_disabled"]:
         if receipt["environment"].get(field) is not True:
@@ -387,6 +452,8 @@ def analyze(root):
     frozen = read(root / "receipts/classification-complete.json")
     if frozen != inspect_classification(root):
         raise ValueError("frozen v2 classification changed")
+    if VARIANT == "v21":
+        return analyze_v21(root, job, plan)
     evaluations, predictions = {}, {}
     for name, path in [("v1", root / "inputs/v1.csv"), ("v2", root / "products/v2.csv")]:
         out = root / f"analysis/{name}-predictions.csv"
@@ -500,10 +567,149 @@ def analyze(root):
     return result
 
 
+def analyze_v21(root, job, plan):
+    """Full development comparison against both preserved parents, no tuning."""
+    evaluations, points, predictions, paired = {}, {}, {}, {}
+    for name, path in [
+        ("v1", root / "inputs/v1.csv"),
+        ("v2", root / "inputs/v2.csv"),
+        ("v21", root / "products/v21.csv"),
+    ]:
+        destination = root / f"analysis/{name}-predictions.csv"
+        predictions[name] = prediction_table(path, destination)
+        evaluations[name] = evaluate_predictions(
+            root / "inputs/development.db", destination, root / f"analysis/{name}",
+            require_complete_reference=True, require_exact_key_set=True,
+            bootstrap_iterations=2000, seed=20260718,
+        )
+        points[name] = {
+            label: values["point_estimates"]
+            for label, values in evaluations[name]["labels"].items()
+        }
+    for parent in ["v1", "v2"]:
+        paired[parent] = compare_predictions(
+            root / "inputs/development.db", root / "analysis/v21-predictions.csv",
+            root / f"analysis/{parent}-predictions.csv", root / f"analysis/paired-{parent}",
+            model_a_id=plan["configuration_id"], model_b_id=plan["comparison_ids"][parent],
+            require_complete_reference=True, require_exact_key_set=True,
+            bootstrap_iterations=2000, seed=20260718, multiplicity="holm",
+        )["labels"]
+    evidence_path = root / "products/evidence-v21.csv"
+    frame = pd.read_csv(evidence_path)
+    expected = pd.read_csv(root / "inputs/evidence.manifest.csv")[KEY].tolist()
+    if frame[KEY].tolist() != expected or len(frame) != 20:
+        raise ValueError("independent evidence sample changed")
+    receipt = read(evidence_path.with_suffix(".run.json"))
+    if receipt["output"]["sha256"] != sha256_file(evidence_path):
+        raise ValueError("independent evidence output changed")
+    if receipt.get("classifications_supplied_to_model") is not False or (
+        receipt.get("evidence_used_to_change_classifications") is not False
+        or receipt.get("decision_copy_check_applicable") is not False
+        or receipt.get("evidence_mode") != category_evidence.MODE
+    ):
+        raise ValueError("independent evidence became decision-conditioned or relabeling")
+    if receipt["inputs"]["fixed_predictions_sha256"] != sha256_file(root / "products/v21.csv"):
+        raise ValueError("audit linkage to frozen classifications changed")
+    if receipt["inputs"]["dataset_sha256"] != sha256_file(root / "inputs/development.db"):
+        raise ValueError("audit dataset changed")
+    if receipt["inputs"]["manifest_sha256"] != sha256_file(root / "inputs/evidence.manifest.csv"):
+        raise ValueError("audit manifest changed")
+    if receipt["model"]["sha256"] != plan["model"]["sha256"]:
+        raise ValueError("audit model changed")
+    if receipt["environment"]["git"] != {
+        "revision": job["repository_revision"], "worktree_dirty": False
+    }:
+        raise ValueError("audit producing code changed")
+    for field in ["hf_hub_offline", "hf_hub_telemetry_disabled"]:
+        if receipt["environment"].get(field) is not True:
+            raise ValueError("audit must be offline")
+    if receipt["prompt"]["sha256"] != plan["evidence"]["prompt_sha256"] or (
+        receipt["prompt"]["task_message_template_sha256"]
+        != plan["evidence"]["task_message_sha256"]
+        or receipt["grammar"]["sha256"] != plan["evidence"]["grammar_sha256"]
+        or receipt["chat_template"]["sha256"] != plan["interface"]["chat_template_sha256"]
+    ):
+        raise ValueError("independent evidence interface changed")
+    for key, value in plan["runtime"]["parameters"].items():
+        if receipt["model"]["load_parameters"][key] != value:
+            raise ValueError("audit runtime changed")
+    if receipt["sampling"] != {
+        "temperature": 0.0, "top_k": 40, "top_p": 0.95,
+        "max_tokens": plan["evidence"]["max_tokens"],
+    }:
+        raise ValueError("audit sampling changed")
+    fixed = pd.read_csv(root / "products/v21.csv").set_index(KEY)
+    support = {key: {field: 0 for field in category_evidence.FIELDS} for key in JSON_KEY_TO_LABEL}
+    empty_lists = 0
+    for _, row in frame.iterrows():
+        if row["fixed_classifications"] != fixed.at[row[KEY], "classifications"]:
+            raise ValueError("audit row linkage changed")
+        try:
+            audit = category_evidence.parse(row["explanations"])
+        except (ValueError, TypeError):
+            continue  # Retain invalid outputs in aggregate denominators.
+        for category, cell in audit.items():
+            for field, quotes in cell.items():
+                support[category][field] += len(quotes)
+                empty_lists += not quotes
+    result = {
+        "study_id": STUDY_ID,
+        "configuration_id": plan["configuration_id"],
+        "status": "completed_exploratory_development_not_manuscript_admitted",
+        "created_at_utc": utc_now(),
+        "repository_revision": job["repository_revision"],
+        "classification_records": 100,
+        "evidence_records": 20,
+        "prior_protected_results_informed_hypothesis": True,
+        "protected_evaluation_run": False,
+        "independent_confirmation": False,
+        "development_verdict": scope_development_verdict(points["v1"], points["v2"], points["v21"]),
+        "results": {name: value["labels"] for name, value in evaluations.items()},
+        "paired_comparisons": paired,
+        "evidence_quality": {
+            **aggregate_inspections(frame),
+            "mode": category_evidence.MODE,
+            "decision_copy_check_applicable": False,
+            "classifications_supplied_to_model": False,
+            "empty_lists_in_valid_records": empty_lists,
+            "phrase_instances_by_category_and_role": support,
+            "paired_quality_superiority_claim": False,
+        },
+        "source_hashes": {
+            "v1": sha256_file(root / "inputs/v1.csv"),
+            "v2": sha256_file(root / "inputs/v2.csv"),
+            "v21": sha256_file(root / "products/v21.csv"),
+            "evidence": sha256_file(evidence_path),
+        },
+        "boundaries": [
+            "Posthoc development; repeated use of 100 cases, not an independent test.",
+            "All five categories, both parents and all favorable/unfavorable outcomes retained.",
+            "Intervals are report-level and descriptive; patient independence is unresolved.",
+            "Audit receives no labels and never feeds back into this run's classification.",
+            "Source presence and model-assigned evidence roles do not establish clinical validity.",
+            "No automatic protected evaluation, manuscript admission, or onward data release.",
+        ],
+    }
+    atomic_json(root / "analysis/author-summary.json", result)
+    lines = ["# MedGemma v2.1 development result", "", result["status"], "",
+             "| Category | V1 FP/FN | V2 FP/FN | V2.1 FP/FN |", "|---|---:|---:|---:|"]
+    for label in JSON_KEY_TO_LABEL.values():
+        errors = [f"{points[name][label]['fp']}/{points[name][label]['fn']}"
+                  for name in ["v1", "v2", "v21"]]
+        lines.append("| " + " | ".join([label, *errors]) + " |")
+    lines += ["", "Development rule: " + result["development_verdict"]["status"], "",
+              *["- " + text for text in result["boundaries"]], ""]
+    (root / "analysis/author-summary.md").write_text("\n".join(lines), encoding="utf-8")
+    return result
+
+
 def stages(root):
     job = read(root / "job.json")
-    internal = [job["python_executable"], str(SCRIPT), "stage", "--run-dir", str(root), "--name"]
-    raw, evidence = root / "products/v2.csv", root / "products/evidence-v2.csv"
+    internal = [
+        job["python_executable"], str(SCRIPT), "stage", "--run-dir", str(root),
+        "--variant", VARIANT, "--name",
+    ]
+    raw, evidence = root / f"products/{STEM}.csv", root / f"products/evidence-{STEM}.csv"
     return [
         Stage(
             "classification_100",
@@ -536,8 +742,8 @@ def publish_status(root):
     job, state = read(root / "job.json"), read(root / "state.json")
     progress, remaining = {}, 0.0
     for name, path, target, estimate in [
-        ("classification", root / "products/v2.csv", 100, 20.0),
-        ("evidence", root / "products/evidence-v2.csv", 20, 60.0),
+        ("classification", root / f"products/{STEM}.csv", 100, 20.0),
+        ("evidence", root / f"products/evidence-{STEM}.csv", 20, 60.0),
     ]:
         frame = pd.read_csv(path) if path.exists() else pd.DataFrame()
         count = len(frame)
@@ -600,6 +806,8 @@ def watch(root):
         except BlockingIOError:
             return
         validate_job(root)
+        if VARIANT == "v21":
+            require_live_smoke(root)
         state = read(root / "state.json")
         if state["status"] == "failed" or (root / "PAUSED").exists():
             publish_status(root)
@@ -631,8 +839,31 @@ def watch(root):
         publish_status(root)
 
 
+def require_live_smoke(root):
+    """Require the actual saved three-case checkpoint, not a marker's existence."""
+    path = root / "receipts/smoke.json"
+    archive = root / "receipts/smoke.csv"
+    run_receipt = root / "receipts/smoke.run.json"
+    if not all(p.exists() for p in [path, archive, run_receipt]):
+        raise ValueError("v2.1 requires the three-case saved live smoke before execution")
+    receipt = read(path)
+    if receipt["records"] != 3 or receipt["output_sha256"] != sha256_file(archive):
+        raise ValueError("saved smoke output changed")
+    if receipt["run_receipt_sha256"] != sha256_file(run_receipt):
+        raise ValueError("saved smoke receipt changed")
+    saved, current = pd.read_csv(archive), pd.read_csv(root / "products/v21.csv")
+    if len(saved) != 3 or len(current) < 3:
+        raise ValueError("smoke checkpoint is incomplete")
+    columns = [KEY, "classifications", "classification_prompt_version",
+               "classification_prompt_sha256"]
+    if saved[columns].to_dict("records") != current.iloc[:3][columns].to_dict("records"):
+        raise ValueError("committed smoke prefix changed")
+
+
 def launch(root):
     job, _ = validate_job(root)
+    if VARIANT == "v21":
+        require_live_smoke(root)
     path = Path.home() / "Library/LaunchAgents" / f"{LABEL}.plist"
     if path.exists():
         raise FileExistsError("LaunchAgent exists; use resume rather than replacing it")
@@ -644,6 +875,7 @@ def launch(root):
         "watch",
         "--run-dir",
         str(root),
+        "--variant", VARIANT,
     ]
     config = {
         "Label": LABEL,
@@ -687,10 +919,12 @@ def main():
         ],
     )
     parser.add_argument("--run-dir", type=Path, required=True)
+    parser.add_argument("--variant", choices=["v2", "v21"], default="v2")
     parser.add_argument("--source-run", type=Path)
     parser.add_argument("--public-status", type=Path)
     parser.add_argument("--name", choices=["validate_classification", "evidence_20", "analyze"])
     args = parser.parse_args()
+    configure(args.variant)
     root = args.run_dir.resolve()
     os.umask(0o077)
     os.environ.update(
@@ -734,7 +968,11 @@ def main():
                         )
                 result = inspect_classification(root, 3)
                 atomic_json(root / "receipts/smoke.json", result)
-                shutil.copyfile(root / "products/v2.run.json", root / "receipts/smoke.run.json")
+                shutil.copyfile(
+                    root / f"products/{STEM}.run.json", root / "receipts/smoke.run.json"
+                )
+                if VARIANT == "v21":
+                    shutil.copyfile(root / "products/v21.csv", root / "receipts/smoke.csv")
                 publish_status(root)
             elif args.action == "launch":
                 result = launch(root)

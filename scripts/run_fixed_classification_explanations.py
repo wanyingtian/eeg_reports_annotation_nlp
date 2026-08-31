@@ -22,6 +22,7 @@ sys.path.insert(0, str(PIPELINE_ROOT))
 
 import pipeline  # noqa: E402
 
+from eeg_review import category_evidence  # noqa: E402
 from eeg_review.evidence_extraction import (  # noqa: E402
     aggregate_inspections,
     inspect_explanation,
@@ -112,6 +113,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     predictions = args.predictions.expanduser().resolve(strict=True)
     manifest = args.manifest.expanduser().resolve(strict=True)
     output = args.output_csv.expanduser().resolve()
+    evidence_mode = getattr(args, "evidence_mode", "fixed-classification")
+    independent = evidence_mode == category_evidence.MODE
+    if evidence_mode not in {"fixed-classification", category_evidence.MODE}:
+        raise ValueError("unknown evidence mode")
+    if independent and args.interface != NATIVE_CHAT_INTERFACE_MODE:
+        raise ValueError("independent category audit is frozen to native chat")
     receipt_path = output.with_suffix(".run.json")
     if output.exists() and not args.resume:
         raise FileExistsError(f"output exists; use --resume: {output}")
@@ -141,6 +148,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         args.interface,
     )
     completed = len(existing)
+    if independent and completed and (
+        "evidence_mode" not in existing
+        or existing["evidence_mode"].isna().any()
+        or set(existing["evidence_mode"]) != {evidence_mode}
+    ):
+        raise ValueError("resumed independent evidence mode changed or missing")
     for index, row in existing.iterrows():
         if row["fixed_classifications"] != fixed.iloc[index][args.classification_column]:
             raise ValueError("resumed fixed classification differs from the frozen source")
@@ -154,11 +167,17 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "n_threads_batch": args.n_threads_batch,
         "flash_attn": args.flash_attn,
     }
-    grammar_path = PIPELINE_ROOT / "result_grammar_exp.gbnf"
+    grammar_path = PIPELINE_ROOT / (
+        "result_grammar_category_evidence.gbnf" if independent else "result_grammar_exp.gbnf"
+    )
     grammar_sha = sha256_file(grammar_path)
     if grammar_sha != args.expected_grammar_sha256:
         raise ValueError("explanation grammar SHA-256 does not match the frozen plan")
-    prompt_sha = sha256_text(pipeline.PROMPT_EXPLAIN)
+    prompt = (
+        category_evidence.audit_prompt(pipeline.PROMPT_CLASSIFY)
+        if independent else pipeline.PROMPT_EXPLAIN
+    )
+    prompt_sha = sha256_text(prompt)
     if prompt_sha != args.expected_prompt_sha256:
         raise ValueError("explanation prompt SHA-256 does not match the frozen plan")
     from llm_models import MODEL_CONFIGS
@@ -179,6 +198,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "columns": [args.table, args.id_column, args.report_column, args.classification_column],
         "source_revision": git_receipt(),
     }
+    if independent:
+        contract["evidence_mode"] = evidence_mode
+        contract["classifications_supplied_to_model"] = False
     bind_execution_contract(output.with_suffix(".execution.json"), contract, output.exists())
     if completed == len(fixed) and receipt_path.exists():
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -206,10 +228,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         if args.interface == NATIVE_CHAT_INTERFACE_MODE:
             call = pipeline.llm_chat_json_with_receipt(
                 model=model,
-                messages=native_explanation_messages(
-                    pipeline.PROMPT_EXPLAIN,
-                    report,
-                    classification,
+                messages=(
+                    category_evidence.messages(prompt, report) if independent
+                    else native_explanation_messages(prompt, report, classification)
                 ),
                 temperature=args.temperature,
                 max_tokens=args.max_tokens,
@@ -222,7 +243,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             call = pipeline.llm_json_with_receipt(
                 model=model,
                 prompt=explanation_input(
-                    pipeline.PROMPT_EXPLAIN,
+                    prompt,
                     report,
                     classification,
                 ),
@@ -233,14 +254,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 top_k=args.top_k,
                 top_p=args.top_p,
             )
-        checked = inspect_explanation(
-            call.text,
-            report=report,
-            fixed_classification=classification,
+        checked = (
+            category_evidence.inspect(call.text, report=report) if independent
+            else inspect_explanation(call.text, report=report, fixed_classification=classification)
         )
         rows.append(
             {
                 "Hashed_ReportURN": str(row[args.id_column]),
+                **({"evidence_mode": evidence_mode} if independent else {}),
                 "explanation_interface_mode": args.interface,
                 "fixed_classifications": classification,
                 "explanations": call.text,
@@ -267,7 +288,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     aggregate = aggregate_inspections(result_frame)
     receipt = {
         "schema_version": 1,
-        "receipt_type": "fixed_classification_evidence_extraction_run",
+        "receipt_type": (
+            "independent_category_evidence_audit_run" if independent
+            else "fixed_classification_evidence_extraction_run"
+        ),
         "created_at_utc": datetime.now(UTC).isoformat(),
         "run_id": args.run_id,
         "interface": args.interface,
@@ -281,9 +305,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         },
         "model": model_receipt,
         "prompt": {
-            "sha256": sha256_text(pipeline.PROMPT_EXPLAIN),
+            "sha256": prompt_sha,
             "task_message_template_sha256": sha256_text(
-                explanation_task_message_template(pipeline.PROMPT_EXPLAIN)
+                category_evidence.task_message(prompt, "{REPORT}") if independent
+                else explanation_task_message_template(prompt)
             ),
         },
         "grammar": {
@@ -312,6 +337,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "only hashes, configuration, counts, and aggregate quality measures."
         ),
     }
+    if independent:
+        receipt.update(
+            evidence_mode=evidence_mode,
+            classifications_supplied_to_model=False,
+            decision_copy_check_applicable=False,
+            evidence_used_to_change_classifications=False,
+        )
     atomic_write_json(receipt_path, receipt)
     receipt_path.chmod(0o600)
     return receipt
@@ -327,6 +359,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--output-csv", type=Path, required=True)
     parser.add_argument("--model", choices=pipeline.get_available_models(), required=True)
+    parser.add_argument(
+        "--evidence-mode", choices=["fixed-classification", category_evidence.MODE],
+        default="fixed-classification",
+    )
     parser.add_argument(
         "--interface",
         choices=[RAW_COMPLETION_INTERFACE_MODE, NATIVE_CHAT_INTERFACE_MODE],

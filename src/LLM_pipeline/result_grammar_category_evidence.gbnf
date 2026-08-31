@@ -1,0 +1,7 @@
+root ::= answer
+answer ::= "{" ws "\"focal_epileptiform_activity\":" ws evidence "," ws "\"generalized_epileptiform_activity\":" ws evidence "," ws "\"focal_non_epileptiform_activity\":" ws evidence "," ws "\"generalized_non_epileptiform_activity\":" ws evidence "," ws "\"abnormality\":" ws evidence ws "}"
+evidence ::= "{" ws "\"present_evidence\":" ws phrases "," ws "\"absent_evidence\":" ws phrases "," ws "\"qualification_evidence\":" ws phrases ws "}"
+phrases ::= "[" ws (string (ws "," ws string)?)? ws "]"
+string ::= "\"" char* "\""
+char ::= [^"\\\x00-\x1F] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F])
+ws ::= [ \t\n\r]*
