@@ -112,6 +112,9 @@ prediction, prompt, sample denominator or factuality score is replaced.
 
 ## Next-version direction
 
+Historical direction at the v2 diagnostic checkpoint (subsequently implemented
+as the separately frozen v2.1; see the read-only interpretation below):
+
 The next useful experiment is a **category-scoped evidence audit**, not another
 focal keyword exclusion. Preserve the existing native interface, JSON grammar,
 four-level labels and original comparison rows. A separately named audit should
@@ -127,3 +130,36 @@ the same 100 development cases remain available for exploratory work. No new
 classification prompt has been selected, and no additional protected-cohort run
 follows from these diagnostics. Any later classification change must retain
 v1/v2 results and carry its own version and frozen development decision rule.
+
+## Read-only v2.1 interpretation
+
+The completed v2.1 run retains all three versions and the independent first-20
+audit. The next operation is analysis of saved data, not new inference:
+
+```bash
+PYTHONPATH=src python scripts/audit_medgemma_v21.py \
+  --run-dir /governed/path/to/completed-v21 \
+  --output-dir /governed/path/to/new-interpretation \
+  --acknowledge-governed-output
+```
+
+The script validates the complete producing manifest before and after reading,
+rejects missing/duplicate/reordered keys and missing parents, and reproduces
+all frozen confusion counts, paired repair/regression counts, exact four-level
+changes and literal phrase counters. It exposes case exchanges hidden by
+unchanged confusion totals. It checks both inherited category constraints
+without forcing predictions to obey them.
+
+Every independent phrase retains its category and role, original text,
+source hash, literal offsets or explicitly unverified whitespace candidates.
+Empty and invalid records retain their denominators; absent audits are not
+imputed. A positive-evidence list with a negative classification is a review
+flag, not automatically an error: normal-state qualifications or conflicting
+source statements can explain it. Conversely, source-present text can have an
+incorrectly assigned role. No audit output becomes a vote or a replacement
+label, and no conditional-v2 versus independent-v2.1 quality ranking is made.
+
+`governed-review-packet.json` contains report text and keys and must remain in
+authorized storage. `interpretation-summary.json` contains aggregate counts and
+receipt hashes only; publication remains a separate author-reviewed step.
+The complete inference bundle is never modified by this tool.

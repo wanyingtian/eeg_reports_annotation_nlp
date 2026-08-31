@@ -9,7 +9,8 @@ Preparation was requested on August 31, 2026. Preparation does not start a job.
 
 Steven subsequently requested the next study steps. The actual three-report
 smoke completed at 06:18 PDT, and the background continuation started at
-06:22 PDT. This is an **in-progress development run, not a completed result**.
+06:22 PDT. All 100 classifications, 20 audits and the frozen analysis completed
+at **07:11 PDT**. The full 47-file scientific manifest verifies unchanged.
 The three saved outputs passed exact-prefix, schema, model, prompt, grammar,
 native-template, runtime and offline-receipt checks. No reference metrics were
 examined to decide whether to continue. The same three outputs are retained as
@@ -26,11 +27,28 @@ its run receipt SHA-256 is
 `3accad74f7bfe9a35a4047e13a5b4e7e0df9f9e3bda1443238262ab862ca9509`.
 These establish technical execution, not improved classification performance.
 
-The existing background supervisor continues independently of the chat, saves
-each completed record, and supports explicit pause/resume. It stops after this
+The existing background supervisor continued independently of the chat, saved
+each completed record, and supported explicit pause/resume. It stopped after this
 bounded development package; no protected-cohort run is queued. The live private
 status and final aggregate summary use the existing reporting path. Do not
 rerun `prepare`, overwrite parent products, or edit this run's frozen worktree.
+
+Read-only interpretation retains a mixed result. The predefined exploratory
+rule is met, but this does not establish superiority or justify automatic
+promotion. Total binary category errors are 38/34/31 for v1/v2/v2.1 across
+100 reports and five dependent categories. Against v2 there are five repaired
+and two regressed category calls, on four reports. Generalized non-epileptiform
+errors fall from ten to seven; overall abnormality exchanges one false positive
+for one extra false negative, and focal non-epileptiform totals conceal a
+repair/regression exchange. The rare focal epileptiform shortfall is unchanged.
+
+The independent audit is a distinct question, not a replacement thesis
+alignment metric. Its 107 phrase instances include 36 exact, 70 whitespace-only
+matches and one unmatched formatting alteration. Four outputs have all lists
+empty. Model-assigned presence/absence/qualification roles remain unvalidated;
+only one of the four changed reports is covered by the fixed first-20 sample.
+Use `scripts/audit_medgemma_v21.py` for a separate, exact-key read-only review
+packet. No additional model calls or relabeling follow from that audit.
 
 ## Narrow classification change
 
