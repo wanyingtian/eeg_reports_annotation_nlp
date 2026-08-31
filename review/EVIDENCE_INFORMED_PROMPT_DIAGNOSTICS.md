@@ -71,3 +71,59 @@ repeat the audit into a **new directory** with
 same model, prompt, grammar, runtime, offline environment and fixed predictions.
 The original first-20 aggregate remains separate from the error-enriched
 follow-up aggregate; the review packet may use both without pooling denominators.
+
+## Existing-rule trace and category consistency
+
+Add `--alignment-diagnostics` to that same audit command to apply
+`saved-evidence-alignment-diagnostic-v1`. Use the pinned runtime with the
+repository's baseline dependencies; the inherited alignment module imports
+those packages, but this diagnostic does **not** instantiate any model.
+
+This calls Chris's original `classify_reason_rule` unchanged, on the same
+semicolon-joined reason-cell unit as `process_output.py`. It records the rule
+branch: explicit abnormal wording, negative pattern, positive pattern, or an
+unmatched string defaulting to negative. Matches of both polarities are exposed
+without changing the original priority. A rule agreement is not validation:
+the fallback can look like normal-supporting evidence without recognizing any
+finding, and a negated subtype is not necessarily evidence of overall normality.
+The thesis selected the **learned ClinicalBERT polarity classifier**, not this
+rule heuristic; the diagnostic does not claim to reproduce that score.
+
+Both explicit historical category-consistency instructions are checked against
+all saved development classifications: any positive subtype with negative
+overall abnormality, and all negative subtypes with positive overall abnormality.
+These are instruction checks, not independently validated clinical laws. There
+is no majority vote or automatic label repair: such a repair can erase a correct
+overall call when an individual subtype was missed.
+
+For source phrases still unmatched by the original audit, a separate optional
+diagnostic searches after eliding only double-asterisk tokens from the source
+and collapsing whitespace. It keeps case, numbers, words, negation and other
+punctuation intact, returns exact source offsets, and leaves literal acceptance
+unchanged. A candidate does not establish that these tokens are merely formatting
+or that the passage entails the model's label. Phrase instances and distinct
+report/phrase pairs are counted separately.
+
+The fixed first-20 and error-enriched additional sample keep separate summaries.
+The extended keyed output is `governed-alignment-diagnostics.json`; only its
+aggregate counts enter the safe receipt. Source files are hash-bound and the
+immutable study manifest is rechecked after assembly. No historical classifier,
+prediction, prompt, sample denominator or factuality score is replaced.
+
+## Next-version direction
+
+The next useful experiment is a **category-scoped evidence audit**, not another
+focal keyword exclusion. Preserve the existing native interface, JSON grammar,
+four-level labels and original comparison rows. A separately named audit should
+ask which source passages support, qualify or contradict each category, without
+requiring the model to justify a supplied decision. Compare those passages with
+the already frozen decisions afterward. This tests the limitation of the current
+decision-conditioned explanation question; it does not claim access to causal
+reasoning or allow an auditing model to silently relabel cases.
+
+Before generation, freeze the new task text, output schema, development keys,
+complete-outcome reporting and bounded call budget. Use synthetic checks first;
+the same 100 development cases remain available for exploratory work. No new
+classification prompt has been selected, and no additional protected-cohort run
+follows from these diagnostics. Any later classification change must retain
+v1/v2 results and carry its own version and frozen development decision rule.

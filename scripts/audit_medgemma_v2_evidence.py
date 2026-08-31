@@ -246,6 +246,7 @@ def main():
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--comparison-run", type=Path)
     parser.add_argument("--targeted-evidence", type=Path)
+    parser.add_argument("--alignment-diagnostics", action="store_true")
     parser.add_argument("--acknowledge-governed-output", action="store_true", required=True)
     args = parser.parse_args()
     root, output = args.run_dir.resolve(strict=True), args.output_dir.resolve()
@@ -277,12 +278,38 @@ def main():
         result["diagnostic_context_with_targeted_evidence"], packet = build_diagnostic_packet(
             reference, versions, records
         )
+    alignment_details = None
+    if args.alignment_diagnostics:
+        from eeg_review.alignment_diagnostics import diagnose_saved_evidence
+
+        first_keys = pd.read_csv(root / "inputs/evidence.manifest.csv")[KEY].tolist()
+        result["alignment_diagnostics"], alignment_details = diagnose_saved_evidence(
+            packet, first_keys
+        )
+        result["alignment_diagnostic_source_hashes"] = {
+            path: sha(ROOT / path)
+            for path in [
+                "src/evidence_analysis/evidence_alignment.py",
+                "src/eeg_review/alignment_diagnostics.py",
+                "src/eeg_review/source_grounding.py",
+                "scripts/audit_medgemma_v2_evidence.py",
+            ]
+        }
+    if validate_source(root) != result["source_manifest"]:
+        raise ValueError("source changed during diagnostic assembly")
     os.umask(0o077)
     output.mkdir(parents=True, mode=0o700)
     atomic_write_json(output / "aggregate.json", result)
     atomic_write_json(output / "governed-source-spans.json", records)
     atomic_write_json(output / "governed-diagnostic-packet.json", packet)
     atomic_write_csv(output / "targeted-evidence.manifest.csv", pd.DataFrame({KEY: target_keys}))
+    names = [
+        "aggregate.json", "governed-source-spans.json", "governed-diagnostic-packet.json",
+        "targeted-evidence.manifest.csv",
+    ]
+    if alignment_details is not None:
+        names.append("governed-alignment-diagnostics.json")
+        atomic_write_json(output / names[-1], alignment_details)
     atomic_write_json(
         output / "manifest.json",
         {
@@ -290,12 +317,7 @@ def main():
             "policy_id": POLICY_ID,
             "files": [
                 {"path": name, "sha256": sha(output / name)}
-                for name in [
-                    "aggregate.json",
-                    "governed-source-spans.json",
-                    "governed-diagnostic-packet.json",
-                    "targeted-evidence.manifest.csv",
-                ]
+                for name in names
             ],
             "distribution": "governed storage; aggregate requires author review before publication",
         },

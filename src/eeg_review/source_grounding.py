@@ -63,6 +63,46 @@ def whitespace_source_candidates(reason: str, report: str) -> list[dict]:
     return candidates
 
 
+def double_asterisk_source_candidates(reason: str, report: str) -> list[dict]:
+    """Diagnostic only: elide source ** tokens, then collapse whitespace.
+
+    This does not assume those tokens are actually Markdown or meaningless.
+    Every candidate retains original offsets and text for inspection. Case,
+    words, negation, numbers and every other punctuation character must agree.
+    It is deliberately separate from the frozen literal-source-span-v1 policy.
+    """
+    if not isinstance(reason, str) or not reason.strip():
+        return []
+    characters, offsets = [], []
+    index = 0
+    while index < len(report):
+        if report.startswith("**", index):
+            index += 2
+            continue
+        char = report[index]
+        if char.isspace():
+            if characters and characters[-1] != " ":
+                characters.append(" ")
+                offsets.append([index, index + 1])
+            elif characters:
+                offsets[-1][1] = index + 1
+        else:
+            characters.append(char)
+            offsets.append([index, index + 1])
+        index += 1
+    normalized, needle = "".join(characters).rstrip(), compact(reason)
+    candidates, start = [], 0
+    while (index := normalized.find(needle, start)) >= 0:
+        a, b = offsets[index][0], offsets[index + len(needle) - 1][1]
+        quote = report[a:b]
+        if compact(quote.replace("**", "")) != needle:
+            raise ValueError("double-asterisk source offsets did not round-trip")
+        if "**" in quote:
+            candidates.append({"start": a, "end": b, "source_quote": quote})
+        start = index + 1
+    return candidates
+
+
 def inspect_reason(reason: Any, report: str) -> dict:
     result = {"accepted_as_verbatim": False, "source_spans": [], "source_span_candidates": []}
     if not isinstance(reason, str):
