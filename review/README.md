@@ -86,6 +86,13 @@ This is an evaluation-informed exploratory version, not an independently
 confirmed improvement. Its runner never automatically expands to protected
 cohorts and retains unfavorable as well as favorable outcomes.
 
+The completed v2 run did not satisfy its frozen development rule. Its next
+step is evidence-informed diagnosis, not automatic promotion or prompt search;
+see [`EVIDENCE_INFORMED_PROMPT_DIAGNOSTICS.md`](EVIDENCE_INFORMED_PROMPT_DIAGNOSTICS.md).
+The additive source-span layer preserves literal scores, distinguishes
+whitespace-only source recovery, and connects saved errors and cross-model
+disagreement to focused review questions without claiming causal explanation.
+
 A potential Mistral extension is governed separately by
 [`MISTRAL_TASK_ADAPTATION_PROTOCOL.md`](MISTRAL_TASK_ADAPTATION_PROTOCOL.md).
 It preregisters a proposed `post_submission_mistral_adapted` layer grounded in
