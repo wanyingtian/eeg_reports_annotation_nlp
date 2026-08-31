@@ -9,6 +9,7 @@ sync-all:
 	$(UV) sync --extra reports --extra baselines --extra llm --extra evidence
 
 lint:
+	$(UV) run ruff check scripts/run_linkage_diagnostic.py
 	$(UV) run ruff check scripts/prepare_comparison_review.py
 	$(UV) run ruff check scripts/mistral_interface_followup.py scripts/run_fixed_classification_explanations.py scripts/medgemma_prompt_v2.py scripts/audit_medgemma_v2_evidence.py scripts/audit_medgemma_v21.py
 	$(UV) run ruff check src/eeg_review tests scripts/smoke_inference_receipt.py scripts/smoke_model.py scripts/smoke_classification.py scripts/preload_model.py scripts/study_job.py scripts/prepare_medgemma_study.py scripts/run_tiered_medgemma_study.py scripts/medgemma_mission_control.py scripts/benchmark_medgemma_runtime.py scripts/finalize_medgemma_result_candidate.py scripts/finalize_medgemma_native_development.py scripts/finalize_medgemma_native_protected_result.py scripts/render_medgemma_native_author_bundle.py scripts/check_medgemma_native_protected_authorization.py scripts/eclipse_governed_run.py src/LLM_pipeline/llm_models.py
