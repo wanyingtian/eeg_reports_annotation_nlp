@@ -239,3 +239,63 @@ def test_source_receipt_drift_or_eclipse_is_rejected(tmp_path, mutation):
     write_json(path, manifest)
     with pytest.raises((ValueError, RuntimeError)):
         audit_module.validate_source(root)
+
+
+@pytest.mark.parametrize("mutation", [None, "model", "offline", "count", "predictions"])
+def test_targeted_receipt_is_separate_and_enforces_same_local_configuration(tmp_path, mutation):
+    root = source_fixture(tmp_path)
+    plan = audit_module.read(
+        ROOT / "review/model-receipts/medgemma-native-focal-v2.development-plan.json"
+    )
+    write_json(root / "inputs/plan.json", plan)
+    output = root / "targeted.csv"
+    pd.DataFrame(
+        [
+            {
+                audit_module.KEY: "synthetic-case-0",
+                "fixed_classifications": fixed(),
+                "explanations": response(),
+            }
+        ]
+    ).to_csv(output, index=False)
+    receipt = {
+        "output": {"sha256": audit_module.sha(output)},
+        "inputs": {
+            "dataset_sha256": audit_module.sha(root / "inputs/development.db"),
+            "fixed_predictions_sha256": audit_module.sha(root / "products/v2.csv"),
+            "records": 1,
+        },
+        "interface": "native_chat",
+        "classification_source_held_fixed": True,
+        "model": {
+            "sha256": plan["model"]["sha256"],
+            "load_parameters": plan["runtime"]["parameters"],
+            "artifact_access": {"mode": "local_cache_only"},
+        },
+        "prompt": {"sha256": plan["evidence"]["prompt_sha256"]},
+        "grammar": {"sha256": plan["evidence"]["grammar_sha256"], "applied": True},
+        "chat_template": {"sha256": plan["interface"]["chat_template_sha256"]},
+        "sampling": {"temperature": 0.0, "top_k": 40, "top_p": 0.95, "max_tokens": 3000},
+        "environment": {
+            "hf_hub_offline": True,
+            "hf_hub_telemetry_disabled": True,
+            "git": {"revision": "fixture"},
+        },
+    }
+    if mutation == "model":
+        receipt["model"]["sha256"] = "0" * 64
+    elif mutation == "offline":
+        receipt["environment"]["hf_hub_offline"] = False
+    elif mutation == "count":
+        receipt["inputs"]["records"] = 2
+    elif mutation == "predictions":
+        receipt["inputs"]["fixed_predictions_sha256"] = "0" * 64
+    write_json(output.with_suffix(".run.json"), receipt)
+    if mutation:
+        with pytest.raises(ValueError):
+            audit_module.targeted_completion(root, output, ["synthetic-case-0"])
+    else:
+        records, result = audit_module.targeted_completion(root, output, ["synthetic-case-0"])
+        assert len(records) == 1 and result["records"] == 1
+        assert result["classification_calls"] == 0
+        assert "not_pooled" in result["status"]

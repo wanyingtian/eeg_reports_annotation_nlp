@@ -166,11 +166,86 @@ def comparison_sources(root, source):
     )
 
 
+def targeted_completion(root, evidence_path, expected_keys):
+    """Validate the one capped follow-up separately from the first-20 audit."""
+    frame = pd.read_csv(evidence_path)
+    if frame[KEY].tolist() != expected_keys or not 0 < len(frame) <= 3:
+        raise ValueError("targeted output does not match the complete missing-error selection")
+    receipt_path = evidence_path.with_suffix(".run.json")
+    receipt, plan = read(receipt_path), read(root / "inputs/plan.json")
+    if receipt["output"]["sha256"] != sha(evidence_path):
+        raise ValueError("targeted output hash mismatch")
+    if receipt["inputs"]["dataset_sha256"] != sha(root / "inputs/development.db"):
+        raise ValueError("targeted dataset drift")
+    if receipt["inputs"]["fixed_predictions_sha256"] != sha(root / "products/v2.csv"):
+        raise ValueError("targeted prediction source drift")
+    if receipt["inputs"]["records"] != len(expected_keys):
+        raise ValueError("targeted receipt count drift")
+    if (
+        receipt["interface"] != "native_chat"
+        or receipt["classification_source_held_fixed"] is not True
+    ):
+        raise ValueError("targeted interface or fixed-decision contract changed")
+    if receipt["model"]["sha256"] != plan["model"]["sha256"]:
+        raise ValueError("targeted model changed")
+    if receipt["prompt"]["sha256"] != plan["evidence"]["prompt_sha256"]:
+        raise ValueError("targeted explanation prompt changed")
+    if (
+        receipt["grammar"]["sha256"] != plan["evidence"]["grammar_sha256"]
+        or not receipt["grammar"]["applied"]
+    ):
+        raise ValueError("targeted grammar changed or missing")
+    if receipt["chat_template"]["sha256"] != plan["interface"]["chat_template_sha256"]:
+        raise ValueError("targeted native interface changed")
+    expected_sampling = {
+        key: plan["interface"]["sampling"][key] for key in ["temperature", "top_k", "top_p"]
+    }
+    expected_sampling["max_tokens"] = plan["evidence"]["max_tokens"]
+    if receipt["sampling"] != expected_sampling:
+        raise ValueError("targeted sampling changed")
+    for key, value in plan["runtime"]["parameters"].items():
+        if receipt["model"]["load_parameters"][key] != value:
+            raise ValueError("targeted runtime changed")
+    if receipt["model"]["artifact_access"]["mode"] != "local_cache_only":
+        raise ValueError("targeted model was not resolved locally")
+    if not all(
+        receipt["environment"].get(key) is True
+        for key in ["hf_hub_offline", "hf_hub_telemetry_disabled"]
+    ):
+        raise ValueError("targeted offline environment missing")
+    reports = load_table(root / "inputs/development.db", [KEY, "Report"]).set_index(KEY)
+    predictions = pd.read_csv(root / "products/v2.csv").set_index(KEY)
+    records = []
+    for _, row in frame.iterrows():
+        key = row[KEY]
+        fixed = predictions.at[key, "classifications"]
+        if row["fixed_classifications"] != fixed:
+            raise ValueError("targeted fixed classifications changed")
+        records.append(
+            {
+                KEY: key,
+                **inspect_grounding(
+                    row["explanations"], report=reports.at[key, "Report"], fixed=fixed
+                ),
+            }
+        )
+    return records, {
+        "status": "completed_error_enriched_diagnostic_not_pooled_with_first20",
+        "records": len(records),
+        "classification_calls": 0,
+        "output_sha256": sha(evidence_path),
+        "run_receipt_sha256": sha(receipt_path),
+        "producing_commit": receipt["environment"]["git"]["revision"],
+        "aggregate": aggregate_grounding(records),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--comparison-run", type=Path)
+    parser.add_argument("--targeted-evidence", type=Path)
     parser.add_argument("--acknowledge-governed-output", action="store_true", required=True)
     args = parser.parse_args()
     root, output = args.run_dir.resolve(strict=True), args.output_dir.resolve()
@@ -194,6 +269,14 @@ def main():
     )
     result["diagnostic_context"], packet = build_diagnostic_packet(reference, versions, records)
     target_keys, result["targeted_evidence_plan"] = targeted_missing_evidence(packet)
+    if args.targeted_evidence:
+        additions, result["targeted_completion"] = targeted_completion(
+            root, args.targeted_evidence.resolve(strict=True), target_keys
+        )
+        records += additions
+        result["diagnostic_context_with_targeted_evidence"], packet = build_diagnostic_packet(
+            reference, versions, records
+        )
     os.umask(0o077)
     output.mkdir(parents=True, mode=0o700)
     atomic_write_json(output / "aggregate.json", result)

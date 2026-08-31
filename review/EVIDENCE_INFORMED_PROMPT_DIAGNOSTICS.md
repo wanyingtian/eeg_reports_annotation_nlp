@@ -64,3 +64,10 @@ Outputs must live outside that immutable bundle; an existing audit is never
 overwritten. The keyed diagnostic packet includes source reports and is
 governed. Its aggregate receipt contains no report keys or text. Source code and
 synthetic tests may be shared; aggregate publication remains author-reviewed.
+
+After a bounded follow-up using `run_fixed_classification_explanations.py`,
+repeat the audit into a **new directory** with
+`--targeted-evidence /governed/path/to/targeted/evidence.csv`. This verifies the
+same model, prompt, grammar, runtime, offline environment and fixed predictions.
+The original first-20 aggregate remains separate from the error-enriched
+follow-up aggregate; the review packet may use both without pooling denominators.
