@@ -96,6 +96,14 @@ except ModuleNotFoundError:
 
 # --------------------------- Defaults / Constants --------------------------- #
 
+from eeg_review.prompt_versions import (
+    HISTORICAL_PROMPT_VERSION,
+    PROMPT_VERSIONS,
+    classification_prompt as versioned_classification_prompt,
+    prompt_row_identity,
+    validate_prompt_resume,
+)
+
 # Resolve paths relative to the repo root (two levels up from this script)
 BASE_DIR = Path(__file__).resolve().parent      # e.g., src/LLM_pipeline
 REPO_ROOT = BASE_DIR.parents[1]                 # repo root
@@ -273,6 +281,7 @@ class RunConfig:
     classification_interface: str = RAW_COMPLETION_INTERFACE_MODE
     explanation_interface: str = RAW_COMPLETION_INTERFACE_MODE
     local_model_only: bool = False
+    classification_prompt_version: str = HISTORICAL_PROMPT_VERSION
 
 
 @dataclass(frozen=True)
@@ -723,6 +732,7 @@ def process_completed_csv(
     runtime_profile_id: str = "llama-cpp-python-default",
     classification_interface: str = RAW_COMPLETION_INTERFACE_MODE,
     explanation_interface: str = RAW_COMPLETION_INTERFACE_MODE,
+    classification_prompt_version: str = HISTORICAL_PROMPT_VERSION,
 ) -> Tuple[pd.DataFrame, set[str]]:
     """
     Load existing results to resume. Returns (df, set_of_hashed_ids).
@@ -747,6 +757,8 @@ def process_completed_csv(
     ]
     if not run_explanations:
         cols.append("pipeline_execution_mode")
+    if classification_prompt_version != HISTORICAL_PROMPT_VERSION:
+        cols.extend(["classification_prompt_version", "classification_prompt_sha256"])
     if capture_classification_logprobs:
         cols.extend(PROBABILITY_COLUMNS)
     if classification_mode == BINARY_CORE_ADAPTER_MODE:
@@ -761,6 +773,10 @@ def process_completed_csv(
 
     try:
         df = pd.read_csv(path)
+        validate_prompt_resume(
+            df, classification_prompt_version,
+            versioned_classification_prompt(PROMPT_CLASSIFY, classification_prompt_version),
+        )
         if len(df) and "runtime_profile_id" not in df.columns:
             df["runtime_profile_id"] = "llama-cpp-python-default"
         if len(df) and "classification_interface_mode" not in df.columns:
@@ -920,8 +936,14 @@ def run_pipeline(
     classification_prompt = (
         PROMPT_CLASSIFY_BINARY_CORE
         if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE
-        else PROMPT_CLASSIFY
+        else versioned_classification_prompt(PROMPT_CLASSIFY, cfg.classification_prompt_version)
     )
+    if cfg.classification_prompt_version != HISTORICAL_PROMPT_VERSION and (
+        cfg.classification_mode != HISTORICAL_FOUR_LEVEL_MODE
+        or cfg.classification_interface != NATIVE_CHAT_INTERFACE_MODE
+        or cfg.model_name != "medgemma-27b-q2-candidate"
+    ):
+        raise ValueError("post-submission focal v2 is a MedGemma native four-level configuration")
     logging.info(f"Starting pipeline on {len(df)} reports; existing {len(results_df)} completed.")
 
     for idx, row in df.iterrows():
@@ -1032,6 +1054,9 @@ def run_pipeline(
                                 else "not_executed"
                             ),
                             "classifications": classifications,
+                            **prompt_row_identity(
+                                cfg.classification_prompt_version, classification_prompt
+                            ),
                             "explanations": explanations,
                             "report_whitespace_words": len(report.split()),
                             "classify_elapsed_seconds": classification_call.elapsed_seconds,
@@ -1159,6 +1184,7 @@ def run_pipeline(
             "classify": {
                 "sha256": sha256_text(classification_prompt),
                 "text": classification_prompt,
+                "version": cfg.classification_prompt_version,
             },
             "explain": {"sha256": sha256_text(PROMPT_EXPLAIN), "text": PROMPT_EXPLAIN},
         },
@@ -1299,6 +1325,7 @@ def worker_target(
         runtime_profile_id=cfg.runtime_profile_id,
         classification_interface=cfg.classification_interface,
         explanation_interface=cfg.explanation_interface,
+        classification_prompt_version=cfg.classification_prompt_version,
     )
     logging.info(f"Initial completed count: {len(prior_hashes)}")
     pending = load_reports_df(dataset_path, num_reports, prior_hashes)
@@ -1482,6 +1509,12 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--classification-prompt-version",
+        choices=PROMPT_VERSIONS,
+        default=HISTORICAL_PROMPT_VERSION,
+        help="Named post-submission prompt version; historical source remains the default.",
+    )
+    p.add_argument(
         "--explanation-interface",
         choices=[RAW_COMPLETION_INTERFACE_MODE, NATIVE_CHAT_INTERFACE_MODE],
         default=RAW_COMPLETION_INTERFACE_MODE,
@@ -1568,6 +1601,7 @@ def main() -> None:
         comment=args.comment,
         capture_classification_logprobs=capture_classification_logprobs,
         classification_mode=args.classification_mode,
+        classification_prompt_version=args.classification_prompt_version,
         run_explanations=not args.classification_only,
         runtime_profile_id=args.runtime_profile_id,
         n_ctx=args.n_ctx,

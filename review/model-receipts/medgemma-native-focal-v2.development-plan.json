@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "study_id": "jbhi-02463-medgemma-native-focal-v2-development",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-focal-disambiguation-v2",
+  "status": "frozen_before_v2_development_inference",
+  "scientific_role": "post-submission exploratory prompt refinement within the thesis-derived framework",
+  "prior_protected_results_informed_hypothesis": true,
+  "independent_test_claim_allowed": false,
+  "protected_evaluation_allowed": false,
+  "automatic_expansion_allowed": false,
+  "candidate_count": 1,
+  "classification_records": 100,
+  "evidence_records": 20,
+  "evidence_positions": [0, 20],
+  "planned_committed_model_calls": 120,
+  "interrupted_uncommitted_record_may_repeat_on_resume": true,
+  "primary_hypothesis": "Contextual focal-epileptiform distinctions reduce false positive calls without losing reference-positive detections or worsening other categories.",
+  "development_rule": "Strictly fewer Focal Epi false positives, no additional Focal Epi false negatives, and no additional binary errors in any of the other four categories; otherwise no development support for promotion. This rule never authorizes protected evaluation.",
+  "sources": {
+    "framework": "Chris Tian's submitted classification prompt, grammar, four-level semantics, first-100 Zoe development boundary, and versioned prompt-refinement method",
+    "hypothesis": "Observed completed native-interface error tradeoff; focal-exclusion ideas reported in Vasily's supplied prompt-comparison PDF",
+    "implementation": "Steven Bergner-led post-submission implementation and testing; not a reproduction of external v5g"
+  },
+  "parent_configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+  "source_files": {
+    "development.db": {"path": "inputs/zoe_development_native_100.db", "sha256": "7af5de9c8561d2c3347b89517fb245caf1fc8fb7001900582c6337e58142034e"},
+    "development.manifest.csv": {"path": "manifests/zoe_development_native_100.csv", "sha256": "dddbb46edf0ded6e468b01513a8034f205dcad1de4015d6ce97365d5bec8c051"},
+    "v1.csv": {"path": "products/zoe_development_native_100/raw.csv", "sha256": "f799362d9f6a22523c0ae8240b8ebd71a4cfe7a0187e5d65bd1ec051841bf633"},
+    "v1.run.json": {"path": "products/zoe_development_native_100/raw.run.json", "sha256": "ff395e8d59dbd56b07c2ea205bdfa2bea183f39ea917881ce1cf9466cc9f1637"}
+  },
+  "model": {
+    "registry_name": "medgemma-27b-q2-candidate",
+    "upstream_release": "google/medgemma-27b-text-it",
+    "distribution": "unsloth/medgemma-27b-text-it-GGUF",
+    "revision": "334fbf6811c963d223f6ac107a459347353f068d",
+    "filename": "medgemma-27b-text-it-Q2_K.gguf",
+    "sha256": "b137aac80f2bcb1c1ed35bfe13387bc496eb18898d5f46425687604f0f714481",
+    "weights_or_training_changed": false,
+    "license_reference": "https://developers.google.com/health-ai-developer-foundations/terms",
+    "weights_redistributed": false
+  },
+  "interface": {
+    "mode": "native_chat",
+    "prompt_version": "medgemma-native-focal-disambiguation-v2",
+    "historical_prompt_sha256": "52198221d8330e9857b51a7ad99b017aa18836e1718b08dd0ae355820f5a5e69",
+    "prompt_sha256": "be020e01c7c56cf9ce4ec661b66544f6d22cef846d4a343e4d44f852d5ddd0be",
+    "task_message_sha256": "7fcffd342f1add5170bcf746ab41119ea991555c60bcb83fdb41d3d773625a07",
+    "chat_template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4",
+    "grammar_sha256": "5237e13988062538cda9c21906f1f4e1fc8b99498e2462ea69fe24bface35016",
+    "sampling": {"temperature": 0.0, "top_k": 40, "top_p": 0.95, "max_tokens": 256, "stop_sequences": null}
+  },
+  "runtime": {
+    "profile_id": "llama-cpp-python-metal-full-offload-flash-v1",
+    "parameters": {"n_ctx": 4096, "n_gpu_layers": -1, "n_batch": 1024, "n_ubatch": 512, "n_threads": 4, "n_threads_batch": 10, "flash_attn": true}
+  },
+  "evidence": {
+    "interface": "native_chat",
+    "classification_source": "completed v2 classifications held fixed, first 20 development manifest positions",
+    "prompt_sha256": "09e7e46d13d9fd1f6ebd14e4caecf32766354ead048ef22aa834c5b6064cd05f",
+    "grammar_sha256": "718d3b0b16499d04d97723893f5e1de67aa1f342ba8b455a293a3d93084cd315",
+    "max_tokens": 3000,
+    "use_for_prompt_selection": false,
+    "clinical_factuality_or_causal_faithfulness_claim_allowed": false
+  },
+  "analysis": {
+    "all_five_labels": true,
+    "metrics": ["tp", "fp", "tn", "fn", "precision", "recall_sensitivity", "specificity", "f1", "core_accuracy", "certainty_adjusted_accuracy", "core_kappa", "four_level_kappa"],
+    "paired_report_bootstrap_iterations": 2000,
+    "seed": 20260718,
+    "multiplicity": "Holm over ten core/four-level tests per comparator",
+    "interpretation": "Descriptive development sensitivity; prior evaluation-informed hypothesis; report-level not patient-grouped; rare positive support must be reported.",
+    "retain_all_outcomes": true
+  },
+  "execution": {
+    "local_only": true,
+    "checkpoint_every": 1,
+    "stage_timeout_seconds": 7200,
+    "failure_requires_review": true,
+    "resume_identity_required": true,
+    "eclipse_supported": true
+  },
+  "distribution": {"source_configuration": "source_config_publishable", "keyed_outputs": "outputs_governed", "aggregates": "author_review_before_publication"}
+}

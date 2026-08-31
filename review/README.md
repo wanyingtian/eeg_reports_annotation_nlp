@@ -74,7 +74,17 @@ prompts, report order, sampling, and GBNF grammars remain fixed. A chat template
 is treated as the model-facing input envelope, not as a replacement for the
 structured-output contract. The explanation layer is described as
 self-prompted evidence extraction and explicitly does not claim causal
-faithfulness. No Mistral native-interface inference has yet been run.
+faithfulness. The capped Mistral follow-up completed on August 30; its keyed
+outputs and evidence receipts remain in governed storage.
+
+One subsequent MedGemma prompt refinement is specified in
+[`MEDGEMMA_PROMPT_V2_DEVELOPMENT.md`](MEDGEMMA_PROMPT_V2_DEVELOPMENT.md).
+It preserves the native chat interface and historical grammar, changes only
+the focal-epileptiform clarification, and caps execution at the original 100
+Zoe development cases plus 20 fixed-classification evidence extractions.
+This is an evaluation-informed exploratory version, not an independently
+confirmed improvement. Its runner never automatically expands to protected
+cohorts and retains unfavorable as well as favorable outcomes.
 
 A potential Mistral extension is governed separately by
 [`MISTRAL_TASK_ADAPTATION_PROTOCOL.md`](MISTRAL_TASK_ADAPTATION_PROTOCOL.md).
