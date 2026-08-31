@@ -1,9 +1,36 @@
-# MedGemma v2.1: prepared development upgrade, not yet run
+# MedGemma v2.1: bounded development upgrade
 
 This is a separately named, Steven-led post-submission configuration. It does
 not overwrite the completed v2, replace the full-cohort native v1 comparison,
 renumber Chris's historical prompt versions, or reproduce external v5g.
 Preparation was requested on August 31, 2026. Preparation does not start a job.
+
+## Execution update — August 31, 2026
+
+Steven subsequently requested the next study steps. The actual three-report
+smoke completed at 06:18 PDT, and the background continuation started at
+06:22 PDT. This is an **in-progress development run, not a completed result**.
+The three saved outputs passed exact-prefix, schema, model, prompt, grammar,
+native-template, runtime and offline-receipt checks. No reference metrics were
+examined to decide whether to continue. The same three outputs are retained as
+the prefix of the 100 classifications, followed by the 20 independent audits
+and the prespecified complete analysis.
+
+Producing code remains frozen in a clean worktree at
+`84d05660be53a7b32930dcb466da5a56a8b595e2`; documentation updates on the shared
+branch do not alter it. The governed job receipt SHA-256 is
+`a6e5abe234735eca6d9f56c87e46e6118f1e5bea452812ed14d64134bd289dfe`.
+The archived smoke output SHA-256 is
+`02c3ac4afaad96d11a2d0a2bd304680a7734382304eeb48c5c7a49367df974c2`;
+its run receipt SHA-256 is
+`3accad74f7bfe9a35a4047e13a5b4e7e0df9f9e3bda1443238262ab862ca9509`.
+These establish technical execution, not improved classification performance.
+
+The existing background supervisor continues independently of the chat, saves
+each completed record, and supports explicit pause/resume. It stops after this
+bounded development package; no protected-cohort run is queued. The live private
+status and final aggregate summary use the existing reporting path. Do not
+rerun `prepare`, overwrite parent products, or edit this run's frozen worktree.
 
 ## Narrow classification change
 
@@ -83,7 +110,7 @@ python scripts/medgemma_prompt_v2.py dry-run --variant v21 \
 Use the existing pinned environment without syncing/upgrading dependencies.
 The dry-run hashes the local model, checks the frozen source/configuration,
 and does not perform inference. Synthetic interruption/resume and completed-run
-no-op tests precede it. Actual execution is a separate later action:
+no-op tests precede it. Actual execution is a separate action:
 
 ```bash
 python scripts/medgemma_prompt_v2.py smoke --variant v21 --run-dir /governed/path/to/new-v21
@@ -109,5 +136,6 @@ processing. Plan roughly **45–90 minutes** for this upgrade, including a large
 classification prompt and a differently structured audit; this is not a measured
 v2.1 ETA. Live timings will replace that estimate after execution starts.
 
-No study inference, LaunchAgent, circulation PDF or email is created by this
-preparation. Governed report text, keys and quotes never enter the shared branch.
+Preparation alone creates no study inference or LaunchAgent; subsequent
+execution is recorded above. No circulation PDF or email is created by this
+workflow. Governed report text, keys and quotes never enter the shared branch.
