@@ -59,6 +59,16 @@ the Google/Unsloth artifact, external producing configuration, historical
 evaluation framework, and integration branch as distinct DAG parents. It uses
 bounded contribution and governance roles rather than an ownership field.
 
+[`EVALUATION_SURFACE_FRAMEWORK.md`](EVALUATION_SURFACE_FRAMEWORK.md) adds the
+comparison layer above producing-bundle intake. Its typed, result-free registry
+makes model, quantization, interface, prompt, grammar, cohort, reference,
+selection role, and metric explicit. It can represent the supplied v1--v10,
+v5g, Q2/Q4, Zoe/Maria, and unlabeled-corpus processing categories without
+copying provisional values or admitting an external configuration. It also
+separates controlled interface ablations from model-native task comparisons
+and complete configured-system comparisons, so fairness adjustments are
+applied symmetrically to Mistral and MedGemma.
+
 The independently frozen MedGemma native-interface sensitivity has a complete
 authorization-first execution and authoring path in
 [`MEDGEMMA_NATIVE_PROTECTED_EXECUTION_RUNBOOK.md`](MEDGEMMA_NATIVE_PROTECTED_EXECUTION_RUNBOOK.md).

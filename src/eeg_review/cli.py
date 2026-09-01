@@ -17,6 +17,7 @@ from .development_manifest import (
     prepare_adaptation_execution_plan,
 )
 from .error_review import build_error_review_packet
+from .evaluation_surface import validate_evaluation_surface_registry_to_directory
 from .intake import EvidenceLayer, validate_intake_to_directory
 from .ledger import build_result_ledger
 from .metrics import evaluate_predictions
@@ -339,6 +340,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Verify declared frozen adapter and signal artifacts by checksum",
     )
 
+    evaluation_surface = subparsers.add_parser(
+        "evaluation-surface-validate",
+        help=(
+            "Validate explicit model, interface, prompt, grammar, cohort, reference, "
+            "metric, and contrast axes without computing results"
+        ),
+    )
+    evaluation_surface.add_argument("--contract", type=Path, required=True)
+    evaluation_surface.add_argument("--output-dir", type=Path, required=True)
+
     comparator_study = subparsers.add_parser(
         "medgemma-study-readiness",
         help=(
@@ -611,6 +622,11 @@ def main() -> None:
             bundle_root=args.bundle_root,
             check_files=args.check_files,
         )
+    elif args.command == "evaluation-surface-validate":
+        result = validate_evaluation_surface_registry_to_directory(
+            args.contract,
+            args.output_dir,
+        )
     elif args.command == "medgemma-study-readiness":
         result = validate_comparator_study_to_directory(
             args.plan,
@@ -653,7 +669,7 @@ def main() -> None:
             id_column=args.id_column,
             acknowledge_governed_output=args.acknowledge_governed_output,
         )
-    else:
+    elif args.command == "comparison-readiness":
         intake_paths = dict(args.intake)
         if len(intake_paths) != len(args.intake):
             parser.error("each evidence layer may be supplied only once")
@@ -662,6 +678,8 @@ def main() -> None:
             args.output_dir,
             bundle_root=args.bundle_root,
         )
+    else:  # pragma: no cover - argparse enforces the registered command set
+        parser.error(f"unsupported command: {args.command}")
     print(json.dumps(result, indent=2, sort_keys=True))
 
 

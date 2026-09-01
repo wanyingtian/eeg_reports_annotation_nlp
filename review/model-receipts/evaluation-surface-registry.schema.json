@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jbhi/evaluation-surface-registry.schema.json",
+  "title": "JBHI evaluation-surface registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "study_id",
+    "task_semantics_id",
+    "factor_definitions",
+    "metric_definitions",
+    "surfaces",
+    "contrasts",
+    "design_families",
+    "claim_boundary",
+    "privacy_boundary"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"type": "string", "minLength": 1},
+    "study_id": {"type": "string", "minLength": 1},
+    "task_semantics_id": {"type": "string", "minLength": 1},
+    "factor_definitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/factorDefinition"}
+    },
+    "metric_definitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/metricDefinition"}
+    },
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/surface"}
+    },
+    "contrasts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/contrast"}
+    },
+    "design_families": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/designFamily"}
+    },
+    "claim_boundary": {"type": "string", "minLength": 1},
+    "privacy_boundary": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "nullableString": {"type": ["string", "null"]},
+    "stringArray": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "factorDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["factor_id", "scope", "allowed_values", "interpretation"],
+      "properties": {
+        "factor_id": {"type": "string", "minLength": 1},
+        "scope": {"type": "string", "minLength": 1},
+        "allowed_values": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "interpretation": {"type": "string", "minLength": 1}
+      }
+    },
+    "metricDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric_id",
+        "level",
+        "statistic",
+        "reference_requirement",
+        "unlabeled_allowed",
+        "definition_status",
+        "interpretation"
+      ],
+      "properties": {
+        "metric_id": {"type": "string", "minLength": 1},
+        "level": {"type": "string", "minLength": 1},
+        "statistic": {"type": "string", "minLength": 1},
+        "reference_requirement": {
+          "enum": ["required", "optional", "prohibited"]
+        },
+        "unlabeled_allowed": {"type": "boolean"},
+        "definition_status": {
+          "enum": ["defined", "pending_producing_bundle"]
+        },
+        "interpretation": {"type": "string", "minLength": 1}
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cohort_id", "records"],
+      "properties": {
+        "cohort_id": {"type": "string", "minLength": 1},
+        "records": {"type": "integer", "minimum": 1}
+      }
+    },
+    "population": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["records", "includes_development", "components", "arithmetic_status"],
+      "properties": {
+        "records": {"type": ["integer", "null"], "minimum": 1},
+        "includes_development": {"type": ["boolean", "null"]},
+        "components": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/component"}
+        },
+        "arithmetic_status": {"type": "string", "minLength": 1}
+      }
+    },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "status",
+        "role",
+        "provenance_node_id",
+        "artifact_revision",
+        "factors",
+        "population",
+        "metric_ids",
+        "result_values_in_registry"
+      ],
+      "properties": {
+        "surface_id": {"type": "string", "minLength": 1},
+        "status": {
+          "enum": [
+            "source_of_record",
+            "completed_governed",
+            "planned",
+            "external_summary_pending_intake"
+          ]
+        },
+        "role": {
+          "enum": [
+            "submitted",
+            "reproduction",
+            "development",
+            "held_out_evaluation",
+            "exploratory_selection",
+            "descriptive_unlabeled",
+            "external_pending_intake"
+          ]
+        },
+        "provenance_node_id": {"type": "string", "minLength": 1},
+        "artifact_revision": {"$ref": "#/$defs/nullableString"},
+        "factors": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/nullableString"}
+        },
+        "population": {"$ref": "#/$defs/population"},
+        "metric_ids": {"$ref": "#/$defs/stringArray"},
+        "result_values_in_registry": {"const": false}
+      }
+    },
+    "contrast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contrast_id",
+        "status",
+        "kind",
+        "surface_a",
+        "surface_b",
+        "declared_changed_factors",
+        "metric_ids",
+        "causal_attribution_allowed",
+        "claim_scope"
+      ],
+      "properties": {
+        "contrast_id": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "minLength": 1},
+        "kind": {
+          "enum": [
+            "reproduction",
+            "controlled_ablation",
+            "model_native_task_comparison",
+            "configured_system_comparison",
+            "cohort_stratification",
+            "descriptive_unlabeled"
+          ]
+        },
+        "surface_a": {"type": "string", "minLength": 1},
+        "surface_b": {"type": "string", "minLength": 1},
+        "declared_changed_factors": {"$ref": "#/$defs/stringArray"},
+        "metric_ids": {"$ref": "#/$defs/stringArray"},
+        "causal_attribution_allowed": {"type": "boolean"},
+        "claim_scope": {"type": "string", "minLength": 1}
+      }
+    },
+    "designFamily": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_id",
+        "status",
+        "factor_levels",
+        "cohort_ids",
+        "metric_ids",
+        "intake_boundary"
+      ],
+      "properties": {
+        "family_id": {"type": "string", "minLength": 1},
+        "status": {
+          "enum": ["internal_receipted", "external_summary_pending_intake"]
+        },
+        "factor_levels": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/stringArray"}
+        },
+        "cohort_ids": {"$ref": "#/$defs/stringArray"},
+        "metric_ids": {"$ref": "#/$defs/stringArray"},
+        "intake_boundary": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

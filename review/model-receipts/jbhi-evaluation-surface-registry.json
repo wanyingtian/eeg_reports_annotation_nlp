@@ -1,0 +1,691 @@
+{
+  "schema_version": 1,
+  "status": "public_safe_design_registry_no_result_values",
+  "study_id": "jbhi-02463",
+  "task_semantics_id": "five-four-level-eeg-findings-v1",
+  "factor_definitions": [
+    {
+      "factor_id": "model_family",
+      "scope": "configuration",
+      "allowed_values": [
+        "mistral-7b-instruct-v0.2",
+        "medgemma-27b-text-it"
+      ],
+      "interpretation": "The upstream model family; it does not by itself identify a complete producing system."
+    },
+    {
+      "factor_id": "quantization",
+      "scope": "configuration",
+      "allowed_values": [
+        "Q5_K_M",
+        "Q2_K",
+        "Q4_K_S"
+      ],
+      "interpretation": "The weight quantization used for a run; changing it can change outputs and resource use."
+    },
+    {
+      "factor_id": "interface_mode",
+      "scope": "configuration",
+      "allowed_values": [
+        "historical_raw_completion",
+        "model_native_chat",
+        "external_v5g_pending"
+      ],
+      "interpretation": "The model-facing input envelope. This is distinct from the task prompt and output grammar."
+    },
+    {
+      "factor_id": "task_semantics",
+      "scope": "configuration",
+      "allowed_values": [
+        "five-four-level-eeg-findings-v1"
+      ],
+      "interpretation": "The five EEG findings, four-level scale, and binary 1-2 versus 3-4 decision boundary inherited from the submitted study."
+    },
+    {
+      "factor_id": "prompt_variant",
+      "scope": "configuration",
+      "allowed_values": [
+        "historical-classification-v1",
+        "external-v1",
+        "external-v2",
+        "external-v3",
+        "external-v4",
+        "external-v5",
+        "external-v6",
+        "external-v7",
+        "external-v8",
+        "external-v9",
+        "external-v10",
+        "external-v5g"
+      ],
+      "interpretation": "A byte-identifiable task prompt. External labels remain summary-level names until exact source intake."
+    },
+    {
+      "factor_id": "grammar_mode",
+      "scope": "configuration",
+      "allowed_values": [
+        "historical-four-level-json",
+        "external-consistency-grammar",
+        "external-pending"
+      ],
+      "interpretation": "The structured-output contract. A consistency grammar is a separate factor from prompt content and model interface."
+    },
+    {
+      "factor_id": "cohort",
+      "scope": "population",
+      "allowed_values": [
+        "zoe-development-100",
+        "zoe-evaluation-1395",
+        "maria-evaluation-499",
+        "evaluation-combined-1894",
+        "external-labeled-pooled-1994",
+        "external-labeled-2493-unreconciled",
+        "external-large-unlabeled-45545"
+      ],
+      "interpretation": "The exact report population. Pooled surfaces that include development cases are not interchangeable with held-out evaluation."
+    },
+    {
+      "factor_id": "reference",
+      "scope": "reference",
+      "allowed_values": [
+        "ld-reference-annotator",
+        "sg-second-annotator",
+        "none"
+      ],
+      "interpretation": "The comparison reference. Agreement with an annotator is not clinical ground truth or a human ceiling."
+    },
+    {
+      "factor_id": "selection_role",
+      "scope": "population",
+      "allowed_values": [
+        "source-of-record",
+        "frozen-result-blind",
+        "development-only",
+        "held-out-once",
+        "exploratory-pooled-selection",
+        "not-applicable",
+        "external-pending"
+      ],
+      "interpretation": "How the surface was used for configuration choice. Selection and evaluation roles cannot be inferred from row count alone."
+    },
+    {
+      "factor_id": "evidence_layer",
+      "scope": "provenance",
+      "allowed_values": [
+        "submitted_mistral",
+        "reproduced_mistral",
+        "post_submission_mistral_interface_sensitivity",
+        "post_submission_medgemma",
+        "external_v5g_pending_intake"
+      ],
+      "interpretation": "The scientific provenance layer. Integration records lineage and does not transfer contribution ownership."
+    }
+  ],
+  "metric_definitions": [
+    {
+      "metric_id": "core_binary_f1",
+      "level": "label",
+      "statistic": "positive-class F1 after mapping levels 1-2 to absent and 3-4 to present",
+      "reference_requirement": "required",
+      "unlabeled_allowed": false,
+      "definition_status": "defined",
+      "interpretation": "Balances precision and recall for the present class; it omits true negatives and should be read with raw counts."
+    },
+    {
+      "metric_id": "binary_accuracy",
+      "level": "label",
+      "statistic": "fraction of present-absent decisions equal to the reference",
+      "reference_requirement": "required",
+      "unlabeled_allowed": false,
+      "definition_status": "defined",
+      "interpretation": "Overall agreement on the binary decision; class imbalance can make it look high."
+    },
+    {
+      "metric_id": "exact_four_level_accuracy",
+      "level": "label",
+      "statistic": "fraction of exact 1-4 levels equal to the reference",
+      "reference_requirement": "required",
+      "unlabeled_allowed": false,
+      "definition_status": "defined",
+      "interpretation": "Agreement on both direction and stated confidence level."
+    },
+    {
+      "metric_id": "exact_four_level_f1_external_formula_pending",
+      "level": "label",
+      "statistic": "external exact-level F1; class averaging and positive-class construction pending source intake",
+      "reference_requirement": "required",
+      "unlabeled_allowed": false,
+      "definition_status": "pending_producing_bundle",
+      "interpretation": "Registers the endpoint shown in external summaries without silently equating it to exact-level accuracy."
+    },
+    {
+      "metric_id": "whole_report_binary_exact_match_accuracy",
+      "level": "report",
+      "statistic": "fraction of reports with all five binary decisions equal to the reference",
+      "reference_requirement": "required",
+      "unlabeled_allowed": false,
+      "definition_status": "defined",
+      "interpretation": "A strict five-label exact-match percentage, not an F1 score."
+    },
+    {
+      "metric_id": "whole_report_four_level_exact_match_accuracy",
+      "level": "report",
+      "statistic": "fraction of reports with all five exact 1-4 levels equal to the reference",
+      "reference_requirement": "required",
+      "unlabeled_allowed": false,
+      "definition_status": "defined",
+      "interpretation": "The strictest report-level agreement endpoint."
+    },
+    {
+      "metric_id": "paired_binary_accuracy_difference",
+      "level": "label",
+      "statistic": "same-case difference in binary accuracy with paired uncertainty",
+      "reference_requirement": "required",
+      "unlabeled_allowed": false,
+      "definition_status": "defined",
+      "interpretation": "Measures the paired change on exactly matched reports; it does not attribute the change to one configuration component."
+    },
+    {
+      "metric_id": "positive_call_rate",
+      "level": "label",
+      "statistic": "fraction of reports assigned levels 3-4",
+      "reference_requirement": "prohibited",
+      "unlabeled_allowed": true,
+      "definition_status": "defined",
+      "interpretation": "Describes model output prevalence on unlabeled data and cannot determine correctness."
+    },
+    {
+      "metric_id": "model_pair_binary_agreement",
+      "level": "label_or_report",
+      "statistic": "fraction of reports on which two model outputs make the same binary call",
+      "reference_requirement": "optional",
+      "unlabeled_allowed": true,
+      "definition_status": "defined",
+      "interpretation": "Locates model disagreement but cannot identify which output is clinically correct."
+    }
+  ],
+  "surfaces": [
+    {
+      "surface_id": "submitted-mistral-raw-evaluation-1894",
+      "status": "source_of_record",
+      "role": "submitted",
+      "provenance_node_id": "jbhi-02463/evidence/submitted-mistral",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "mistral-7b-instruct-v0.2",
+        "quantization": "Q5_K_M",
+        "interface_mode": "historical_raw_completion",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "historical-classification-v1",
+        "grammar_mode": "historical-four-level-json",
+        "cohort": "evaluation-combined-1894",
+        "reference": "ld-reference-annotator",
+        "selection_role": "source-of-record",
+        "evidence_layer": "submitted_mistral"
+      },
+      "population": {
+        "records": 1894,
+        "includes_development": false,
+        "components": [
+          {"cohort_id": "zoe-evaluation-1395", "records": 1395},
+          {"cohort_id": "maria-evaluation-499", "records": 499}
+        ],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": [
+        "core_binary_f1",
+        "binary_accuracy",
+        "exact_four_level_accuracy",
+        "whole_report_binary_exact_match_accuracy",
+        "whole_report_four_level_exact_match_accuracy"
+      ],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "reproduced-mistral-raw-evaluation-1894",
+      "status": "completed_governed",
+      "role": "reproduction",
+      "provenance_node_id": "jbhi-02463/evidence/reproduced-mistral",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "mistral-7b-instruct-v0.2",
+        "quantization": "Q5_K_M",
+        "interface_mode": "historical_raw_completion",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "historical-classification-v1",
+        "grammar_mode": "historical-four-level-json",
+        "cohort": "evaluation-combined-1894",
+        "reference": "ld-reference-annotator",
+        "selection_role": "source-of-record",
+        "evidence_layer": "reproduced_mistral"
+      },
+      "population": {
+        "records": 1894,
+        "includes_development": false,
+        "components": [
+          {"cohort_id": "zoe-evaluation-1395", "records": 1395},
+          {"cohort_id": "maria-evaluation-499", "records": 499}
+        ],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": [
+        "core_binary_f1",
+        "binary_accuracy",
+        "exact_four_level_accuracy",
+        "whole_report_binary_exact_match_accuracy",
+        "whole_report_four_level_exact_match_accuracy"
+      ],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "medgemma-q2-raw-development-100",
+      "status": "completed_governed",
+      "role": "development",
+      "provenance_node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-matched-interface-q2-v1/development",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "medgemma-27b-text-it",
+        "quantization": "Q2_K",
+        "interface_mode": "historical_raw_completion",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "historical-classification-v1",
+        "grammar_mode": "historical-four-level-json",
+        "cohort": "zoe-development-100",
+        "reference": "ld-reference-annotator",
+        "selection_role": "frozen-result-blind",
+        "evidence_layer": "post_submission_medgemma"
+      },
+      "population": {
+        "records": 100,
+        "includes_development": true,
+        "components": [{"cohort_id": "zoe-development-100", "records": 100}],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "medgemma-q2-native-development-100",
+      "status": "completed_governed",
+      "role": "development",
+      "provenance_node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1/development",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "medgemma-27b-text-it",
+        "quantization": "Q2_K",
+        "interface_mode": "model_native_chat",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "historical-classification-v1",
+        "grammar_mode": "historical-four-level-json",
+        "cohort": "zoe-development-100",
+        "reference": "ld-reference-annotator",
+        "selection_role": "frozen-result-blind",
+        "evidence_layer": "post_submission_medgemma"
+      },
+      "population": {
+        "records": 100,
+        "includes_development": true,
+        "components": [{"cohort_id": "zoe-development-100", "records": 100}],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "mistral-raw-development-100",
+      "status": "completed_governed",
+      "role": "development",
+      "provenance_node_id": "jbhi-02463/comparator/mistral-7b-instruct-v0.2/configuration/interface-sensitivity-v1/raw-development",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "mistral-7b-instruct-v0.2",
+        "quantization": "Q5_K_M",
+        "interface_mode": "historical_raw_completion",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "historical-classification-v1",
+        "grammar_mode": "historical-four-level-json",
+        "cohort": "zoe-development-100",
+        "reference": "ld-reference-annotator",
+        "selection_role": "frozen-result-blind",
+        "evidence_layer": "post_submission_mistral_interface_sensitivity"
+      },
+      "population": {
+        "records": 100,
+        "includes_development": true,
+        "components": [{"cohort_id": "zoe-development-100", "records": 100}],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "mistral-native-development-100",
+      "status": "completed_governed",
+      "role": "development",
+      "provenance_node_id": "jbhi-02463/comparator/mistral-7b-instruct-v0.2/configuration/interface-sensitivity-v1/native-development",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "mistral-7b-instruct-v0.2",
+        "quantization": "Q5_K_M",
+        "interface_mode": "model_native_chat",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "historical-classification-v1",
+        "grammar_mode": "historical-four-level-json",
+        "cohort": "zoe-development-100",
+        "reference": "ld-reference-annotator",
+        "selection_role": "frozen-result-blind",
+        "evidence_layer": "post_submission_mistral_interface_sensitivity"
+      },
+      "population": {
+        "records": 100,
+        "includes_development": true,
+        "components": [{"cohort_id": "zoe-development-100", "records": 100}],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "medgemma-q2-raw-evaluation-1894",
+      "status": "completed_governed",
+      "role": "held_out_evaluation",
+      "provenance_node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-matched-interface-q2-v1/evaluation",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "medgemma-27b-text-it",
+        "quantization": "Q2_K",
+        "interface_mode": "historical_raw_completion",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "historical-classification-v1",
+        "grammar_mode": "historical-four-level-json",
+        "cohort": "evaluation-combined-1894",
+        "reference": "ld-reference-annotator",
+        "selection_role": "held-out-once",
+        "evidence_layer": "post_submission_medgemma"
+      },
+      "population": {
+        "records": 1894,
+        "includes_development": false,
+        "components": [
+          {"cohort_id": "zoe-evaluation-1395", "records": 1395},
+          {"cohort_id": "maria-evaluation-499", "records": 499}
+        ],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy", "paired_binary_accuracy_difference"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "medgemma-q2-native-evaluation-1894",
+      "status": "completed_governed",
+      "role": "held_out_evaluation",
+      "provenance_node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1/evaluation",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "medgemma-27b-text-it",
+        "quantization": "Q2_K",
+        "interface_mode": "model_native_chat",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "historical-classification-v1",
+        "grammar_mode": "historical-four-level-json",
+        "cohort": "evaluation-combined-1894",
+        "reference": "ld-reference-annotator",
+        "selection_role": "held-out-once",
+        "evidence_layer": "post_submission_medgemma"
+      },
+      "population": {
+        "records": 1894,
+        "includes_development": false,
+        "components": [
+          {"cohort_id": "zoe-evaluation-1395", "records": 1395},
+          {"cohort_id": "maria-evaluation-499", "records": 499}
+        ],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy", "paired_binary_accuracy_difference"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "mistral-native-evaluation-1894-planned",
+      "status": "planned",
+      "role": "held_out_evaluation",
+      "provenance_node_id": "jbhi-02463/comparator/mistral-7b-instruct-v0.2/configuration/native-interface-v1/evaluation-planned",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "mistral-7b-instruct-v0.2",
+        "quantization": "Q5_K_M",
+        "interface_mode": "model_native_chat",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "historical-classification-v1",
+        "grammar_mode": "historical-four-level-json",
+        "cohort": "evaluation-combined-1894",
+        "reference": "ld-reference-annotator",
+        "selection_role": "held-out-once",
+        "evidence_layer": "post_submission_mistral_interface_sensitivity"
+      },
+      "population": {
+        "records": 1894,
+        "includes_development": false,
+        "components": [
+          {"cohort_id": "zoe-evaluation-1395", "records": 1395},
+          {"cohort_id": "maria-evaluation-499", "records": 499}
+        ],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy", "paired_binary_accuracy_difference"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "external-v5g-q2-labeled-summary",
+      "status": "external_summary_pending_intake",
+      "role": "external_pending_intake",
+      "provenance_node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/q2/external-summary",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "medgemma-27b-text-it",
+        "quantization": "Q2_K",
+        "interface_mode": "external_v5g_pending",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "external-v5g",
+        "grammar_mode": "external-consistency-grammar",
+        "cohort": "external-labeled-pooled-1994",
+        "reference": "ld-reference-annotator",
+        "selection_role": "external-pending",
+        "evidence_layer": "external_v5g_pending_intake"
+      },
+      "population": {
+        "records": 1994,
+        "includes_development": true,
+        "components": [
+          {"cohort_id": "zoe-all-annotated-1495", "records": 1495},
+          {"cohort_id": "maria-evaluation-499", "records": 499}
+        ],
+        "arithmetic_status": "reported_external_reconciled_but_not_intake_validated"
+      },
+      "metric_ids": ["core_binary_f1", "exact_four_level_f1_external_formula_pending", "whole_report_binary_exact_match_accuracy"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "external-v5g-q4-labeled-summary",
+      "status": "external_summary_pending_intake",
+      "role": "external_pending_intake",
+      "provenance_node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/q4/external-summary",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "medgemma-27b-text-it",
+        "quantization": "Q4_K_S",
+        "interface_mode": "external_v5g_pending",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "external-v5g",
+        "grammar_mode": "external-consistency-grammar",
+        "cohort": "external-labeled-pooled-1994",
+        "reference": "ld-reference-annotator",
+        "selection_role": "external-pending",
+        "evidence_layer": "external_v5g_pending_intake"
+      },
+      "population": {
+        "records": 1994,
+        "includes_development": true,
+        "components": [
+          {"cohort_id": "zoe-all-annotated-1495", "records": 1495},
+          {"cohort_id": "maria-evaluation-499", "records": 499}
+        ],
+        "arithmetic_status": "reported_external_reconciled_but_not_intake_validated"
+      },
+      "metric_ids": ["core_binary_f1", "exact_four_level_f1_external_formula_pending", "whole_report_binary_exact_match_accuracy"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "external-v5g-q4-large-unlabeled-summary",
+      "status": "external_summary_pending_intake",
+      "role": "descriptive_unlabeled",
+      "provenance_node_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g/q4/external-large-corpus-summary",
+      "artifact_revision": null,
+      "factors": {
+        "model_family": "medgemma-27b-text-it",
+        "quantization": "Q4_K_S",
+        "interface_mode": "external_v5g_pending",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "external-v5g",
+        "grammar_mode": "external-consistency-grammar",
+        "cohort": "external-large-unlabeled-45545",
+        "reference": "none",
+        "selection_role": "not-applicable",
+        "evidence_layer": "external_v5g_pending_intake"
+      },
+      "population": {
+        "records": 45545,
+        "includes_development": null,
+        "components": [{"cohort_id": "external-large-unlabeled-45545", "records": 45545}],
+        "arithmetic_status": "reported_external_not_intake_validated"
+      },
+      "metric_ids": ["positive_call_rate", "model_pair_binary_agreement"],
+      "result_values_in_registry": false
+    }
+  ],
+  "contrasts": [
+    {
+      "contrast_id": "submitted-versus-reproduced-mistral",
+      "status": "completed_governed",
+      "kind": "reproduction",
+      "surface_a": "submitted-mistral-raw-evaluation-1894",
+      "surface_b": "reproduced-mistral-raw-evaluation-1894",
+      "declared_changed_factors": ["evidence_layer"],
+      "metric_ids": ["binary_accuracy", "exact_four_level_accuracy"],
+      "causal_attribution_allowed": false,
+      "claim_scope": "Reproduction agreement and runtime sensitivity; not model superiority."
+    },
+    {
+      "contrast_id": "medgemma-interface-development-ablation",
+      "status": "completed_governed_development",
+      "kind": "controlled_ablation",
+      "surface_a": "medgemma-q2-raw-development-100",
+      "surface_b": "medgemma-q2-native-development-100",
+      "declared_changed_factors": ["interface_mode"],
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy"],
+      "causal_attribution_allowed": true,
+      "claim_scope": "Development-only estimate of serialization sensitivity with model, prompt, grammar, cohort, and reference held fixed."
+    },
+    {
+      "contrast_id": "mistral-interface-development-ablation",
+      "status": "completed_governed_development",
+      "kind": "controlled_ablation",
+      "surface_a": "mistral-raw-development-100",
+      "surface_b": "mistral-native-development-100",
+      "declared_changed_factors": ["interface_mode"],
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy"],
+      "causal_attribution_allowed": true,
+      "claim_scope": "Development-only symmetric test of the same interface factor; absence of a detected change is not proof of equivalence."
+    },
+    {
+      "contrast_id": "historical-mistral-versus-native-medgemma-configured-systems",
+      "status": "completed_governed_pending_author_admission",
+      "kind": "configured_system_comparison",
+      "surface_a": "reproduced-mistral-raw-evaluation-1894",
+      "surface_b": "medgemma-q2-native-evaluation-1894",
+      "declared_changed_factors": ["evidence_layer", "interface_mode", "model_family", "quantization", "selection_role"],
+      "metric_ids": ["binary_accuracy", "exact_four_level_accuracy"],
+      "causal_attribution_allowed": false,
+      "claim_scope": "Same-task, same-case comparison of complete frozen systems; cannot isolate model weights from interface or quantization."
+    },
+    {
+      "contrast_id": "native-mistral-versus-native-medgemma-symmetric-task-comparison",
+      "status": "planned_not_run",
+      "kind": "model_native_task_comparison",
+      "surface_a": "mistral-native-evaluation-1894-planned",
+      "surface_b": "medgemma-q2-native-evaluation-1894",
+      "declared_changed_factors": ["evidence_layer", "model_family", "quantization"],
+      "metric_ids": ["binary_accuracy", "exact_four_level_accuracy", "paired_binary_accuracy_difference"],
+      "causal_attribution_allowed": false,
+      "claim_scope": "Symmetric model-native task comparison if separately admitted and executed; still an overall model-artifact comparison rather than a base-weight causal effect."
+    },
+    {
+      "contrast_id": "external-v5g-q2-versus-q4-quantization-ablation",
+      "status": "external_summary_pending_exact_intake",
+      "kind": "controlled_ablation",
+      "surface_a": "external-v5g-q2-labeled-summary",
+      "surface_b": "external-v5g-q4-labeled-summary",
+      "declared_changed_factors": ["quantization"],
+      "metric_ids": ["core_binary_f1", "exact_four_level_f1_external_formula_pending", "whole_report_binary_exact_match_accuracy"],
+      "causal_attribution_allowed": true,
+      "claim_scope": "A quantization comparison reported externally; reproducible use awaits exact model, prompt, grammar, runtime, selection, key, and metric-formula intake."
+    }
+  ],
+  "design_families": [
+    {
+      "family_id": "external-v1-v10-prompt-development-grid",
+      "status": "external_summary_pending_intake",
+      "factor_levels": {
+        "model_family": ["medgemma-27b-text-it"],
+        "quantization": ["Q2_K", "Q4_K_S"],
+        "interface_mode": ["external_v5g_pending"],
+        "task_semantics": ["five-four-level-eeg-findings-v1"],
+        "prompt_variant": [
+          "external-v1",
+          "external-v2",
+          "external-v3",
+          "external-v4",
+          "external-v5",
+          "external-v6",
+          "external-v7",
+          "external-v8",
+          "external-v9",
+          "external-v10"
+        ],
+        "grammar_mode": ["external-consistency-grammar", "external-pending"],
+        "cohort": ["external-labeled-pooled-1994"],
+        "reference": ["ld-reference-annotator", "sg-second-annotator"],
+        "selection_role": ["external-pending"],
+        "evidence_layer": ["external_v5g_pending_intake"]
+      },
+      "cohort_ids": ["external-labeled-pooled-1994"],
+      "metric_ids": [
+        "core_binary_f1",
+        "exact_four_level_f1_external_formula_pending",
+        "whole_report_binary_exact_match_accuracy"
+      ],
+      "intake_boundary": "The prompt names, population categories, quantizations, references, and endpoints are registered from the supplied summaries. No score or configuration is admitted until exact producing sources, key manifests, selection history, and metric formulas validate."
+    },
+    {
+      "family_id": "external-large-corpus-descriptive-comparison",
+      "status": "external_summary_pending_intake",
+      "factor_levels": {
+        "model_family": ["mistral-7b-instruct-v0.2", "medgemma-27b-text-it"],
+        "quantization": ["Q5_K_M", "Q2_K", "Q4_K_S"],
+        "interface_mode": ["historical_raw_completion", "external_v5g_pending"],
+        "task_semantics": ["five-four-level-eeg-findings-v1"],
+        "prompt_variant": ["historical-classification-v1", "external-v5g"],
+        "grammar_mode": ["historical-four-level-json", "external-consistency-grammar"],
+        "cohort": ["external-large-unlabeled-45545", "external-labeled-2493-unreconciled"],
+        "reference": ["ld-reference-annotator", "none"],
+        "selection_role": ["not-applicable", "external-pending"],
+        "evidence_layer": ["reproduced_mistral", "external_v5g_pending_intake"]
+      },
+      "cohort_ids": ["external-large-unlabeled-45545", "external-labeled-2493-unreconciled"],
+      "metric_ids": ["core_binary_f1", "whole_report_binary_exact_match_accuracy", "positive_call_rate", "model_pair_binary_agreement"],
+      "intake_boundary": "The 1,994-versus-2,493 difference of 499 remains a diagnostic clue, not a reconciled cohort identity. Unlabeled positive rates and model agreement are descriptive, not evidence that either model is clinically correct."
+    }
+  ],
+  "claim_boundary": "Model name is not the unit of comparison. Every claim must identify interface, prompt, grammar, quantization, population, reference, endpoint, and selection role. One-factor ablations can isolate only their declared factor; full configured-system comparisons cannot attribute a difference to base weights.",
+  "privacy_boundary": "This registry contains public-safe design metadata and aggregate population counts only. Producing sources, governed keys and predictions, model weights, private correspondence, and result values remain outside the repository."
+}

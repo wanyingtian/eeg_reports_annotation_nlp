@@ -1,6 +1,6 @@
 UV ?= uv
 
-.PHONY: sync sync-all lint test audit-sample verify verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize medgemma-native-author-bundle governed-run-eclipse
+.PHONY: sync sync-all lint test audit-sample verify verify-evaluation-surfaces verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize medgemma-native-author-bundle governed-run-eclipse
 
 sync:
 	$(UV) sync
@@ -25,6 +25,11 @@ audit-sample:
 		--output-dir outputs/review/sample-audit
 
 verify: lint test audit-sample
+
+verify-evaluation-surfaces:
+	$(UV) run eeg-review evaluation-surface-validate \
+		--contract review/model-receipts/jbhi-evaluation-surface-registry.json \
+		--output-dir outputs/review/evaluation-surface-validation
 
 verify-llm-receipt:
 	$(UV) sync --extra llm

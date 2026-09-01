@@ -4,6 +4,14 @@ This protocol governs any post-submission LLM comparator proposed for
 `JBHI-02463-2026`. It preserves the submitted Mistral-7B outputs as the source
 of record and evaluates a contemporary model as a separately named experiment.
 
+The companion [`EVALUATION_SURFACE_FRAMEWORK.md`](EVALUATION_SURFACE_FRAMEWORK.md)
+defines the model, interface, prompt, grammar, quantization, population,
+reference, selection, and metric axes that make a comparison identifiable. Its
+typed public-safe registry distinguishes one-factor ablations, model-native
+task comparisons, complete configured-system comparisons, cohort
+stratifications, and unlabeled descriptive analyses. This prevents a model
+family name from silently standing in for a whole producing configuration.
+
 Rendered summaries are useful for scientific discussion but do not constitute
 a reproducible receipt. Do not commit private author correspondence, governed
 prediction rows, report text, patient keys, model weights, or unpublished
@@ -162,6 +170,13 @@ produces no performance result.
   results; and
 - inference time, prompt/completion tokens, model size, and hardware.
 
+The external prompt-version, consistency-grammar, quantization, population,
+reference, and endpoint categories can be registered before exact intake as a
+design family. This preserves their useful structure without importing summary
+scores. In particular, an externally named exact-level F1 remains formula
+pending until its averaging rule is received; it is not silently treated as
+the native evaluator's exact four-level accuracy.
+
 ## Claim boundaries
 
 - Inter-annotator agreement is not a human ceiling or diagnostic ground truth.
@@ -172,6 +187,11 @@ produces no performance result.
   descriptive; disagreement cannot identify which model is clinically right.
 - Grammar-enforced consistency is a decoding constraint. Report its effect
   separately from prompt content and base-model choice.
+- Forcing a new model through a historical serialization and giving only the
+  new model a tuned native configuration are opposite asymmetries. Preserve
+  both as named surfaces; use a controlled interface ablation when asking what
+  serialization changed and a configured-system comparison when several axes
+  differ.
 - An independently preregistered contemporary result may be generated under
   its own producing contract. Any external result, including v5g, requires its
   own exact producing-bundle intake. Manuscript use of either still requires
