@@ -198,7 +198,8 @@ def render_table(payload: dict[str, Any], mode: str) -> str:
         r"\centering",
         (
             r"\caption{" + latex_escape(qualifier)
-            + r"MedGemma-27B Q2\_K native-interface comparison. Differences are "
+            + r"MedGemma-27B Q2\_K comparison using its declared "
+            + r"instruction-turn serialization. Differences are "
             + r"MedGemma minus the named Mistral comparator on exactly aligned reports. "
             + r"Intervals are paired 95\% report-bootstrap intervals; "
             + r"$p_{\mathrm{Holm}}$ is the Holm-adjusted exact report-level McNemar value.}"
