@@ -11,7 +11,7 @@ It freezes the scientific distinction that matters:
 
 - `independent-matched-interface-q2-v1` is our independently specified,
   executable configuration;
-- `v5g` is Vasily's additive example configuration and remains a separate
+- `v5g` is a separately reported additive configuration stream and remains a
   pending intake node until its exact producing materials arrive; and
 - neither configuration replaces the submitted Mistral source of record.
 
@@ -151,8 +151,9 @@ authorized host.
 After generation, validate exact key coverage, produce a completed version-3
 intake for this independent configuration, run the existing evaluation and
 paired-comparison commands, and seek author-group admission before placing a
-new row or bar in the manuscript. Vasily's exact v5g bundle can later enter the
-same route under its own identifier.
+new row or bar in the manuscript. The exact v5g bundle can later enter the same
+route under its own technical identifier, with contribution recorded in its
+provenance metadata.
 
 ## Post-primary native-interface sensitivity
 

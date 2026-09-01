@@ -59,6 +59,12 @@ the Google/Unsloth artifact, external producing configuration, historical
 evaluation framework, and integration branch as distinct DAG parents. It uses
 bounded contribution and governance roles rather than an ownership field.
 
+[`VERSIONED_CONFIGURATION_STREAMS.md`](VERSIONED_CONFIGURATION_STREAMS.md)
+makes that naming rule operational: v5g is a technical configuration stream,
+while individual contributions remain explicit in provenance metadata. The
+shared branch versions public-safe operating parameters and receipts; governed
+keys and predictions stay outside Git.
+
 [`EVALUATION_SURFACE_FRAMEWORK.md`](EVALUATION_SURFACE_FRAMEWORK.md) adds the
 comparison layer above producing-bundle intake. Its typed, result-free registry
 makes model, quantization, interface, prompt, grammar, cohort, reference,

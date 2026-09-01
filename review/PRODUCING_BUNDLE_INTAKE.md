@@ -16,9 +16,9 @@ The layer names and intended comparisons are preregistered in
    evidence; it does not overwrite the submission.
 3. `post_submission_medgemma` is a separately named contemporary-comparator
    layer. Each configuration in that layer requires its own producing
-   contract. An external v5g reproduction remains blocked pending exact
-   intake; the independently preregistered matched-interface configuration is
-   not blocked by that missing external bundle.
+   contract. Reproduction of the v5g configuration stream remains blocked
+   pending exact intake; the independently preregistered matched-interface
+   configuration is not blocked by that missing external bundle.
 
 The received difference between provisional populations of 1,994 and 2,493
 is a diagnostic clue only. Its arithmetic difference is 499, but the contract
@@ -57,6 +57,11 @@ model artifact. The graph uses hierarchical technical identifiers rooted at:
 jbhi-02463/comparator/medgemma-27b-text-it/configuration/v5g
 ```
 
+This technical identifier is the configuration label. It is not a personal
+ownership label. The stream's non-sensitive operating parameters and receipts
+can be versioned in this repository; contribution, transfer, maintenance, and
+scientific-governance roles remain separate provenance assertions.
+
 Run and integration descendants use identifiers such as:
 
 ```text
@@ -71,9 +76,9 @@ parent types:
 
 1. `upstream_weights_quantization`: Google's MedGemma release and the exact
    Unsloth GGUF artifact, revision, quantization, byte size, and SHA-256;
-2. `producing_configuration`: the external v5g source bundle, prompt, grammar,
-   wrapper, selection history, predictions, and manifests received through
-   governed intake;
+2. `producing_configuration`: the separately reported v5g source bundle,
+   prompt, grammar, wrapper, selection history, predictions, and manifests
+   received through governed intake;
 3. `inherited_evaluation_framework`: Wanying Tian's repository revision, the
    submitted Mistral study, and its historical cohort and metric semantics;
 4. `integration`: Steven Bergner's independent reproduction and the exact
@@ -182,7 +187,7 @@ both `--require-exact-key-set` and `--require-patient-grouping` when the
 confirmed patient key exists. These switches prevent an unnoticed inner join
 or report-level bootstrap from becoming the primary analysis.
 
-## External v5g decision gates
+## v5g configuration-stream intake gates
 
 - exact MedGemma producing model artifact and quantization;
 - exact Google upstream and Unsloth distribution revisions, artifact hash,

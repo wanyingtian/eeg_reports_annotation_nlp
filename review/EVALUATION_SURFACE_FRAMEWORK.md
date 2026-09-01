@@ -56,8 +56,8 @@ deployment or “best available configuration” question, but it is not a causa
 model-family experiment.
 
 The current historical-Mistral versus native-MedGemma evaluation is correctly
-registered this way. The supplied v5g comparison can enter the same class after
-exact intake.
+registered this way. The supplied v5g configuration stream can enter the same
+class after exact intake.
 
 ## The symmetric interface safeguard
 
