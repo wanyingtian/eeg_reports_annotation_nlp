@@ -217,6 +217,10 @@ baselines = [
     { name = "torch" },
     { name = "transformers" },
 ]
+ci = [
+    { name = "joblib" },
+    { name = "scikit-learn" },
+]
 evidence = [
     { name = "fuzzywuzzy" },
     { name = "python-levenshtein" },
@@ -248,6 +252,7 @@ requires-dist = [
     { name = "fuzzywuzzy", marker = "extra == 'evidence'", specifier = ">=0.18,<1" },
     { name = "huggingface-hub", marker = "extra == 'llm'", specifier = ">=0.24,<2" },
     { name = "joblib", marker = "extra == 'baselines'", specifier = ">=1.4,<2" },
+    { name = "joblib", marker = "extra == 'ci'", specifier = ">=1.4,<2" },
     { name = "llama-cpp-python", marker = "extra == 'llm'", specifier = ">=0.3,<1" },
     { name = "matplotlib", marker = "extra == 'reports'", specifier = ">=3.8,<4" },
     { name = "numba", marker = "extra == 'baselines'", specifier = ">=0.61,<1" },
@@ -257,6 +262,7 @@ requires-dist = [
     { name = "pyarrow", marker = "extra == 'reports'", specifier = ">=16,<24" },
     { name = "python-levenshtein", marker = "extra == 'evidence'", specifier = ">=0.25,<1" },
     { name = "scikit-learn", marker = "extra == 'baselines'", specifier = ">=1.5,<2" },
+    { name = "scikit-learn", marker = "extra == 'ci'", specifier = ">=1.5,<2" },
     { name = "seaborn", marker = "extra == 'reports'", specifier = ">=0.13,<1" },
     { name = "sentence-transformers", marker = "extra == 'evidence'", specifier = ">=3,<6" },
     { name = "shap", marker = "extra == 'baselines'", specifier = ">=0.46,<1" },
@@ -267,7 +273,7 @@ requires-dist = [
     { name = "transformers", marker = "extra == 'evidence'", specifier = ">=4.44,<5" },
     { name = "xlsxwriter", marker = "extra == 'reports'", specifier = ">=3.2,<4" },
 ]
-provides-extras = ["reports", "baselines", "llm", "evidence"]
+provides-extras = ["ci", "reports", "baselines", "llm", "evidence"]
 
 [package.metadata.requires-dev]
 dev = [

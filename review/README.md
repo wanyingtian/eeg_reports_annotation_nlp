@@ -26,6 +26,7 @@ groups.
 
 ```bash
 uv sync                         # aggregate review tools + tests
+uv sync --extra ci              # lightweight classical dependencies used by tests
 uv sync --extra reports         # tables, figures, parquet/excel support
 uv sync --extra baselines       # BERT/BoW training and SHAP
 uv sync --extra llm             # llama.cpp inference pipeline
@@ -34,9 +35,13 @@ make verify                     # lint, tests, and sample aggregate audit
 make verify-llm-receipt         # fake-model test; downloads no weights
 ```
 
-The same locked core verification runs in GitHub Actions. The workflow has
-read-only repository permissions and does not run models or access governed
-data.
+The same locked aggregate verification runs in GitHub Actions through
+`make ci`. It is deliberately CPU-only: no model weights, `llama.cpp`, Torch,
+CUDA/NVIDIA packages, hosted inference, or governed data are installed or
+used. The real grammar compiler and model/runtime smoke checks remain explicit
+local or governed-hardware commands. CI runs only when toolchain, source, test,
+sample-audit, or model-receipt inputs change, and superseded runs on the same
+branch are cancelled.
 
 The portable, resumable full-study supervisor is documented in
 [`STUDY_COMPUTE_WORKFLOW.md`](STUDY_COMPUTE_WORKFLOW.md). The completed native

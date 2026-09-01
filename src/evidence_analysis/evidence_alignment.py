@@ -26,8 +26,6 @@ from typing import Pattern
 
 import numpy as np
 import pandas as pd
-import torch
-from transformers import AutoTokenizer, AutoModel
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent
@@ -172,6 +170,8 @@ def classify_reason_rule(text: object) -> int:
 
 def get_bert_embedding(text: str, tokenizer, model, device) -> np.ndarray:
     """Extract [CLS] token embedding from ClinicalBERT."""
+    import torch
+
     inputs = tokenizer(
         text,
         return_tensors="pt",
@@ -481,6 +481,9 @@ def main() -> None:
     
     # Handle ClinicalBERT method
     if args.method == "clinicalbert":
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+
         if not args.train_data:
             raise SystemExit(
                 "ERROR: --train-data required for ClinicalBERT method.\n\n"

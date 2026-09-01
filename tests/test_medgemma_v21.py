@@ -224,10 +224,23 @@ def test_fake_independent_executor_interrupt_resume_and_completed_noop(tmp_path,
         executor.run(args)
 
 
-def test_independent_grammar_compiles_without_a_model():
-    llama = pytest.importorskip("llama_cpp")
+def test_independent_grammar_contract_is_complete_without_a_model():
     grammar = ROOT / "src/LLM_pipeline/result_grammar_category_evidence.gbnf"
-    assert llama.LlamaGrammar.from_string(grammar.read_text(), verbose=False)
+    content = grammar.read_text()
+    assert content.startswith("root ::= answer\n")
+    assert all(content.count(f'\\"{key}\\"') == 1 for key in JSON_KEYS)
+    assert all(content.count(f'\\"{field}\\"') == 1 for field in category_evidence.FIELDS)
+    assert 'phrases ::= "[" ws (string (ws "," ws string)?)? ws "]"' in content
+
+
+def test_independent_grammar_compiles_with_installed_runtime():
+    llama = pytest.importorskip("llama_cpp")
+    if getattr(llama, "__eeg_test_stub__", False):
+        pytest.skip("real llama-cpp-python runtime is not part of lightweight CI")
+    from llama_cpp.llama import LlamaGrammar
+
+    grammar = ROOT / "src/LLM_pipeline/result_grammar_category_evidence.gbnf"
+    assert LlamaGrammar.from_string(grammar.read_text())
 
 
 def test_all_three_versions_and_both_pairings_reach_real_analysis(queue, tmp_path):

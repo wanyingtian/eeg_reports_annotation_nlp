@@ -14,8 +14,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-from huggingface_hub import hf_hub_download
 from llama_cpp.llama import Llama
+
+
+def hf_hub_download(**kwargs: Any) -> str:
+    """Load the optional Hub client only when an artifact is resolved."""
+    from huggingface_hub import hf_hub_download as download
+
+    return download(**kwargs)
 
 # Default parameters for model loading
 DEFAULT_PARAMS = {

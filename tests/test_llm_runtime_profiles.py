@@ -27,7 +27,10 @@ if importlib.util.find_spec("llama_cpp") is None:
 
     llama_cpp_llama.Llama = StubLlama
     llama_cpp_llama.LlamaGrammar = StubLlamaGrammar
+    llama_cpp.Llama = StubLlama
+    llama_cpp.LlamaGrammar = StubLlamaGrammar
     llama_cpp.llama = llama_cpp_llama
+    llama_cpp.__eeg_test_stub__ = True
     sys.modules["llama_cpp"] = llama_cpp
     sys.modules["llama_cpp.llama"] = llama_cpp_llama
 

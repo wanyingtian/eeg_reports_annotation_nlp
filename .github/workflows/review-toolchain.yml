@@ -2,17 +2,42 @@ name: Review toolchain
 
 on:
   pull_request:
+    paths:
+      - ".github/workflows/review-toolchain.yml"
+      - "Makefile"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "src/**"
+      - "scripts/**"
+      - "tests/**"
+      - "review/model-receipts/**"
+      - "data/zoe_reports_sample.db"
   push:
     branches:
       - review/jbhi-02463-revision-toolchain
+    paths:
+      - ".github/workflows/review-toolchain.yml"
+      - "Makefile"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "src/**"
+      - "scripts/**"
+      - "tests/**"
+      - "review/model-receipts/**"
+      - "data/zoe_reports_sample.db"
+
+concurrency:
+  group: review-toolchain-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   aggregate-review-tools:
+    name: Lightweight aggregate checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7
 
@@ -20,10 +45,8 @@ jobs:
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           version: "0.11.29"
+          python-version: "3.11"
           enable-cache: true
 
-      - name: Synchronize locked core environment
-        run: uv sync --locked
-
-      - name: Verify aggregate review toolkit
-        run: make verify
+      - name: Verify CPU-only aggregate review toolkit
+        run: make ci
