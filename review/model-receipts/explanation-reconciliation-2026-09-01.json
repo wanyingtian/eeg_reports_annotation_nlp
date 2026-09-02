@@ -1,0 +1,68 @@
+{
+  "analysis_id": "jbhi-explanation-reconciliation-20260901",
+  "artifact_sha256": "6e9c56bba4f87b0e130087612bbb7fdb8bee3f8c0559385c2a86f8b29c8ea605",
+  "artifact_status": "strong_producing_artifact_candidate_not_author_confirmed",
+  "distribution_status": "aggregate_public_safe_case_rows_governed",
+  "model_positive_label_units": 2191,
+  "positive_learned_polarity_units": 2180,
+  "report_text_reconciliation": {
+    "artifact_order_matches_source_prefix": true,
+    "exact_report_text_matches": 2000,
+    "report_text_mismatches": 0
+  },
+  "traceability": {
+    "submitted": {
+      "matched": 2132,
+      "total": 2180,
+      "fraction": 0.9779816513761468
+    },
+    "public_script_replay_with_thesis_selection": {
+      "matched": 2018,
+      "total": 2180,
+      "fraction": 0.9256880733944954
+    },
+    "sentence_level_diagnostic_not_original_method": {
+      "matched": 2153,
+      "total": 2180,
+      "fraction": 0.9876146788990826
+    },
+    "semantic_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "semantic_model_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+    "semantic_threshold": 0.7,
+    "submitted_numerator_reproduced": false
+  },
+  "historical_overall_abnormality_association": {
+    "aligned_correct": 1611,
+    "aligned_total": 1639,
+    "aligned_accuracy": 0.9829164124466138,
+    "misaligned_correct": 92,
+    "misaligned_total": 128,
+    "misaligned_accuracy": 0.71875,
+    "accuracy_difference": 0.26416641244661376,
+    "accuracy_difference_conservative_95": [
+      0.18603339113961326,
+      0.35278844367821005
+    ],
+    "unit": "report_category_decision",
+    "causal_interpretation": false
+  },
+  "declared_evaluation_overall_abnormality_sensitivity": {
+    "manifest_reports": 1395,
+    "aligned_correct": 1156,
+    "aligned_total_with_saved_polarity": 1179,
+    "misaligned_correct": 70,
+    "misaligned_total_with_saved_polarity": 95,
+    "accuracy_difference": 0.24364983706084553,
+    "accuracy_difference_conservative_95": [
+      0.15596213516194513,
+      0.34662626406054664
+    ]
+  },
+  "manuscript_admission": false,
+  "limits": [
+    "No keyed rows or text are included.",
+    "The historical explanation and classification evaluation surfaces differ.",
+    "The submitted traceability numerator is not reproduced by the public script.",
+    "Association does not establish causal faithfulness or clinical validity."
+  ]
+}

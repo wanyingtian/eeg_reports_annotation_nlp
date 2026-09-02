@@ -52,6 +52,13 @@ baseline OOF variability, explanation quality, publication implications, and
 the remaining patient/clinical/ethics gates without report text or case
 identifiers. The earlier active checkpoint is retained as operational history.
 
+The thesis-era learned-polarity explanation surface is separately reconciled in
+[`EXPLANATION_RECONCILIATION_2026-09-01.md`](EXPLANATION_RECONCILIATION_2026-09-01.md).
+It recovers the 2,180 abnormal-supporting denominator and raw
+alignment/correctness counts, but it does not force the current public matcher
+to reproduce the submitted 97.8% traceability numerator. Keyed rows and all
+report/reason text remain governed.
+
 Any post-submission model proposed as a stronger comparator must use
 [`CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md`](CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md)
 and the typed gates in
