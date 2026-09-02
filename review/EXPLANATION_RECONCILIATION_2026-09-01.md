@@ -102,11 +102,16 @@ method:
   sentences, but this is a different method and cannot be substituted because
   it happens to be near the submitted value.
 
-The exact 97.8% claim remains blocked on the original producing matching code,
-its model revision/segmentation rule, or author confirmation of that method.
-The current author draft should not restore the number. A revision may instead
-report exact-substring traceability under the newer verbatim-evidence contract,
-clearly separated from this historical fuzzy/semantic analysis.
+The subsequent repository-and-thesis search recovered two different
+specifications rather than the missing producer. Chris's October 2025 public
+script splits on semicolons and compares against whole reports; the final thesis
+describes explanation sentences, report-sentence fuzzy comparison, and
+whole-report semantic comparison. With the fixed learned-polarity selection,
+the latter reconstruction gives 1,911/2,180 (87.66%). Neither specification
+reproduces 2,132. The current author draft should not restore the number, and no
+question to Chris is needed merely to continue technical work. The revision can
+instead use the separately named exact-source and review-candidate contract in
+`REASON_TRACEABILITY_EXPERIMENT_2026-09-02.md`.
 
 ## Reproducible execution and custody
 
@@ -114,8 +119,13 @@ The validator is `scripts/reconcile_explanation_artifact.py`. It verifies keys,
 source order, report text, model labels, polarity values, cohort manifests, and
 all denominators before writing results. The semantic replay used the local
 `sentence-transformers/all-MiniLM-L6-v2` snapshot at revision
-`1110a243fdf4706b3f48f1d95db1a4f5529b4d41`, threshold 0.70. No report text was
-sent to a remote service.
+`1110a243fdf4706b3f48f1d95db1a4f5529b4d41`, threshold 0.70. The latest
+upstream revision predating the producing artifact is
+`c9745ed1d9f207416be6d2e6f8de32d1f16199bf`; only the model card differs between
+these revisions, while weights, tokenizer, pooling modules, and executable
+configuration are byte-identical. The historical code was unpinned, so this is
+functional equivalence rather than proof of the originally resolved revision.
+No report text was sent to a remote service.
 
 The aggregate receipt can be reviewed publicly. Report keys and case-level
 traceability/alignment rows remain under `data/governed/` and are ignored by
@@ -130,7 +140,8 @@ this document.
   low-confidence overlap.
 - **Needs corrected wording:** replace “25% more likely” with the declared
   percentage-point difference, raw counts, interval, unit, and non-causal limit.
-- **Still gated:** the submitted 97.8% traceability numerator and the 72.5%
-  abnormality-misaligned percentage.
+- **Historical only:** the submitted 97.8% traceability numerator. The available
+  producer search is exhausted; do not recreate it by tuning. The 72.5%
+  abnormality-misaligned percentage also remains unreproduced.
 - **Not claimed:** causal reasoning, faithful internal model reasoning, clinical
   validation, patient independence, or interchangeability with SHAP.

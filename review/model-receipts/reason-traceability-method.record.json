@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "record_id": "jbhi-reason-traceability-method-20260902",
+  "record_timing": "written_after_initial_execution_not_a_preregistration",
+  "purpose": "Reconstruct the historical traceability method and apply a stricter source-presence contract to saved Mistral and MedGemma evidence.",
+  "historical_lineage": {
+    "producing_artifact": {
+      "created_at": "2025-05-13T17:06:27-07:00",
+      "sha256": "6e9c56bba4f87b0e130087612bbb7fdb8bee3f8c0559385c2a86f8b29c8ea605"
+    },
+    "author_uploaded_public_script": {
+      "repository_commit": "d7cf1423fa98b0bed0bc55153550c640a18f63fc",
+      "committed_at": "2025-10-03T14:01:39-07:00",
+      "path": "src/evidence_analysis/evidence_factuality.py",
+      "sha256_at_current_revision": "da488ad7f3f7fc3b46aba245cfeb57b62180d3931242273b67d5193b2f968854",
+      "segmentation": "semicolon-delimited reason phrases",
+      "fuzzy_surface": "whole normalized report",
+      "semantic_surface": "whole normalized report",
+      "selection_in_script": "model labels 3 or 4"
+    },
+    "final_thesis_description": {
+      "source_sha256": "2ca6987761ec6983d7b598e99ead81c29a91329021d456cae54ce9657cd38609",
+      "source_lines": "857-861",
+      "segmentation": "explanation sentences",
+      "fuzzy_surface": "report sentences",
+      "semantic_surface": "whole report text",
+      "selection": "saved learned polarity positive"
+    },
+    "discrepancy": "The public script and final thesis are distinct executable specifications and both post-date or do not hash-bind the original producing run."
+  },
+  "embedding_model": {
+    "id": "sentence-transformers/all-MiniLM-L6-v2",
+    "historically_applicable_revision": "c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+    "historically_applicable_revision_basis": "latest upstream revision before the producing artifact timestamp",
+    "executed_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+    "weights_sha256": "53aa51172d142c89d9012cce15ae4d6cc0ca6895895114379cacb4fab128d9db",
+    "revision_equivalence_check": "Only README.md differs; model, tokenizer, pooling and sentence-transformer configuration files are identical.",
+    "original_resolved_revision_confirmed": false
+  },
+  "new_cross_model_contract": {
+    "verified_quote": "unchanged nonblank substring in exact report text",
+    "review_candidates": [
+      "casefold-only",
+      "whitespace-only",
+      "typography-normalized",
+      "fuzzy report sentence at 70/100",
+      "MiniLM report sentence or whole report at cosine 0.70"
+    ],
+    "review_candidates_count_as_factual": false,
+    "unit_summaries": [
+      "any segment located",
+      "all segments located",
+      "any segment verified",
+      "all segments verified"
+    ],
+    "threshold_tuning_performed": false,
+    "classification_or_evidence_generation_performed": false
+  },
+  "implementation": {
+    "adapter": {
+      "path": "src/eeg_review/reason_traceability.py",
+      "sha256": "da83e22ace17815fc59a9159b20f2174bdb611d7d627a317a19ca868b6d88114"
+    },
+    "runner": {
+      "path": "scripts/audit_cross_model_reason_traceability.py",
+      "sha256": "e395e6ab87c431807159855831f3bc0e23bd97b6f621e41518c0e3857ce196cb"
+    },
+    "tests": {
+      "path": "tests/test_reason_traceability.py",
+      "sha256": "9ebeeb41171084cb38f4259d264b5e48c82763d17631b1d3d832ea11502ea159"
+    },
+    "aggregate_receipt_sha256": "92cb1ecf85f83f1bfd6af5f32587a268087fee2fc7575381f2d45fb10315d555"
+  },
+  "distribution_status": {
+    "method_and_aggregate": "source/config publishable after author review",
+    "keyed_segment_ledger": "governed",
+    "report_and_reason_text": "governed_not_redistributed",
+    "model_weights": "not_redistributed"
+  },
+  "manuscript_admission": false
+}

@@ -56,8 +56,11 @@ The thesis-era learned-polarity explanation surface is separately reconciled in
 [`EXPLANATION_RECONCILIATION_2026-09-01.md`](EXPLANATION_RECONCILIATION_2026-09-01.md).
 It recovers the 2,180 abnormal-supporting denominator and raw
 alignment/correctness counts, but it does not force the current public matcher
-to reproduce the submitted 97.8% traceability numerator. Keyed rows and all
-report/reason text remain governed.
+to reproduce the submitted 97.8% traceability numerator. The follow-up
+[`REASON_TRACEABILITY_EXPERIMENT_2026-09-02.md`](REASON_TRACEABILITY_EXPERIMENT_2026-09-02.md)
+records the recovered script/thesis discrepancy, a functionally equivalent
+pinned MiniLM surface, and one exact-source/candidate audit for saved Mistral
+and MedGemma evidence. Keyed rows and all report/reason text remain governed.
 
 Any post-submission model proposed as a stronger comparator must use
 [`CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md`](CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md)
