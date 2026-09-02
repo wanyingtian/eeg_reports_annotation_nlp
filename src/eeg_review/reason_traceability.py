@@ -8,6 +8,7 @@ entailment, clinical correctness, or causal faithfulness.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections import Counter
 from collections.abc import Callable, Sequence
@@ -30,6 +31,11 @@ from .source_grounding import inspect_reason, text_sha
 
 FUZZY_THRESHOLD = 70
 SEMANTIC_THRESHOLD = 0.70
+REVIEW_SAMPLE_QUOTAS = {
+    "mixed_exact_candidate": 5,
+    "candidate_only": 3,
+    "all_exact": 2,
+}
 
 
 @dataclass(frozen=True)
@@ -373,3 +379,148 @@ def summarize_traceability(units: Sequence[EvidenceUnit], rows: Sequence[dict[st
             "No stage measures whether the quotation caused the model decision.",
         ],
     }
+
+
+def build_review_queue(
+    rows: Sequence[dict[str, Any]],
+    *,
+    sample_quotas: dict[str, int] | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Prioritize unresolved units and deterministic contrast samples.
+
+    Every unresolved unit is retained.  The other strata are bounded per
+    category using a stable content fingerprint, so input order cannot change
+    the review set.  This function handles hashes and counters only; report and
+    reason text remain in the governed presentation layer.
+    """
+    quotas = REVIEW_SAMPLE_QUOTAS if sample_quotas is None else sample_quotas
+    if set(quotas) != set(REVIEW_SAMPLE_QUOTAS):
+        raise ValueError("review quotas must name the three non-unresolved strata")
+    if any(type(value) is not int or value < 0 for value in quotas.values()):
+        raise ValueError("review quotas must be nonnegative integers")
+
+    grouped: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    seen_segments: set[tuple[str, int, int]] = set()
+    for row in rows:
+        stream = str(row["stream"])
+        unit_number = int(row["unit_number"])
+        segment_number = int(row["segment_number"])
+        segment_key = (stream, unit_number, segment_number)
+        if segment_key in seen_segments:
+            raise ValueError("duplicate traceability segment")
+        seen_segments.add(segment_key)
+        grouped.setdefault((stream, unit_number), []).append(dict(row))
+
+    candidates: list[dict[str, Any]] = []
+    for (stream, unit_number), values in grouped.items():
+        identities = {
+            (
+                str(row["report_key"]),
+                str(row["report_text_sha256"]),
+                str(row["category"]),
+                str(row["source_kind"]),
+            )
+            for row in values
+        }
+        if len(identities) != 1:
+            raise ValueError("traceability unit metadata changed between segments")
+        report_key, report_hash, category, source_kind = identities.pop()
+        substantive = [
+            row for row in values if not str(row["stage"]).startswith("excluded_")
+        ]
+        if not substantive:
+            continue
+        exact = sum(bool(row["verified_quote"]) for row in substantive)
+        unresolved = sum(str(row["stage"]) == "unresolved" for row in substantive)
+        located = sum(
+            str(row["stage"]).startswith(("verified_", "candidate_"))
+            for row in substantive
+        )
+        if unresolved:
+            stratum = "unresolved"
+        elif exact == len(substantive):
+            stratum = "all_exact"
+        elif exact:
+            stratum = "mixed_exact_candidate"
+        else:
+            stratum = "candidate_only"
+        fingerprint = hashlib.sha256(
+            f"{stream}|{report_hash}|{category}|{unit_number}".encode()
+        ).hexdigest()
+        candidates.append(
+            {
+                "stream": stream,
+                "unit_number": unit_number,
+                "report_key": report_key,
+                "report_text_sha256": report_hash,
+                "category": category,
+                "source_kind": source_kind,
+                "stratum": stratum,
+                "segments": len(substantive),
+                "verified_exact_segments": exact,
+                "located_segments": located,
+                "unresolved_segments": unresolved,
+                "selection_fingerprint": fingerprint,
+            }
+        )
+
+    selected: list[dict[str, Any]] = []
+    for candidate in candidates:
+        if candidate["stratum"] == "unresolved":
+            selected.append({**candidate, "selection_reason": "all_unresolved_units"})
+    for stratum, quota in quotas.items():
+        categories = sorted(
+            {row["category"] for row in candidates if row["stratum"] == stratum}
+        )
+        for category in categories:
+            eligible = sorted(
+                (
+                    row
+                    for row in candidates
+                    if row["stratum"] == stratum and row["category"] == category
+                ),
+                key=lambda row: row["selection_fingerprint"],
+            )
+            selected.extend(
+                {**row, "selection_reason": f"deterministic_{stratum}_contrast"}
+                for row in eligible[:quota]
+            )
+    priority = {
+        "unresolved": 0,
+        "mixed_exact_candidate": 1,
+        "candidate_only": 2,
+        "all_exact": 3,
+    }
+    selected.sort(
+        key=lambda row: (
+            priority[row["stratum"]],
+            row["category"],
+            row["selection_fingerprint"],
+        )
+    )
+
+    eligible_counts = Counter((row["stratum"], row["category"]) for row in candidates)
+    selected_counts = Counter((row["stratum"], row["category"]) for row in selected)
+    summary = {
+        "eligible_units": len(candidates),
+        "selected_units": len(selected),
+        "selected_segments": sum(int(row["segments"]) for row in selected),
+        "selection_policy": {
+            "unresolved": "retain every unit with at least one unresolved segment",
+            "per_category_contrast_quotas": dict(quotas),
+            "ordering": "sha256(stream|report_text_sha256|category|unit_number)",
+        },
+        "eligible_by_stratum_and_category": {
+            f"{key[0]}::{key[1]}": value for key, value in sorted(eligible_counts.items())
+        },
+        "selected_by_stratum_and_category": {
+            f"{key[0]}::{key[1]}": value for key, value in sorted(selected_counts.items())
+        },
+        "contains_report_keys_or_text": False,
+        "interpretation": [
+            "This is a review workload, not a prevalence sample or performance estimate.",
+            "Unresolved units are exhaustive; other strata are deterministic contrasts.",
+            "Clinical and category-role judgments remain blank until qualified review.",
+        ],
+    }
+    return selected, summary

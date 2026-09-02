@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "record_id": "jbhi-reason-traceability-review-queue-20260902",
+  "record_timing": "written_after_queue_construction_not_a_preregistration",
+  "status": "prepared_pending_qualified_review",
+  "purpose": "Prepare a source-first governed review workload for the historical explanation-traceability surface without new model inference.",
+  "parents": {
+    "cross_model_traceability_aggregate": {
+      "analysis_id": "jbhi-cross-model-reason-traceability-20260902",
+      "sha256": "92cb1ecf85f83f1bfd6af5f32587a268087fee2fc7575381f2d45fb10315d555"
+    },
+    "governed_segment_ledger": {
+      "sha256": "ae326a9d9785be896afb79ee07eeb36ee2098ac7586e22ba1392f2e26cc1a930"
+    },
+    "historical_explanation_artifact": {
+      "sha256": "6e9c56bba4f87b0e130087612bbb7fdb8bee3f8c0559385c2a86f8b29c8ea605"
+    }
+  },
+  "selection": {
+    "eligible_nonempty_units": 2176,
+    "selected_units": 119,
+    "selected_segments": 203,
+    "all_unresolved_units": 69,
+    "deterministic_contrast_units": 50,
+    "per_category_contrast_quotas": {
+      "mixed_exact_candidate": 5,
+      "candidate_only": 3,
+      "all_exact": 2
+    },
+    "ordering": "sha256(stream|report_text_sha256|category|unit_number)",
+    "selected_unresolved_by_category": {
+      "Abnormality": 24,
+      "Focal Epi": 2,
+      "Focal Non-epi": 27,
+      "Gen Epi": 3,
+      "Gen Non-epi": 13
+    },
+    "interpretation": "This is a review workload, not a prevalence sample or performance estimate. Unresolved units are exhaustive; the other strata are deterministic contrasts."
+  },
+  "review_contract": {
+    "presentation_order": [
+      "exact report source",
+      "saved model decision and evidence",
+      "blank reviewer fields"
+    ],
+    "reviewer_fields": [
+      "source_present",
+      "category_role",
+      "clinically_relevant",
+      "reviewer",
+      "review_date",
+      "notes"
+    ],
+    "judgments_completed": false,
+    "classification_or_evidence_generation_performed": false,
+    "resume_behavior": "A completed package is accepted only when every recorded output hash still matches."
+  },
+  "implementation": {
+    "review_runner": {
+      "path": "scripts/prepare_reason_traceability_review.py",
+      "sha256": "09f525af8033da9356ad89a27e247d119ea6c2b3ea1ee0e1255b930a1798ce3d"
+    },
+    "traceability_library": {
+      "path": "src/eeg_review/reason_traceability.py",
+      "sha256": "a58de2e26bfeb09ef7cfc4f791900e25f3f67bf9d14d0d329202b1dee7ad26c4"
+    },
+    "tests": {
+      "path": "tests/test_reason_traceability.py",
+      "sha256": "8b6fadeb8f32fff5c4a44714112a6af2eaee823cde798b530e2abbb00099e8c8"
+    },
+    "governed_intake_sha256": "bc7cb027cafc56f9f9e90bf023353599da0e8f4573f8082ee6fd1ccd8c5da8df",
+    "aggregate_summary_sha256": "6934f087e9e3ff30465e26b2cb9a509d16fed0727834e15ff1f9bc9eec918150",
+    "completion_receipt_sha256": "0181769996c07164261a26aabe83dfcd81d5836ed5f0127d1054af55e2d802f9"
+  },
+  "distribution_status": {
+    "method_and_aggregate_receipt": "source/config publishable after author review",
+    "review_html_and_form": "governed_local_qualified_review_only",
+    "case_index_report_text_and_evidence_text": "governed_not_redistributed",
+    "model_weights": "not_redistributed"
+  },
+  "manuscript_admission": false
+}

@@ -61,6 +61,13 @@ to reproduce the submitted 97.8% traceability numerator. The follow-up
 records the recovered script/thesis discrepancy, a functionally equivalent
 pinned MiniLM surface, and one exact-source/candidate audit for saved Mistral
 and MedGemma evidence. Keyed rows and all report/reason text remain governed.
+The deterministic follow-through is a source-first, governed review workload:
+all 69 unresolved units plus 50 fixed contrasts (119 units and 203 segments in
+total). `scripts/prepare_reason_traceability_review.py` validates the frozen
+parents, prepares blank reviewer fields, and produces resumable hash-bound
+outputs. Its public-safe status is recorded in
+`model-receipts/reason-traceability-review-queue.record.json`; the case-level
+review materials remain outside Git.
 
 Any post-submission model proposed as a stronger comparator must use
 [`CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md`](CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md)

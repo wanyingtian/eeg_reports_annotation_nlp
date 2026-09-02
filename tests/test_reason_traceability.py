@@ -10,6 +10,7 @@ from eeg_review.evidence_extraction import JSON_KEYS
 from eeg_review.reason_traceability import (
     EvidenceUnit,
     audit_traceability,
+    build_review_queue,
     split_declared_sentences,
     split_semicolon_segments,
     structured_evidence_units,
@@ -179,3 +180,81 @@ def test_adapter_retains_blank_and_fallback_outputs_as_explicit_exclusions() -> 
     assert rows[1]["stage"] == "excluded_declared_no_evidence"
     summary = summarize_traceability(units, rows)
     assert summary["excluded_blank_or_declared_absence_segments"] == 2
+
+
+def _queue_row(
+    unit: int,
+    category: str,
+    stage: str,
+    *,
+    segment: int = 0,
+) -> dict[str, object]:
+    return {
+        "stream": "historical",
+        "report_key": f"private-{unit}",
+        "report_text_sha256": f"{unit:064x}",
+        "unit_number": unit,
+        "segment_number": segment,
+        "category": category,
+        "source_kind": "historical_saved_polarity_positive",
+        "stage": stage,
+        "verified_quote": stage == "verified_exact_substring",
+    }
+
+
+def test_review_queue_keeps_all_unresolved_and_bounded_contrasts() -> None:
+    rows = [
+        _queue_row(1, "Abnormality", "unresolved"),
+        _queue_row(2, "Abnormality", "unresolved"),
+        _queue_row(3, "Abnormality", "candidate_whitespace_only"),
+        _queue_row(4, "Abnormality", "candidate_fuzzy_sentence"),
+        _queue_row(5, "Abnormality", "candidate_semantic_sentence"),
+        _queue_row(6, "Abnormality", "verified_exact_substring"),
+        _queue_row(7, "Abnormality", "verified_exact_substring"),
+    ]
+    selected, summary = build_review_queue(
+        list(reversed(rows)),
+        sample_quotas={
+            "mixed_exact_candidate": 0,
+            "candidate_only": 2,
+            "all_exact": 1,
+        },
+    )
+    assert [row["stratum"] for row in selected].count("unresolved") == 2
+    assert [row["stratum"] for row in selected].count("candidate_only") == 2
+    assert [row["stratum"] for row in selected].count("all_exact") == 1
+    assert summary["selected_units"] == 5
+    assert summary["selected_segments"] == 5
+    assert summary["contains_report_keys_or_text"] is False
+    assert "private-1" not in json.dumps(summary)
+
+
+def test_review_queue_is_input_order_independent() -> None:
+    rows = [
+        _queue_row(number, "Focal Epi", "candidate_whitespace_only")
+        for number in range(1, 8)
+    ]
+    quotas = {
+        "mixed_exact_candidate": 0,
+        "candidate_only": 3,
+        "all_exact": 0,
+    }
+    forward, _ = build_review_queue(rows, sample_quotas=quotas)
+    reverse, _ = build_review_queue(list(reversed(rows)), sample_quotas=quotas)
+    assert [row["selection_fingerprint"] for row in forward] == [
+        row["selection_fingerprint"] for row in reverse
+    ]
+
+
+@pytest.mark.parametrize("problem", ["duplicate_segment", "changed_metadata"])
+def test_review_queue_rejects_ambiguous_units(problem: str) -> None:
+    rows = [
+        _queue_row(1, "Abnormality", "verified_exact_substring"),
+        _queue_row(1, "Abnormality", "candidate_whitespace_only", segment=1),
+    ]
+    if problem == "duplicate_segment":
+        rows[1]["segment_number"] = 0
+    else:
+        rows[1]["category"] = "Focal Epi"
+    with pytest.raises(ValueError):
+        build_review_queue(rows)

@@ -80,6 +80,25 @@ have every segment unchanged.
 These are not replacements for the submitted 97.8%. They expose why the
 aggregation rule matters and give the authors a governed failure-review queue.
 
+## Governed human-review package
+
+That queue is now operational rather than aspirational. A deterministic,
+source-first package retains all 69 units containing an unresolved segment and
+adds 50 contrasts: within each of the five categories, five mixed
+exact/candidate units, three candidate-only units, and two all-exact units.
+The resulting workload contains 119 report-category units and 203 saved
+segments. It is deliberately a review workload, not a prevalence sample or a
+performance estimate.
+
+The local HTML shows the exact report before allowing the reviewer to reveal
+the saved model decision and evidence. Source presence, category role,
+clinical relevance, reviewer identity, date, and notes are blank. No clinical
+or explanation-quality judgment has therefore been made. Opaque handles,
+case-level source text, the review form, and the private key index remain in
+the governed workspace with owner-only permissions. The completed package is
+hash-bound and resumable; a changed input or output is rejected rather than
+silently regenerated.
+
 ## Same contract on saved contemporary evidence
 
 The common adapter was exercised on the already-produced first 20 development
@@ -110,7 +129,8 @@ model ranking, a factuality comparison, or an evaluation-cohort estimate.
 - The strict quote layer can be applied identically to any saved Mistral or
   MedGemma evidence stream.
 - Fuzzy and semantic candidates now form a governed review queue for failure
-  analysis and future prompt design, never silent accepted evidence.
+  analysis and future prompt design, never silent accepted evidence. The
+  119-unit package is prepared, but qualified judgments remain pending.
 - Present, absent, and qualifying passages can be summarized by schema field,
   which makes the granular access useful without pretending to expose a
   model's hidden reasoning.
@@ -123,6 +143,13 @@ is `data/governed/analysis-runs/jbhi-cross-model-reason-traceability-20260902/ag
 (SHA-256 `92cb1ecf85f83f1bfd6af5f32587a268087fee2fc7575381f2d45fb10315d555`).
 The keyed segment ledger remains governed and contains hashes, stages, and
 scores but no report or reason text.
+
+The governed review package is
+`data/governed/analysis-runs/jbhi-reason-traceability-review-20260902/`.
+Its public-safe method receipt is
+`review/model-receipts/reason-traceability-review-queue.record.json`; its
+case-level HTML, review form, source material, and private index are not for
+Git or circulation.
 
 No full contemporary evidence run is required for the current author package.
 A later full-cohort evidence generation would be a separately frozen compute
