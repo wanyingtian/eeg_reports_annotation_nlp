@@ -91,7 +91,9 @@ segments. It is deliberately a review workload, not a prevalence sample or a
 performance estimate.
 
 The local HTML shows the exact report before allowing the reviewer to reveal
-the saved model decision and evidence. Source presence, category role,
+the saved model decision and evidence. The decision is shown as its original
+four-level value, binary core call, and declared confidence tier, with an
+explicit warning that this is not a calibrated probability. Source presence, category role,
 clinical relevance, reviewer identity, date, and notes are blank. No clinical
 or explanation-quality judgment has therefore been made. Opaque handles,
 case-level source text, the review form, and the private key index remain in
@@ -145,9 +147,9 @@ The keyed segment ledger remains governed and contains hashes, stages, and
 scores but no report or reason text.
 
 The governed review package is
-`data/governed/analysis-runs/jbhi-reason-traceability-review-20260902/`.
+`data/governed/analysis-runs/jbhi-reason-traceability-visibility-review-20260902/`.
 Its public-safe method receipt is
-`review/model-receipts/reason-traceability-review-queue.record.json`; its
+`review/model-receipts/local-llm-visibility-review.record.json`; its
 case-level HTML, review form, source material, and private index are not for
 Git or circulation.
 

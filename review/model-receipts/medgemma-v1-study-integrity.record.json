@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "record_id": "jbhi-medgemma-v1-study-integrity-20260902",
+  "status": "completed_public_safe_integrity_audit",
+  "purpose": "Verify that the completed local MedGemma v1 comparison preserved the development/evaluation boundary and the exact frozen producing configuration.",
+  "study_id": "jbhi-02463-post-submission-medgemma-native-interface-sensitivity-v1",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1",
+  "partition_result": {
+    "development_records": 100,
+    "held_out_evaluation_records": 1894,
+    "zoe_evaluation_records": 1395,
+    "maria_evaluation_records": 499,
+    "report_key_overlap_across_any_partition": 0,
+    "normalized_report_text_overlap_across_any_partition": 0,
+    "within_partition_duplicate_keys_or_normalized_text": 0,
+    "patient_independence_established": false
+  },
+  "selection_and_execution_result": {
+    "development_plan_commit": "cc2c01dc0a019836404246098b598b6e4208f820",
+    "development_configuration_committed_before_execution": true,
+    "development_candidate_count": 1,
+    "reference_metric_used_for_selection": false,
+    "weights_or_training_change_allowed": false,
+    "protected_plan_commit": "a1c03502601c691fb75525cb6d51eed3d14e7018",
+    "protected_plan_committed_before_inference": true,
+    "configuration_search_on_evaluation_allowed": false,
+    "partial_reference_metrics_allowed": false,
+    "completed_transfer_files_verified": 82,
+    "inference_location": "local llama.cpp process",
+    "model_artifact_access": "local_cache_only",
+    "remote_inference_or_model_lookup": false,
+    "report_or_prediction_egress": false
+  },
+  "interpretation": [
+    "The protected 1,894-report comparison did not tune or select its configuration on evaluation outcomes.",
+    "Later MedGemma v2 and v2.1 prompt work is development-only and was not applied to these protected cohorts.",
+    "The result supports a configured-system comparison; it does not isolate base-model weights from interface or quantization.",
+    "Split integrity does not establish patient independence or clinical validity."
+  ],
+  "implementation": {
+    "audit_script": {
+      "path": "scripts/audit_medgemma_study_integrity.py",
+      "sha256": "c0a09b28d5ce30599d296d9a1f064be0a616a6873a687ab3f748c097b58d0320"
+    },
+    "integrity_library": {
+      "path": "src/eeg_review/study_integrity.py",
+      "sha256": "18c8a647c542ca6cc9503157f0782ee3aebdcd2bdf8e7bc9f6daa8c11ecbd428"
+    },
+    "tests": {
+      "path": "tests/test_study_integrity.py",
+      "sha256": "25e23aebada51e228254488578ba43711cd5ed2f22c43efc19eaee0a5e6cb6e3"
+    },
+    "governed_aggregate_sha256": "2e58aa005b0166d36fb8331de40b2ddeb79f83434ead8fc4d53ba459edc4e6d0",
+    "governed_completion_sha256": "635c334578812cf73d37204056bed42460ea6e48cf449da032d56408dba257d2"
+  },
+  "distribution_status": {
+    "this_receipt": "source_config_publishable_after_author_review",
+    "aggregate_integrity_result": "public_safe_after_author_review",
+    "keys_reports_labels_and_predictions": "governed_not_redistributed",
+    "model_weights": "not_redistributed"
+  },
+  "manuscript_admission": false
+}

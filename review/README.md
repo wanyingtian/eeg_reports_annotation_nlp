@@ -69,6 +69,18 @@ outputs. Its public-safe status is recorded in
 `model-receipts/reason-traceability-review-queue.record.json`; the case-level
 review materials remain outside Git.
 
+[`MEDGEMMA_STUDY_INTEGRITY_AUDIT_2026-09-02.md`](MEDGEMMA_STUDY_INTEGRITY_AUDIT_2026-09-02.md)
+binds the completed MedGemma v1 run back to its pre-execution Git history and
+checks the actual governed partitions. It confirms zero report-key or
+normalized-text overlap across the 100 development and 1,894 evaluation
+reports, a singleton result-blind development rule, a frozen protected plan,
+local-cache-only inference, and 82 intact transfer files. The reusable method
+is summarized in
+[`LOCAL_CLINICAL_TEXT_LLM_VISIBILITY_FRAMEWORK.md`](LOCAL_CLINICAL_TEXT_LLM_VISIBILITY_FRAMEWORK.md):
+configured classification, declared confidence, independently generated
+evidence, source traceability, qualified review, and provenance remain linked
+but non-interchangeable lanes.
+
 Any post-submission model proposed as a stronger comparator must use
 [`CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md`](CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md)
 and the typed gates in

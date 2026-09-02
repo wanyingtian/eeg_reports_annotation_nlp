@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "record_id": "jbhi-local-llm-visibility-review-20260902",
+  "status": "implemented_on_historical_surface_pending_qualified_review",
+  "purpose": "Make the original four-level decision, its binary core, its declared confidence tier, and its source-traceability evidence jointly reviewable without claiming calibrated probability or hidden reasoning.",
+  "decision_contract": {
+    "level_1": {"core_call": "absent", "declared_confidence": "confident"},
+    "level_2": {"core_call": "absent", "declared_confidence": "low_confidence"},
+    "level_3": {"core_call": "present", "declared_confidence": "low_confidence"},
+    "level_4": {"core_call": "present", "declared_confidence": "confident"},
+    "probability_calibration_claimed": false
+  },
+  "review_surface": {
+    "source_surface": "historical Mistral learned-polarity explanation artifact",
+    "selected_units": 119,
+    "selected_segments": 203,
+    "all_unresolved_units": 69,
+    "deterministic_contrast_units": 50,
+    "presentation_order": "report source before saved decision and evidence",
+    "qualified_judgments_completed": false,
+    "new_model_inference_performed": false
+  },
+  "portability_boundary": {
+    "saved_mistral_and_medgemma_development_evidence_supported_by_typed_adapter": true,
+    "full_cohort_medgemma_explanations_available": false,
+    "development_transport_evidence_is_model_ranking": false,
+    "source_location_is_entailment_or_clinical_validation": false
+  },
+  "implementation": {
+    "review_runner_sha256": "29e2cf55c29d7f4c59bc98aa7f0a11839dce6e6408887b3e18093008b1dbf3a2",
+    "traceability_library_sha256": "a58de2e26bfeb09ef7cfc4f791900e25f3f67bf9d14d0d329202b1dee7ad26c4",
+    "study_integrity_library_sha256": "18c8a647c542ca6cc9503157f0782ee3aebdcd2bdf8e7bc9f6daa8c11ecbd428",
+    "governed_intake_sha256": "4102f00ace2d4e4e2bd69da661a03c47daa8e698c58dac23fa123c6469c2c8b4",
+    "governed_aggregate_sha256": "665a1d8eb11cdcad1beb9d3d4db1cb97b6f921559a9f5f3365aba3d1dc688273",
+    "governed_completion_sha256": "94f766b0a1c138691d2defe087b572ee6a0d1b02ab0f610166e7436bb03dbd79"
+  },
+  "distribution_status": {
+    "method_and_aggregate": "source_config_publishable_after_author_review",
+    "html_form_report_and_evidence_text": "governed_local_qualified_review_only",
+    "model_weights": "not_redistributed"
+  },
+  "manuscript_admission": false
+}

@@ -24,6 +24,7 @@ from eeg_review.reason_traceability import (
     historical_polarity_units,
 )
 from eeg_review.source_grounding import text_sha
+from eeg_review.study_integrity import decision_lenses
 
 ROOT = Path(__file__).resolve().parents[1]
 HISTORICAL_STREAM = "historical_mistral_saved_polarity"
@@ -142,7 +143,11 @@ It is a workload, not a prevalence sample or performance estimate. Record judgme
             f'{len(item["segments"])} saved segment(s).</p>'
             f'<h3>1. Read the report</h3><pre>{html.escape(item["report"])}</pre>'
             '<details><summary>2. Reveal the saved model decision and evidence</summary>'
-            f'<p>Four-level model decision: <strong>{item["model_level"]}</strong></p><ol>'
+            f'<p>Four-level decision: <strong>{item["decision"]["four_level_decision"]}</strong>; '
+            f'core call: <strong>{html.escape(item["decision"]["core_call"])}</strong>; '
+            "declared confidence: "
+            f'<strong>{html.escape(item["decision"]["declared_confidence"])}</strong>. '
+            "This is an ordinal model output, not a calibrated probability.</p><ol>"
         )
         for segment in item["segments"]:
             scores = []
@@ -181,6 +186,14 @@ def run(args: argparse.Namespace) -> None:
     selected, public_summary = build_review_queue(rows)
     safe_preview = {
         **public_summary,
+        "decision_lens": {
+            "four_level_semantics": (
+                "1 confident absent; 2 low-confidence absent; "
+                "3 low-confidence present; 4 confident present"
+            ),
+            "core_mapping": "1-2 absent; 3-4 present",
+            "probability_calibration_claimed": False,
+        },
         "inference_performed": False,
         "historical_units_verified": len(units),
         "historical_segments_verified": len(rows),
@@ -204,6 +217,9 @@ def run(args: argparse.Namespace) -> None:
             "review_runner_sha256": sha256_file(Path(__file__)),
             "traceability_library_sha256": sha256_file(
                 ROOT / "src/eeg_review/reason_traceability.py"
+            ),
+            "study_integrity_library_sha256": sha256_file(
+                ROOT / "src/eeg_review/study_integrity.py"
             ),
         },
         "inference_performed": False,
@@ -241,6 +257,7 @@ def run(args: argparse.Namespace) -> None:
         case_handle = review_handle(
             f'{HISTORICAL_STREAM}:{unit.report_key}:{unit.category}', salt
         )
+        decision = decision_lenses(artifact_by_key.at[unit.report_key, unit.category])
         segments = []
         for row in matching:
             segment_number = int(row["segment_number"])
@@ -264,6 +281,9 @@ def run(args: argparse.Namespace) -> None:
                     "case_handle": case_handle,
                     "category": unit.category,
                     "stratum": selection["stratum"],
+                    "four_level_decision": decision["four_level_decision"],
+                    "core_call": decision["core_call"],
+                    "declared_confidence": decision["declared_confidence"],
                     "segment_number": segment_number,
                     "audit_stage": str(row["stage"]),
                     "source_present": "",
@@ -279,7 +299,7 @@ def run(args: argparse.Namespace) -> None:
                 "case_handle": case_handle,
                 "category": unit.category,
                 "stratum": selection["stratum"],
-                "model_level": int(artifact_by_key.at[unit.report_key, unit.category]),
+                "decision": decision,
                 "report": unit.report,
                 "segments": segments,
             }
