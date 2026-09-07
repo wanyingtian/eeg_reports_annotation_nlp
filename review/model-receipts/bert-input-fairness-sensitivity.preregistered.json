@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "study_id": "jbhi-bert-input-fairness-sensitivity-20260907",
+  "status": "preregistered_before_case_level_inspection",
+  "purpose": "Determine whether the historical BERT 512-token input limit materially changes the report-level comparison or removes impression-like sections.",
+  "evidence_layer": "post_submission_read_only_sensitivity",
+  "fixed_inputs": {
+    "cohorts": [
+      "zoe_evaluation_complete_cases",
+      "maria_evaluation_complete_cases"
+    ],
+    "reference": "Reference Annotator four-level labels",
+    "saved_prediction_surfaces": [
+      "fresh_bow_lr",
+      "fresh_bert_lr",
+      "submitted_mistral",
+      "reproduced_mistral",
+      "independently_frozen_medgemma_declared_format"
+    ],
+    "bert_tokenizer": {
+      "model_id": "bert-base-uncased",
+      "revision": "86b5e0934494bd15c9632b12f734a8a67f723594",
+      "maximum_sequence_length": 512,
+      "truncation_side": "right"
+    }
+  },
+  "analysis": {
+    "eligible_rows": "Reports with one unique report key, nonblank report text, and all five Reference Annotator labels in {1,2,3,4}.",
+    "truncation_exposure": "An eligible report is exposed when untruncated bert-base-uncased tokenization contains more than 512 tokens, including special tokens.",
+    "section_check": "For exposed reports only, locate line-leading Impression, Interpretation, Conclusion, or Clinical Correlation headings without reading model outcomes; record whether the first such heading begins beyond the retained 512-token character boundary.",
+    "primary_sensitivity": "For each cohort, model, and category, compare the complete eligible population with the common population after excluding every BERT-truncation-exposed report.",
+    "metrics": [
+      "TP",
+      "FP",
+      "TN",
+      "FN",
+      "core_accuracy",
+      "precision",
+      "recall_sensitivity",
+      "specificity",
+      "F1",
+      "certainty_adjusted_accuracy",
+      "core_kappa",
+      "four_level_kappa"
+    ],
+    "interpretation_rule": "Report exact affected counts and all metric changes. Do not call a small change equivalence, and do not infer that an unrecognized section heading was absent. The sensitivity addresses BERT input truncation, not patient independence or clinical validity."
+  },
+  "prohibited": [
+    "model inference",
+    "model fitting or threshold selection",
+    "prompt or cohort changes",
+    "excluding reports from the primary historical record",
+    "case selection based on labels or model correctness",
+    "report text or report key release",
+    "clinical interpretation of individual reports"
+  ],
+  "outputs": {
+    "governed": [
+      "exposed report-key and token/section ledger",
+      "input hashes and exact analysis configuration"
+    ],
+    "public_safe_after_author_review": [
+      "aggregate exposure counts",
+      "aggregate full-versus-excluded metric table",
+      "bounded interpretation"
+    ]
+  }
+}
