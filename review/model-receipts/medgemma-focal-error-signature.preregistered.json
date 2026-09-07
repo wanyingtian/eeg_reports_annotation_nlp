@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "study_id": "jbhi-02463-medgemma-focal-error-signature-20260907",
+  "status": "frozen_before_case_level_cue_results",
+  "study_role": "post_hoc_explanatory_audit_of_a_known_aggregate_tradeoff",
+  "question": "Which predeclared report-language contexts accompany the additional focal-epileptiform false positives of the frozen MedGemma native-interface v1 comparator relative to reproduced Mistral?",
+  "fixed_population": {
+    "unit": "report",
+    "reference": "Reference Annotator",
+    "complete_reference_required": true,
+    "cohorts": {
+      "zoe_evaluation_1395": 1395,
+      "maria_evaluation_499": 499
+    },
+    "target_label": "Focal Epi",
+    "patient_independence_established": false
+  },
+  "fixed_prediction_surfaces": [
+    "reproduced_mistral",
+    "independent_medgemma_native_v1"
+  ],
+  "paired_transition_groups": [
+    "both_correct_negative",
+    "medgemma_only_false_positive",
+    "mistral_only_false_positive",
+    "both_false_positive",
+    "both_true_positive",
+    "medgemma_only_true_positive",
+    "mistral_only_true_positive",
+    "both_false_negative"
+  ],
+  "segment_rule": "Split report text at line boundaries or sentence-ending punctuation; a cue is present only when both registered term families occur in the same segment.",
+  "registered_cues": [
+    "negated_epileptiform_segment",
+    "history_or_indication_with_seizure_segment",
+    "benign_or_artifact_with_sharp_segment",
+    "focal_slowing_or_attenuation_segment",
+    "generalized_or_bilateral_epileptiform_segment",
+    "focal_epileptiform_wording_segment",
+    "uncertain_epileptiform_wording_segment"
+  ],
+  "outputs": {
+    "public_safe": "aggregate transition counts and cue prevalence only",
+    "governed": "keyed row ledger with source-matched cue segments",
+    "receipt": "hash-bound inputs, configuration, plan and outputs"
+  },
+  "retention_rule": "Retain every transition group and every registered cue result, favorable or unfavorable.",
+  "prohibitions": [
+    "No model inference or fitting.",
+    "No changes to predictions, labels, cohorts, prompts or thresholds.",
+    "No clinical interpretation from lexical cues alone.",
+    "Do not use protected-cohort cue results to select a new prompt and then claim an unbiased evaluation on the same cohort.",
+    "Do not place report keys, report text or matched source segments in public-safe outputs."
+  ]
+}
