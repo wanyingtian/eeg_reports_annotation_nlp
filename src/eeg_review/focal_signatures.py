@@ -97,9 +97,9 @@ def cue_segments(report: str) -> dict[str, list[str]]:
 
 
 def transition_group(reference_level: int, mistral_level: int, medgemma_level: int) -> str:
-    reference = int(reference_level) > 1
-    mistral = int(mistral_level) > 1
-    medgemma = int(medgemma_level) > 1
+    reference = int(reference_level) >= 3
+    mistral = int(mistral_level) >= 3
+    medgemma = int(medgemma_level) >= 3
     if not reference:
         if not mistral and not medgemma:
             return "both_correct_negative"

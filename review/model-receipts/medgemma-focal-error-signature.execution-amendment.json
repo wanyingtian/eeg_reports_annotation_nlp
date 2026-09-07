@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "study_id": "jbhi-02463-medgemma-focal-error-signature-20260907",
+  "created_after_invalid_execution": true,
+  "invalid_output_retained_at": "data/governed/analysis-runs/jbhi-focal-error-signature-20260907",
+  "invalidity": "The first implementation collapsed levels with value >1, incorrectly treating level 2 as binary present.",
+  "correction": "Use the established study mapping: levels 1-2 are binary absent and levels 3-4 are binary present.",
+  "evidence_for_correction": [
+    "review/LOCAL_CLINICAL_TEXT_LLM_VISIBILITY_FRAMEWORK.md",
+    "review/CLINICAL_ERROR_REVIEW_PROTOCOL.md",
+    "src/eeg_review/calibration.py"
+  ],
+  "unchanged_elements": [
+    "fixed cohorts and report keys",
+    "saved Mistral and MedGemma prediction surfaces",
+    "target label",
+    "paired transition groups",
+    "segment rule",
+    "all seven registered cues",
+    "retention and interpretation boundaries"
+  ],
+  "replacement_output": "data/governed/analysis-runs/jbhi-focal-error-signature-20260907-v2",
+  "reporting_rule": "The invalid output must not be interpreted or reported; the corrected output must reproduce the already established focal-epileptiform confusion counts before cue results are interpreted."
+}

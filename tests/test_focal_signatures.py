@@ -43,7 +43,7 @@ def test_registered_cues_require_terms_in_the_same_segment() -> None:
 @pytest.mark.parametrize(
     ("reference", "mistral", "medgemma", "expected"),
     [
-        (1, 1, 1, "both_correct_negative"),
+        (2, 2, 2, "both_correct_negative"),
         (1, 1, 3, "medgemma_only_false_positive"),
         (1, 3, 1, "mistral_only_false_positive"),
         (1, 3, 3, "both_false_positive"),
