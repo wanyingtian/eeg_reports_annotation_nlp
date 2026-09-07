@@ -14,7 +14,7 @@ contract) against the completed, protected `medgemma-27b-native-protected-v1`
 predictions from `data/governed/study-runs/jbhi-medgemma-native-protected-20260830/`,
 matched to the same evaluation reference DBs used for the full-cohort result in
 `COMPLETED_MODEL_COMPARISON_FINDINGS_2026-08-30.md`. Producing code revision
-`c2a8298`. Its receipt correctly records a dirty worktree because of a
+`d026c07`. Its receipt correctly records a dirty worktree because of a
 pre-existing, unrelated `.gitignore` edit.
 
 No `--cluster-column` was supplied: the reference snapshot's `Cluster code`
@@ -22,16 +22,18 @@ field has only one distinct value per cohort and was already established as
 not a patient identifier (`MEDGEMMA_INDEPENDENT_COMPARATOR_STUDY.md`). Sampled
 rows may therefore include repeated patients; the packet's own
 `interpretation_limits` field states this explicitly. Each cohort used a fresh
-32-byte random handle salt. This first packet did not retain either the salt or
-a source-key lookup, so its case handles cannot be resolved later. It verifies
-the aggregate counts but is **not yet suitable for clinical handoff**. The
-repaired generator emits a separate governed lookup; the packet will be
-regenerated after that repair is committed.
+32-byte random handle salt. The repaired generator emits a separate governed
+lookup from each portable case handle to its source report key. All 139 Zoe
+handles and all 57 Maria handles resolve exactly once. The packet is therefore
+ready for a qualified reviewer inside the authorized environment; the lookup
+is not portable and must remain governed.
 
 ```
-data/governed/analysis-runs/jbhi-medgemma-error-review-20260907/
-  zoe-medgemma/{clinical_error_review_summary.json, clinical_error_review_packet.csv, run_manifest.json}
-  maria-medgemma/{clinical_error_review_summary.json, clinical_error_review_packet.csv, run_manifest.json}
+data/governed/analysis-runs/jbhi-medgemma-error-review-20260907-v2/
+  zoe-medgemma/{clinical_error_review_summary.json, clinical_error_review_packet.csv,
+                clinical_error_review_lookup.csv, run_manifest.json}
+  maria-medgemma/{clinical_error_review_summary.json, clinical_error_review_packet.csv,
+                  clinical_error_review_lookup.csv, run_manifest.json}
 ```
 
 Governed, gitignored; not for Git, email, or circulation, per protocol.
@@ -61,6 +63,12 @@ Mistral packets (194 Zoe / 145 Maria rows, `error-review-20260720/`), so the
 two are directly comparable in method, not yet in content — no cross-model
 case linkage was requested or produced.
 
+The regenerated artifacts are hash-bound by their run manifests. The Zoe
+packet and lookup SHA-256 values begin `69c1b4907a29` and `ccee1fe4d370`;
+the Maria values begin `1b7e7a500d7b` and `b7f550b81bb6`. The first,
+unresolvable packet remains retained as an audit trail and is superseded by
+the `-v2` directory above.
+
 ## What this does not do
 
 - No clinical salience, workflow-consequence, or escalation judgment has been
@@ -75,6 +83,6 @@ case linkage was requested or produced.
 
 ## Next step
 
-Regenerate with the repaired source-key lookup, verify complete handle coverage,
-then hand off inside the approved environment to whoever is named as the
-qualified clinical reviewer. No further model inference is needed.
+Name a qualified clinical reviewer and agree on the review-field codebook,
+then hand off the packet and its separate lookup inside the approved
+environment. No further model inference is needed.
