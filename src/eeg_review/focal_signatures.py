@@ -154,18 +154,25 @@ def audit_cohort(
     )
     frames = {"reference": reference, "mistral": mistral, "medgemma": medgemma}
     key_sets = {name: _validate_keys(frame, name=name) for name, frame in frames.items()}
-    if any(len(frame) != expected_records for frame in frames.values()):
-        sizes = {name: len(frame) for name, frame in frames.items()}
-        raise ValueError(f"{cohort} record counts differ from the frozen population: {sizes}")
-    if len({frozenset(keys) for keys in key_sets.values()}) != 1:
-        detail = {
-            name: {
-                "missing_from_reference": len(key_sets["reference"] - keys),
-                "extra_vs_reference": len(keys - key_sets["reference"]),
-            }
-            for name, keys in key_sets.items()
+    if len(reference) != expected_records:
+        raise ValueError(
+            f"{cohort} reference count differs from the frozen population: "
+            f"{len(reference)} != {expected_records}"
+        )
+    detail = {
+        name: {
+            "missing_from_reference": len(key_sets["reference"] - keys),
+            "extra_vs_reference": len(keys - key_sets["reference"]),
         }
-        raise ValueError(f"{cohort} prediction keys do not match the reference: {detail}")
+        for name, keys in key_sets.items()
+    }
+    missing = {
+        name: values["missing_from_reference"]
+        for name, values in detail.items()
+        if values["missing_from_reference"]
+    }
+    if missing:
+        raise ValueError(f"{cohort} predictions omit frozen reference keys: {detail}")
 
     merged = reference.merge(mistral, on=KEY, validate="one_to_one").merge(
         medgemma, on=KEY, validate="one_to_one"
@@ -205,6 +212,7 @@ def audit_cohort(
     aggregate = {
         "cohort": cohort,
         "records": int(len(ledger)),
+        "input_key_reconciliation": detail,
         "transition_groups": groups,
     }
     return ledger, aggregate

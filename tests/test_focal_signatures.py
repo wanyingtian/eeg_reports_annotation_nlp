@@ -103,7 +103,7 @@ def test_audit_keeps_source_segments_governed_and_aggregate_key_free(tmp_path: P
     )
 
 
-def test_audit_rejects_key_mismatch(tmp_path: Path) -> None:
+def test_audit_rejects_missing_reference_key(tmp_path: Path) -> None:
     reference = pd.DataFrame(
         {"Hashed_ReportURN": ["a"], "Report": ["Normal."], "Focal Epi": [1]}
     )
@@ -115,7 +115,7 @@ def test_audit_rejects_key_mismatch(tmp_path: Path) -> None:
     write_db(reference_path, "reports", reference)
     write_db(mistral_path, "classifications", mistral)
     write_db(medgemma_path, "classifications", medgemma)
-    with pytest.raises(ValueError, match="prediction keys do not match"):
+    with pytest.raises(ValueError, match="omit frozen reference keys"):
         audit_cohort(
             cohort="synthetic",
             expected_records=1,
@@ -123,3 +123,28 @@ def test_audit_rejects_key_mismatch(tmp_path: Path) -> None:
             mistral_path=mistral_path,
             medgemma_path=medgemma_path,
         )
+
+
+def test_audit_records_and_excludes_prediction_only_extra(tmp_path: Path) -> None:
+    reference = pd.DataFrame(
+        {"Hashed_ReportURN": ["a"], "Report": ["Normal."], "Focal Epi": [1]}
+    )
+    mistral = pd.DataFrame(
+        {"Hashed_ReportURN": ["a", "excluded"], "Focal Epi": [1, 3]}
+    )
+    medgemma = pd.DataFrame({"Hashed_ReportURN": ["a"], "Focal Epi": [1]})
+    reference_path = tmp_path / "reference.db"
+    mistral_path = tmp_path / "mistral.db"
+    medgemma_path = tmp_path / "medgemma.db"
+    write_db(reference_path, "reports", reference)
+    write_db(mistral_path, "classifications", mistral)
+    write_db(medgemma_path, "classifications", medgemma)
+    ledger, aggregate = audit_cohort(
+        cohort="synthetic",
+        expected_records=1,
+        reference_path=reference_path,
+        mistral_path=mistral_path,
+        medgemma_path=medgemma_path,
+    )
+    assert len(ledger) == 1
+    assert aggregate["input_key_reconciliation"]["mistral"]["extra_vs_reference"] == 1
