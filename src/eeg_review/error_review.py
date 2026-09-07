@@ -118,6 +118,7 @@ def build_error_review_packet(
 
     rng = np.random.default_rng(seed)
     packet_rows: list[dict[str, Any]] = []
+    lookup_rows: dict[str, str] = {}
     label_summary: dict[str, Any] = {}
     for label in labels:
         reference_values = pd.to_numeric(merged[label], errors="coerce")
@@ -153,9 +154,13 @@ def build_error_review_packet(
             )
             counts[f"{error_type}_selected"] = int(len(chosen))
             for _, row in chosen.iterrows():
+                case_handle = review_handle(str(row[id_column]), handle_salt)
+                previous = lookup_rows.setdefault(case_handle, str(row[id_column]))
+                if previous != str(row[id_column]):
+                    raise ValueError("case-handle collision across source reports")
                 packet_rows.append(
                     {
-                        "case_handle": review_handle(str(row[id_column]), handle_salt),
+                        "case_handle": case_handle,
                         "label": label,
                         "model_id": model_id,
                         "error_type": error_type,
@@ -190,6 +195,13 @@ def build_error_review_packet(
             "review_notes",
         ],
     )
+    lookup = pd.DataFrame(
+        [
+            {"case_handle": case_handle, id_column: source_id}
+            for case_handle, source_id in sorted(lookup_rows.items())
+        ],
+        columns=["case_handle", id_column],
+    )
     summary: dict[str, Any] = {
         "schema_version": 1,
         "model_id": model_id,
@@ -205,10 +217,17 @@ def build_error_review_packet(
             "one_case_per_cluster_preferred": bool(cluster_column),
         },
         "selected_case_rows": int(len(packet)),
+        "governed_source_lookup": {
+            "file": "clinical_error_review_lookup.csv",
+            "distinct_cases": int(len(lookup)),
+            "contains_source_report_identifiers": True,
+            "portable_or_emailable": False,
+        },
         "labels": label_summary,
         "interpretation_limits": [
             "This packet supports governed clinical error review; it does not adjudicate truth.",
             "Report text and source identifiers are intentionally absent from the portable packet.",
+            "The separate source lookup contains report identifiers and must remain governed.",
         ],
     }
     if not cluster_column:
@@ -218,6 +237,7 @@ def build_error_review_packet(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     atomic_write_csv(output_dir / "clinical_error_review_packet.csv", packet)
+    atomic_write_csv(output_dir / "clinical_error_review_lookup.csv", lookup)
     atomic_write_json(output_dir / "clinical_error_review_summary.json", summary)
     atomic_write_json(
         output_dir / "run_manifest.json",
@@ -239,8 +259,8 @@ def build_error_review_packet(
                 "handle_salt_sha256": hashlib.sha256(handle_salt.encode()).hexdigest(),
             },
             privacy_boundary=(
-                "governed case-level handles and label pairs; no report text, source identifiers, "
-                "or patient identifiers emitted"
+                "portable packet contains governed handles and label pairs; separate governed "
+                "lookup contains source report identifiers; no report text or patient identifiers"
             ),
         ),
     )

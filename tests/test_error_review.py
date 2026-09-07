@@ -68,10 +68,28 @@ def test_error_review_packet_omits_source_ids_and_text(tmp_path: Path) -> None:
     )
 
     packet = pd.read_csv(output / "clinical_error_review_packet.csv")
+    lookup = pd.read_csv(output / "clinical_error_review_lookup.csv")
     assert result["selected_case_rows"] == 2
+    assert result["governed_source_lookup"] == {
+        "file": "clinical_error_review_lookup.csv",
+        "distinct_cases": 2,
+        "contains_source_report_identifiers": True,
+        "portable_or_emailable": False,
+    }
     assert set(packet["error_type"]) == {"false_negative", "false_positive"}
     assert packet["case_handle"].str.startswith("case-").all()
+    assert set(lookup) == {"case_handle", "Hashed_ReportURN"}
+    assert set(lookup["Hashed_ReportURN"]) <= {
+        "report-a",
+        "report-b",
+        "report-c",
+        "report-d",
+    }
+    assert set(packet["case_handle"]) == set(lookup["case_handle"])
     rendered = (output / "clinical_error_review_packet.csv").read_text(encoding="utf-8")
     for sensitive_value in ("report-a", "report-b", "report-c", "report-d", "patient-"):
         assert sensitive_value not in rendered
     assert "Report" not in packet.columns
+    assert "patient-" not in (output / "clinical_error_review_lookup.csv").read_text(
+        encoding="utf-8"
+    )

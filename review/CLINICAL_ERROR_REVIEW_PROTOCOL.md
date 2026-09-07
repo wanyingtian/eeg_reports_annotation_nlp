@@ -14,10 +14,12 @@ collapsing levels 1–2 versus 3–4. They do not mean that the reference is an
 adjudicated clinical ground truth.
 
 The portable worksheet contains no report text, original report identifier, or
-patient identifier. It remains governed case-level material and must not be
-committed, emailed, or moved outside the approved environment. An authorized
-review interface may resolve each case handle back to its source report only
-inside that environment.
+patient identifier. A separate governed lookup maps each case handle to the
+source report key so an authorized review interface can retrieve the report
+inside the approved environment. The lookup is not portable: neither file may
+be committed, emailed, or moved outside the approved environment, and only the
+worksheet may be shown without its lookup when source-key disclosure is not
+authorized.
 
 ## Sampling receipt
 
@@ -29,6 +31,12 @@ For each model, cohort, category, and error direction, record:
 - sampling seed and maximum cases per stratum;
 - whether sampling used a stable patient key; and
 - total eligible and selected cases.
+
+The generator must also retain the source-lookup filename and distinct-case
+count in its aggregate summary. Tests require the portable worksheet to omit
+all source identifiers while requiring every worksheet handle to resolve in the
+governed lookup. A salted handle without a retained lookup or reproducible salt
+is not review-ready.
 
 When a patient key exists, the generator first prefers one report per patient
 within each stratum. Without that key, report-level selection is provisional

@@ -559,7 +559,16 @@ def stages_for(run_dir: Path) -> list[Stage]:
             job["error_review_salt"],
             "--acknowledge-governed-output",
         ]
-        return Stage(name, command, (output / "clinical_error_review_summary.json",))
+        return Stage(
+            name,
+            command,
+            (
+                output / "clinical_error_review_summary.json",
+                output / "clinical_error_review_packet.csv",
+                output / "clinical_error_review_lookup.csv",
+                output / "run_manifest.json",
+            ),
+        )
 
     stages: list[Stage] = [
         audit("audit_zoe_development", "zoe_development_100.db", "zoe-development"),
