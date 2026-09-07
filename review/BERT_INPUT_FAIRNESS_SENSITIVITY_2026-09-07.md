@@ -36,9 +36,10 @@ configuration. This is an exclusion sensitivity, not a new model run.
 
 After excluding those four reports from every model, no category-level Core
 Agreement ranking changed in either cohort. For BERT+LR, the largest absolute
-change was 0.106 percentage points in Core Agreement and 0.310 points in F1.
-Across all five model surfaces, the largest Core Agreement change was 0.187
-points. The largest F1 change was 1.259 points in the rare Maria focal
+change was 0.106 percentage points in Core Agreement and 0.310 percentage
+points in F1. Across all five model surfaces, the largest Core Agreement change
+was 0.187 percentage points. The largest F1 change was 1.259 percentage points
+in the rare Maria focal
 epileptiform stratum for reproduced Mistral, where removing three reports has
 a relatively visible denominator effect. BERT's zero or near-zero rare
 epileptiform F1 findings were unchanged in interpretation.
