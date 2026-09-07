@@ -81,6 +81,16 @@ configured classification, declared confidence, independently generated
 evidence, source traceability, qualified review, and provenance remain linked
 but non-interchangeable lanes.
 
+The read-only
+[`MEDGEMMA_FOCAL_ERROR_SIGNATURE_2026-09-07.md`](MEDGEMMA_FOCAL_ERROR_SIGNATURE_2026-09-07.md)
+then localizes the known Zoe focal-epileptiform trade-off on the exact paired
+reports. It freezes seven text-context cues before inspecting their case-level
+results, retains an invalid first execution and explicit binary-level
+correction, and keeps matched source segments governed. No cue provides a
+simple explanation for the 22 additional MedGemma false positives, so the
+result supports qualified case review rather than another protected-set prompt
+iteration.
+
 Any post-submission model proposed as a stronger comparator must use
 [`CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md`](CONTEMPORARY_LLM_COMPARISON_PROTOCOL.md)
 and the typed gates in
