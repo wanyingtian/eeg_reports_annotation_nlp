@@ -98,6 +98,7 @@ except ModuleNotFoundError:
 
 from eeg_review.prompt_versions import (
     HISTORICAL_PROMPT_VERSION,
+    MISTRAL_ENDPOINT_GUIDANCE_ABLATION,
     PROMPT_VERSIONS,
     classification_prompt as versioned_classification_prompt,
     prompt_row_identity,
@@ -938,7 +939,16 @@ def run_pipeline(
         if cfg.classification_mode == BINARY_CORE_ADAPTER_MODE
         else versioned_classification_prompt(PROMPT_CLASSIFY, cfg.classification_prompt_version)
     )
-    if cfg.classification_prompt_version != HISTORICAL_PROMPT_VERSION and (
+    if cfg.classification_prompt_version == MISTRAL_ENDPOINT_GUIDANCE_ABLATION:
+        if (
+            cfg.classification_mode != HISTORICAL_FOUR_LEVEL_MODE
+            or cfg.classification_interface != RAW_COMPLETION_INTERFACE_MODE
+            or cfg.model_name != "mistral"
+        ):
+            raise ValueError(
+                "the endpoint-guidance ablation is a Mistral raw-completion four-level configuration"
+            )
+    elif cfg.classification_prompt_version != HISTORICAL_PROMPT_VERSION and (
         cfg.classification_mode != HISTORICAL_FOUR_LEVEL_MODE
         or cfg.classification_interface != NATIVE_CHAT_INTERFACE_MODE
         or cfg.model_name != "medgemma-27b-q2-candidate"

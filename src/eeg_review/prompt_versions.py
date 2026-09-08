@@ -5,11 +5,22 @@ from __future__ import annotations
 from .native_interface import sha256_text
 
 HISTORICAL_PROMPT_VERSION = "historical-submitted"
+MISTRAL_ENDPOINT_GUIDANCE_ABLATION = "postsubmission-mistral-endpoint-guidance-ablation-v1"
 MEDGEMMA_FOCAL_V2 = "medgemma-native-focal-disambiguation-v2"
 MEDGEMMA_SCOPE_V21 = "medgemma-native-category-scope-v2.1"
-PROMPT_VERSIONS = (HISTORICAL_PROMPT_VERSION, MEDGEMMA_FOCAL_V2, MEDGEMMA_SCOPE_V21)
+PROMPT_VERSIONS = (
+    HISTORICAL_PROMPT_VERSION,
+    MISTRAL_ENDPOINT_GUIDANCE_ABLATION,
+    MEDGEMMA_FOCAL_V2,
+    MEDGEMMA_SCOPE_V21,
+)
 HISTORICAL_PROMPT_SHA256 = "52198221d8330e9857b51a7ad99b017aa18836e1718b08dd0ae355820f5a5e69"
 ANCHOR = "\n\n2. Generalized Epileptiform Activity:"
+ENDPOINT_GUIDANCE = (
+    "Err on the side of confident decisions. Use 1 or 4 whenever possible. Only use 2 or 3 "
+    "if there is strong, unavoidable ambiguity.\n"
+    "Choose 2 or 3 sparingly, only when absolutely necessary.\n"
+)
 FOCAL_DISAMBIGUATION = (
     "\nFocal epileptiform clarification:\n"
     "- Judge findings recorded in this EEG, not the indication for the study or a history "
@@ -48,10 +59,20 @@ def classification_prompt(base: str, version: str = HISTORICAL_PROMPT_VERSION) -
     """Resolve a named change only against the exact historical source bytes."""
     if version == HISTORICAL_PROMPT_VERSION:
         return base
-    if version not in {MEDGEMMA_FOCAL_V2, MEDGEMMA_SCOPE_V21}:
+    if version not in {
+        MISTRAL_ENDPOINT_GUIDANCE_ABLATION,
+        MEDGEMMA_FOCAL_V2,
+        MEDGEMMA_SCOPE_V21,
+    }:
         raise ValueError("unknown classification prompt version")
-    if sha256_text(base) != HISTORICAL_PROMPT_SHA256 or base.count(ANCHOR) != 1:
-        raise ValueError("focal v2 requires the unchanged submitted classification prompt")
+    if sha256_text(base) != HISTORICAL_PROMPT_SHA256:
+        raise ValueError("prompt ablation requires the unchanged submitted classification prompt")
+    if version == MISTRAL_ENDPOINT_GUIDANCE_ABLATION:
+        if base.count(ENDPOINT_GUIDANCE) != 1:
+            raise ValueError("submitted endpoint-guidance block is not uniquely identifiable")
+        return base.replace(ENDPOINT_GUIDANCE, "", 1)
+    if base.count(ANCHOR) != 1:
+        raise ValueError("focal v2 anchor is not uniquely identifiable")
     focal = base.replace(ANCHOR, "\n" + FOCAL_DISAMBIGUATION + ANCHOR, 1)
     if version == MEDGEMMA_FOCAL_V2:
         return focal

@@ -13,10 +13,12 @@ import pytest
 from eeg_review.logprob_adapter import JSON_KEY_TO_LABEL
 from eeg_review.native_interface import sha256_text
 from eeg_review.prompt_versions import (
+    ENDPOINT_GUIDANCE,
     FOCAL_DISAMBIGUATION,
     HISTORICAL_PROMPT_SHA256,
     HISTORICAL_PROMPT_VERSION,
     MEDGEMMA_FOCAL_V2,
+    MISTRAL_ENDPOINT_GUIDANCE_ABLATION,
     classification_prompt,
     development_verdict,
     prompt_row_identity,
@@ -24,6 +26,9 @@ from eeg_review.prompt_versions import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+ENDPOINT_ABLATION_PLAN = (
+    ROOT / "review/model-receipts/mistral-endpoint-guidance-ablation.preregistered.json"
+)
 spec = importlib.util.spec_from_file_location(
     "medgemma_prompt_v2", ROOT / "scripts/medgemma_prompt_v2.py"
 )
@@ -53,7 +58,36 @@ def test_only_focal_clarification_changes_and_hashes_match():
     assert prompt_row_identity(HISTORICAL_PROMPT_VERSION, base) == {}
 
 
-@pytest.mark.parametrize("base,version", [("changed", MEDGEMMA_FOCAL_V2), ("", "unknown")])
+def test_endpoint_guidance_ablation_changes_exactly_the_deck_named_component():
+    base = historical_prompt()
+    changed = classification_prompt(base, MISTRAL_ENDPOINT_GUIDANCE_ABLATION)
+    assert ENDPOINT_GUIDANCE not in changed
+    assert changed.replace("Constraints:\n", "Constraints:\n" + ENDPOINT_GUIDANCE, 1) == base
+    identity = prompt_row_identity(MISTRAL_ENDPOINT_GUIDANCE_ABLATION, changed)
+    assert identity["classification_prompt_version"] == MISTRAL_ENDPOINT_GUIDANCE_ABLATION
+    assert identity["classification_prompt_sha256"] == sha256_text(changed)
+
+
+def test_endpoint_guidance_ablation_plan_is_one_factor_and_development_only():
+    plan = json.loads(ENDPOINT_ABLATION_PLAN.read_text())
+    changed = classification_prompt(historical_prompt(), MISTRAL_ENDPOINT_GUIDANCE_ABLATION)
+    assert plan["status"] == "preregistered_not_run"
+    assert plan["factors"]["changed_factor_count"] == 1
+    assert plan["factors"]["candidate_prompt_sha256"] == sha256_text(changed)
+    assert plan["development_surface"]["records"] == 100
+    assert plan["development_surface"]["protected_evaluation_allowed"] is False
+    assert plan["historical_claim_boundary"]["reproduces_historical_14_percent_claim"] is False
+    assert plan["interpretation"]["all_results_retained"] is True
+
+
+@pytest.mark.parametrize(
+    "base,version",
+    [
+        ("changed", MEDGEMMA_FOCAL_V2),
+        ("changed", MISTRAL_ENDPOINT_GUIDANCE_ABLATION),
+        ("", "unknown"),
+    ],
+)
 def test_wrong_parent_or_unknown_version_rejected(base, version):
     with pytest.raises(ValueError):
         classification_prompt(base, version)
