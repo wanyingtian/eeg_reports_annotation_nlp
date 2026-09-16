@@ -1,0 +1,98 @@
+# Follow-up study narrative: from portability to grounded explanation
+
+**Status:** framing document for a future methods paper. Not part of the
+current JBHI revision, not a manuscript draft, and not required by anything
+already submitted or in review.
+
+## Where this picks up
+
+The JBHI revision under review already establishes one bounded fact: the
+report-to-result contract — five categories, four-level labels, a
+grammar-constrained classification call — transports to a second, newer local
+model (MedGemma) without changing the task. That claim is deliberately narrow.
+It says the classification layer survived a model change. It says nothing
+about the second, thesis-originated call: whether a model's stated reasons for
+a decision are actually grounded in the report it read.
+
+This follow-up closes that gap, on the same development surface, without
+touching anything the current revision claims.
+
+## What is now established, concretely
+
+On the frozen 100-report Zoe development set, under one strict rule (a
+verified quotation is an unchanged, nonblank substring of the source report —
+no fuzzy or semantic credit in the primary count):
+
+- MedGemma: 330 of 728 substantive phrases were exact quotations (45.3%);
+  484 of 500 report-category units carried any substantive evidence at all.
+- Saved Mistral: 53 of 295 were exact quotations (18.0%); 245 of 500 units
+  carried substantive evidence.
+
+This is real signal, not noise: MedGemma both engages more often (fewer
+declared-no-evidence units) and, when it does, quotes the source more
+literally. It is not yet a claim that MedGemma's reasons are better — only
+that they are more often present and more often traceable by this measure.
+
+## The honest gap this doesn't close
+
+Source presence is not entailment. A phrase can be an exact quotation and
+still be the wrong reason, an irrelevant one, or a restatement that doesn't
+actually justify the category it's attached to. The technical audit that
+produced the two numbers above cannot see that distinction — only a human
+reading the report and the phrase together can. That is precisely the
+question a blinded, stratified review sample answers, and precisely why nothing
+past that review is appropriate to run yet: scaling to the full 1,894-report
+evaluation surface (~25 hours of local compute) would sharpen the precision of
+the same two numbers without answering whether either model's phrases are
+actually *right*.
+
+## Why this is completion, not expansion
+
+Chris's original two-call design — classify, then extract supporting
+phrases — already embodied the idea that a model's confidence should be
+checked against something legible to a human reader, not taken on faith. The
+project's existing tools (`evidence_alignment.py`, `evidence_factuality.py`,
+now the stricter `reason_traceability.py` audit) are refinements of a question
+Chris was already asking. Running that same second call against a second
+model, and building the machinery to compare the two fairly, is finishing that
+line of work on a new instance, not inventing a new direction. Nothing here
+required a new theory of the pipeline — it required the pipeline to be used
+completely, once, on the model it hadn't yet been used on.
+
+## What a positive review result would open, and what it would not
+
+If the blinded review shows MedGemma's exact-quoted phrases genuinely support
+their categories more often than Mistral's do, three things become
+legitimately askable, in order of how much new work each needs:
+
+1. **A full-cohort evidence run**, now justified by review evidence rather
+   than by the development-set numbers alone, giving a real evaluation-surface
+   estimate rather than a development diagnostic.
+2. **Category-conditioned analysis of *where* grounding is strong or weak** —
+   does either model quote well on abnormal-presence categories but poorly on
+   the rare epileptiform ones? That's a direct, low-cost extension of data
+   already collected.
+3. **Explanation-informed prompt refinement** — using the specific reports
+   where a model's phrase was ungrounded to sharpen the extraction prompt,
+   replacing this project's historical trial-and-error refinement process
+   (already documented honestly in the current revision as exploratory) with
+   a refinement loop that has a stated reason for each change.
+
+None of this requires, and this narrative deliberately does not reach for,
+mechanistic comparison of the two models' internals. That remains a separate,
+much longer-horizon research question, useful to keep in view but not a
+prerequisite for anything above.
+
+## What a null or mixed review result would mean
+
+Equally reportable: if the review shows both models' "exact quotations" are
+frequently ungrounded despite passing the substring test, that is itself a
+finding — it would mean literal traceability is a necessary but insufficient
+proxy for good explanation, which is exactly the kind of boundary this
+project's discipline is built to state plainly rather than paper over.
+
+## Scope discipline
+
+This document exists to keep the direction legible across sessions, not to
+commit to writing a second paper on any timeline. The current JBHI submission
+does not reference, depend on, or wait for any part of this.
