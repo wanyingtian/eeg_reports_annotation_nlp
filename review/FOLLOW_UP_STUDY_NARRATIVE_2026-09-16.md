@@ -138,3 +138,15 @@ raw field-level agreement and produces a disagreement queue without copying
 report text, evidence phrases or notes. The study remains at **awaiting
 independent EEG-qualified review**. See
 `INDEPENDENT_CLINICAL_EVIDENCE_REVIEW_HANDOFF_2026-09-16.md`.
+
+The retained Reference Annotator labels have now also been harvested without
+opening the blinded review. Across 500 development report-category units per
+configured system, binary/exact agreement was 462/416 for MedGemma and 475/411
+for Mistral. MedGemma supplied substantive evidence in 484 units and an
+unchanged quotation in 305; the saved Mistral stream did so in 245 and 48.
+Conditioning on agreement revealed different directions across the two evidence
+interfaces, so literal traceability cannot be treated as a universal proxy for
+reference agreement. The full-cohort evidence run is therefore held: the next
+informative computational step is to inventory and complete only the missing
+cells in a development-only model-by-evidence-schema crossing. See
+`REFERENCE_ALIGNED_EVIDENCE_TRACEABILITY_RESULT_2026-09-16.md`.

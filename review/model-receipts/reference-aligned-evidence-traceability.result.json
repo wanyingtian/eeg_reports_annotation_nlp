@@ -1,0 +1,51 @@
+{
+  "analysis_id": "jbhi-reference-aligned-evidence-traceability-development-20260916",
+  "status": "complete_development_descriptive_analysis",
+  "pre_execution_commit": "ec726031d5964946d246c858f383910958a121eb",
+  "implementation_commit": "01c092ca8d83bc2dc4fd8fbc08fb5aedb4283d02",
+  "surface": {
+    "configured_systems": 2,
+    "reports": 100,
+    "categories": 5,
+    "units": 1000,
+    "held_out_reports_used": false,
+    "new_model_inference": false,
+    "blinded_review_unmasked": false
+  },
+  "overall": {
+    "medgemma_native_v1_fixed_decision": {
+      "binary_agreement": [462, 500],
+      "exact_four_level_agreement": [416, 500],
+      "units_with_substantive_evidence": [484, 500],
+      "units_with_any_unchanged_quote": [305, 500],
+      "unchanged_segments": [330, 728]
+    },
+    "mistral_historical_interface_saved": {
+      "binary_agreement": [475, 500],
+      "exact_four_level_agreement": [411, 500],
+      "units_with_substantive_evidence": [245, 500],
+      "units_with_any_unchanged_quote": [48, 500],
+      "unchanged_segments": [53, 295]
+    }
+  },
+  "finding": "Literal traceability is configuration-dependent and is not a universal proxy for reference agreement.",
+  "decision": {
+    "full_cohort_evidence_run": "hold",
+    "reason": "Scaling would preserve the current model-by-evidence-schema confounding.",
+    "next_experiment": "Inventory and then complete only the missing cells of a development-only model-by-evidence-schema crossing with fixed classifications.",
+    "clinical_reader": "optional for a later claim about relevance or sufficiency"
+  },
+  "governed_output_sha256": {
+    "reference_aligned_units.csv": "243082ba47a42b26fe33d6947e7d023fc34ea848d9fae691f46c6806d0bcd0cb",
+    "reference_aligned_aggregate.csv": "c83461c7af83f131a64b021a237438ae48e3b2581d5a6cc2adeb161a91b9b704",
+    "reference_aligned_summary.json": "b2793a2e37740867bcca5f59d212246756614e03f755fb44394d696a9d1d84b8",
+    "analysis_receipt.json": "1411e091102d317e4ec78079d58d9cdb931d744a39daa48b39379f2a3e501722",
+    "COMPLETE.json": "8830491c75f694956046b90dc07f1a0b02e1496b2f8c7dc260682719240b3537"
+  },
+  "boundaries": [
+    "development surface only",
+    "reference agreement is not independently established clinical correctness",
+    "source location is not relevance, sufficiency or entailment",
+    "configured-system differences cannot be attributed to model weights alone"
+  ]
+}
