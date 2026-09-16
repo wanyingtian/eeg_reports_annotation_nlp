@@ -1,0 +1,51 @@
+{
+  "analysis_id": "jbhi-reference-aligned-evidence-traceability-development-20260916",
+  "status": "frozen_before_aggregate_calculation",
+  "analysis_surface": {
+    "cohort": "zoe_reference_annotator_first_100_development_reports",
+    "categories": 5,
+    "reports": 100,
+    "units_per_configured_system": 500,
+    "held_out_evaluation_allowed": false,
+    "new_model_inference": false,
+    "blinded_review_material_used": false
+  },
+  "configured_systems": [
+    "mistral_historical_interface_saved",
+    "medgemma_native_v1_fixed_decision"
+  ],
+  "frozen_endpoints": [
+    "binary_agreement_with_reference",
+    "exact_four_level_agreement_with_reference",
+    "substantive_evidence_coverage",
+    "any_unchanged_source_quotation_per_unit",
+    "all_substantive_segments_unchanged_per_evidence_bearing_unit",
+    "unchanged_candidate_unresolved_segment_counts",
+    "declared_no_evidence_or_empty_unit_counts"
+  ],
+  "required_strata": [
+    "configured_system",
+    "category",
+    "binary_agreement",
+    "exact_four_level_agreement"
+  ],
+  "input_sha256": {
+    "development_database": "7af5de9c8561d2c3347b89517fb245caf1fc8fb7001900582c6337e58142034e",
+    "development_manifest": "dddbb46edf0ded6e468b01513a8034f205dcad1de4015d6ce97365d5bec8c051",
+    "medgemma_saved_evidence": "3963f2a3c639e088272c76daef534d57479ff34766adc9215a8c0a4cfae1d7cb",
+    "mistral_saved_classification_and_evidence": "eeade3d2b8fc7ffddb194a2cffdadfdb4df10c19e4e0b26003c0a534c9914dea"
+  },
+  "interpretation_term": "reference-aligned evidence traceability",
+  "prohibited_claims": [
+    "clinical correctness",
+    "clinical sufficiency",
+    "causal faithfulness",
+    "calibrated confidence",
+    "model-family superiority",
+    "held-out performance"
+  ],
+  "protocol": {
+    "path": "review/REFERENCE_ALIGNED_EVIDENCE_TRACEABILITY_PROTOCOL_2026-09-16.md",
+    "sha256": "575139744bfc809ef2f6625e3ca950f4efc25a089044ca7009180507929a0dcf"
+  }
+}
