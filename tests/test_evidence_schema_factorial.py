@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from eeg_review.evidence_schema_factorial import (
     factorial_contrasts,
+    factorial_evidence_units,
     paired_schema_transitions,
 )
 
@@ -90,3 +92,40 @@ def test_paired_transitions_reject_changed_decision() -> None:
     ]
     with pytest.raises(ValueError, match="invariant"):
         paired_schema_transitions(rows)
+
+
+def test_factorial_units_retain_invalid_json_as_empty_units() -> None:
+    reports = pd.DataFrame(
+        [{"Hashed_ReportURN": "R1", "Report": "Normal posterior rhythm."}]
+    )
+    evidence = pd.DataFrame(
+        [
+            {
+                "Hashed_ReportURN": "R1",
+                "fixed_classifications": "not-used-for-invalid-json",
+                "explanations": "{truncated",
+                "structured_output_valid": False,
+            }
+        ]
+    )
+    units = factorial_evidence_units(evidence, reports, source_kind="test")
+    assert len(units) == 5
+    assert all(unit.segments == () for unit in units)
+
+
+def test_factorial_units_do_not_hide_parse_failure_marked_valid() -> None:
+    reports = pd.DataFrame(
+        [{"Hashed_ReportURN": "R1", "Report": "Normal posterior rhythm."}]
+    )
+    evidence = pd.DataFrame(
+        [
+            {
+                "Hashed_ReportURN": "R1",
+                "fixed_classifications": "not-used-for-invalid-json",
+                "explanations": "{truncated",
+                "structured_output_valid": True,
+            }
+        ]
+    )
+    with pytest.raises(ValueError):
+        factorial_evidence_units(evidence, reports, source_kind="test")

@@ -14,10 +14,11 @@ import pandas as pd
 from eeg_review.evidence_extraction import classification_levels
 from eeg_review.evidence_schema_factorial import (
     factorial_contrasts,
+    factorial_evidence_units,
     paired_schema_transitions,
 )
 from eeg_review.io import atomic_write_csv, atomic_write_json, load_table
-from eeg_review.reason_traceability import audit_traceability, structured_evidence_units
+from eeg_review.reason_traceability import audit_traceability
 from eeg_review.reference_aligned_traceability import (
     aggregate_reference_aligned_rows,
     build_reference_aligned_rows,
@@ -152,11 +153,10 @@ def _cell_rows(
     predictions = predictions.set_index(ID_COLUMN).loc[manifest_keys].reset_index()
     if evidence[ID_COLUMN].tolist() != manifest_keys:
         raise ValueError(f"{cell_id}: evidence order differs from frozen manifest")
-    units = structured_evidence_units(
+    units = factorial_evidence_units(
         evidence,
         reference[[ID_COLUMN, REPORT_COLUMN]],
         source_kind=cell_id,
-        classification_column="fixed_classifications",
     )
     prediction_map = {
         (str(row[ID_COLUMN]), category): level

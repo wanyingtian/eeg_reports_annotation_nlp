@@ -6,12 +6,64 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+import pandas as pd
+
+from eeg_review.evidence_extraction import JSON_KEYS
+from eeg_review.reason_traceability import EvidenceUnit, structured_evidence_units
+
 FACTOR_METRICS = (
     "evidence_coverage_units_fraction",
     "any_verified_all_units_fraction",
     "any_verified_evidence_units_fraction",
     "verified_exact_segment_fraction",
 )
+
+
+def factorial_evidence_units(
+    evidence: pd.DataFrame,
+    reports: pd.DataFrame,
+    *,
+    source_kind: str,
+    id_column: str = "Hashed_ReportURN",
+    report_column: str = "Report",
+) -> list[EvidenceUnit]:
+    """Parse valid rows and retain unparseable rows as five empty evidence units."""
+    report_index = reports.assign(**{id_column: reports[id_column].astype(str)}).set_index(
+        id_column
+    )
+    output: list[EvidenceUnit] = []
+    for _, row in evidence.iterrows():
+        key = str(row[id_column])
+        one = pd.DataFrame([row])
+        try:
+            output.extend(
+                structured_evidence_units(
+                    one,
+                    reports,
+                    source_kind=source_kind,
+                    id_column=id_column,
+                    report_column=report_column,
+                    classification_column="fixed_classifications",
+                )
+            )
+        except (TypeError, ValueError) as exc:
+            if bool(row.get("structured_output_valid", False)):
+                raise
+            report = report_index.at[key, report_column]
+            if not isinstance(report, str) or not report.strip():
+                raise ValueError("invalid evidence row lacks its source report") from exc
+            output.extend(
+                EvidenceUnit(
+                    report_key=key,
+                    category=category,
+                    report=report,
+                    segments=(),
+                    segment_roles=(),
+                    source_kind=source_kind,
+                )
+                for category in JSON_KEYS
+            )
+    return output
 
 
 def factorial_contrasts(
