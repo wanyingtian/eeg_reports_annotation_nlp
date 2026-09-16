@@ -1,8 +1,8 @@
 # Evidence traceability as a configurable ladder
 
-**Status:** methodological interpretation and forward design. This names
-existing capabilities; it does not alter the completed JBHI results or launch
-new inference.
+**Status:** methodological interpretation implemented as a typed compatibility
+contract for future runs. It does not alter the completed JBHI results or
+launch new inference.
 
 ## The policy change in one sentence
 
@@ -102,8 +102,11 @@ normalization, source unit (whole report, sentence or span), segment aggregation
 may declare a default operational profile, but the profile must never be
 implicit in a publication result.
 
-The 100-report MedGemma/Mistral result currently supports a configured-system
-traceability comparison. Because the systems use different evidence schemas,
-model-versus-schema attribution would require the already-proposed 2-by-2
-development experiment. The source-first human review is the bridge from
-location to decision support; it should proceed before full-cohort generation.
+The completed 20-report 2 × 2 development experiment now demonstrates that
+evidence-schema effects differ by configured model. This resolves the immediate
+model-versus-schema attribution question without a full-cohort run. The
+generation and claim profiles are implemented separately in
+`src/eeg_review/evidence_profiles.py`; their immutable public catalog is
+`review/model-receipts/evidence-profile-catalog.v1.json`. The source-first human
+review remains the optional bridge from location to decision support, not a
+prerequisite for the current JBHI classification revision.

@@ -1,0 +1,138 @@
+{
+  "claim_profiles": {
+    "jbhi-02463/evidence-claim/adjudicated-decision-support/v1": {
+      "accepted_stages": [
+        "source_localization",
+        "blinded_relevance_review",
+        "blinded_sufficiency_review"
+      ],
+      "aggregation": "preserve support, contradiction, qualification, insufficiency and abstention",
+      "compatible_generation_profiles": [
+        "jbhi-02463/evidence-generation/decision-conditioned/v1",
+        "jbhi-02463/evidence-generation/independent-category/v1"
+      ],
+      "human_adjudication_required": true,
+      "profile_id": "jbhi-02463/evidence-claim/adjudicated-decision-support/v1",
+      "prohibited_claims": [
+        "clinical correctness",
+        "hidden model reasoning"
+      ],
+      "suitable_language": "independently reviewed decision-supporting evidence"
+    },
+    "jbhi-02463/evidence-claim/normalized-provenance/v1": {
+      "accepted_stages": [
+        "unchanged_substring",
+        "declared_lossless_normalization"
+      ],
+      "aggregation": "report unchanged and normalized stages separately",
+      "compatible_generation_profiles": [
+        "jbhi-02463/evidence-generation/decision-conditioned/v1",
+        "jbhi-02463/evidence-generation/independent-category/v1"
+      ],
+      "human_adjudication_required": false,
+      "profile_id": "jbhi-02463/evidence-claim/normalized-provenance/v1",
+      "prohibited_claims": [
+        "verbatim identity",
+        "relevance",
+        "entailment"
+      ],
+      "suitable_language": "source-equivalent after declared normalization"
+    },
+    "jbhi-02463/evidence-claim/original-thesis-source-support/v1": {
+      "accepted_stages": [
+        "normalized_substring",
+        "fuzzy_token_match_70",
+        "whole_report_semantic_similarity_0.70"
+      ],
+      "aggregation": "any phrase passes any declared stage",
+      "compatible_generation_profiles": [
+        "jbhi-02463/evidence-generation/decision-conditioned/v1"
+      ],
+      "human_adjudication_required": false,
+      "profile_id": "jbhi-02463/evidence-claim/original-thesis-source-support/v1",
+      "prohibited_claims": [
+        "unchanged quotation",
+        "entailment",
+        "clinical factuality"
+      ],
+      "suitable_language": "three-stage source support under the thesis profile"
+    },
+    "jbhi-02463/evidence-claim/retrieval-assisted-review/v1": {
+      "accepted_stages": [
+        "unchanged_substring",
+        "declared_lossless_normalization",
+        "fuzzy_span_localization",
+        "semantic_span_localization"
+      ],
+      "aggregation": "retain best span, score and method per generated segment",
+      "compatible_generation_profiles": [
+        "jbhi-02463/evidence-generation/decision-conditioned/v1",
+        "jbhi-02463/evidence-generation/independent-category/v1"
+      ],
+      "human_adjudication_required": false,
+      "profile_id": "jbhi-02463/evidence-claim/retrieval-assisted-review/v1",
+      "prohibited_claims": [
+        "decision support",
+        "clinical factuality",
+        "entailment"
+      ],
+      "suitable_language": "candidate source passage located for review"
+    },
+    "jbhi-02463/evidence-claim/verbatim-provenance/v1": {
+      "accepted_stages": [
+        "unchanged_substring"
+      ],
+      "aggregation": "report every segment and report-category denominator",
+      "compatible_generation_profiles": [
+        "jbhi-02463/evidence-generation/decision-conditioned/v1",
+        "jbhi-02463/evidence-generation/independent-category/v1"
+      ],
+      "human_adjudication_required": false,
+      "profile_id": "jbhi-02463/evidence-claim/verbatim-provenance/v1",
+      "prohibited_claims": [
+        "relevance",
+        "sufficiency",
+        "entailment"
+      ],
+      "suitable_language": "unchanged source quotation"
+    }
+  },
+  "generation_profiles": {
+    "jbhi-02463/evidence-generation/decision-conditioned/v1": {
+      "classification_supplied_to_model": true,
+      "grammar_artifact": "src/LLM_pipeline/result_grammar_exp.gbnf",
+      "intended_question": "Which source phrases does the configured model return for a frozen four-level category decision?",
+      "lineage": "Chris Tian thesis classify-then-extract pathway",
+      "profile_id": "jbhi-02463/evidence-generation/decision-conditioned/v1",
+      "prohibited_interpretations": [
+        "hidden chain of thought",
+        "causal faithfulness",
+        "clinical correctness"
+      ],
+      "schema_fields": [
+        "decision",
+        "reasons"
+      ]
+    },
+    "jbhi-02463/evidence-generation/independent-category/v1": {
+      "classification_supplied_to_model": false,
+      "grammar_artifact": "src/LLM_pipeline/result_grammar_category_evidence.gbnf",
+      "intended_question": "Which present, absent and qualifying source passages can the configured model identify without receiving a category decision?",
+      "lineage": "post-submission independent category-evidence extension",
+      "profile_id": "jbhi-02463/evidence-generation/independent-category/v1",
+      "prohibited_interpretations": [
+        "classification performance",
+        "hidden chain of thought",
+        "causal faithfulness",
+        "clinical correctness"
+      ],
+      "schema_fields": [
+        "present_evidence",
+        "absent_evidence",
+        "qualification_evidence"
+      ]
+    }
+  },
+  "schema_version": 1,
+  "selection_rule": "Every new evidence run names one generation profile and one compatible claim profile; neither is inferred from a model name."
+}

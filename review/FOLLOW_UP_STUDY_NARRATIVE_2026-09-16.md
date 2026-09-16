@@ -159,3 +159,11 @@ from 26% to 36% for Mistral. The opposite directions establish that evidence
 behavior is a model-by-interface property, not a model-weight ranking. This
 closes the computational factor-attribution step and keeps the full-cohort run
 on hold. See `EVIDENCE_SCHEMA_FACTORIAL_RESULT_2026-09-16.md`.
+
+That finding is now operationalized as a two-axis compatibility contract for
+future work. Evidence generation names either the thesis-lineage
+decision-conditioned pathway or independent category evidence; evidence claims
+separately name the accepted provenance/review layer. Unknown combinations and
+the attempt to apply the original-thesis source-support calculation to the
+independent schema fail closed. Historical runners remain untouched. See
+`EVIDENCE_PROFILE_IMPLEMENTATION_2026-09-16.md`.

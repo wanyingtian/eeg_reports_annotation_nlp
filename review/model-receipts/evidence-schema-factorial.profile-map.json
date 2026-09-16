@@ -1,0 +1,37 @@
+{
+  "catalog_sha256": "153930d8eade3fe08e3805974f0c347a3e2d238ba0b74e307dc2627b8e891ba0",
+  "factorial_result_receipt_sha256": "df51855fbe3b713801fe0307f7d6c80880dda759a50f15f82e4f96870536a2a4",
+  "mapping_status": "post_analysis_semantic_mapping_without_historical_receipt_rewrite",
+  "selections": {
+    "decision_conditioned_cells": {
+      "claim_profile_id": "jbhi-02463/evidence-claim/verbatim-provenance/v1",
+      "claim_profile_sha256": "1f9c231b1f6d4e806b34505cc43dafe1ca5a5c85e3af69bdb05dfb07a98a00ec",
+      "classification_supplied_to_model": true,
+      "generation_profile_id": "jbhi-02463/evidence-generation/decision-conditioned/v1",
+      "generation_profile_sha256": "5637c14fc6617139d05c5b9d0c45dc8015d7c89d8f961ef8baad79cc17000074",
+      "human_adjudication_required": false,
+      "prohibited_claims": [
+        "relevance",
+        "sufficiency",
+        "entailment"
+      ],
+      "schema_version": 1,
+      "suitable_claim_language": "unchanged source quotation"
+    },
+    "independent_category_cells": {
+      "claim_profile_id": "jbhi-02463/evidence-claim/verbatim-provenance/v1",
+      "claim_profile_sha256": "1f9c231b1f6d4e806b34505cc43dafe1ca5a5c85e3af69bdb05dfb07a98a00ec",
+      "classification_supplied_to_model": false,
+      "generation_profile_id": "jbhi-02463/evidence-generation/independent-category/v1",
+      "generation_profile_sha256": "8454300365fef916928c3e9eda290a03a85c71a2f5074ddc66f826fe12c0f11f",
+      "human_adjudication_required": false,
+      "prohibited_claims": [
+        "relevance",
+        "sufficiency",
+        "entailment"
+      ],
+      "schema_version": 1,
+      "suitable_claim_language": "unchanged source quotation"
+    }
+  }
+}
