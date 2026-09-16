@@ -28,10 +28,12 @@ no fuzzy or semantic credit in the primary count):
 - Saved Mistral: 53 of 295 were exact quotations (18.0%); 245 of 500 units
   carried substantive evidence.
 
-This is real signal, not noise: MedGemma both engages more often (fewer
-declared-no-evidence units) and, when it does, quotes the source more
-literally. It is not yet a claim that MedGemma's reasons are better — only
-that they are more often present and more often traceable by this measure.
+This is a real configured-system difference on this development surface:
+MedGemma both engages more often (fewer declared-no-evidence units) and, when
+it does, quotes the source more literally. It is not yet a claim that
+MedGemma's reasons are better — only that they are more often present and more
+often traceable by this measure. The saved streams also use different evidence
+schemas, so this result cannot be attributed to model weights alone.
 
 ## The honest gap this doesn't close
 
@@ -45,6 +47,13 @@ past that review is appropriate to run yet: scaling to the full 1,894-report
 evaluation surface (~25 hours of local compute) would sharpen the precision of
 the same two numbers without answering whether either model's phrases are
 actually *right*.
+
+The frozen review therefore uses 20 report-category cases, not 203 phrase
+rows. It includes one same-four-level-decision pair for every combination of
+the five EEG categories and four automated focus conditions: exact quotation,
+normalization-only candidate, unresolved phrase and no evidence. The reviewer
+reads the report first, then judges counterbalanced System A/System B evidence.
+Model identity and automated match labels remain in separate governed files.
 
 ## Why this is completion, not expansion
 
@@ -61,9 +70,10 @@ completely, once, on the model it hadn't yet been used on.
 
 ## What a positive review result would open, and what it would not
 
-If the blinded review shows MedGemma's exact-quoted phrases genuinely support
-their categories more often than Mistral's do, three things become
-legitimately askable, in order of how much new work each needs:
+If the blinded review shows that the rubric can distinguish relevant,
+decision-supporting evidence from merely located text, three things become
+legitimately askable, in order of how much new work each needs. The purposive
+sample itself cannot establish which system succeeds more often:
 
 1. **A full-cohort evidence run**, now justified by review evidence rather
    than by the development-set numbers alone, giving a real evaluation-surface
@@ -77,6 +87,13 @@ legitimately askable, in order of how much new work each needs:
    replacing this project's historical trial-and-error refinement process
    (already documented honestly in the current revision as exploratory) with
    a refinement loop that has a stated reason for each change.
+
+A stronger causal question would require one more bounded experiment before
+making model-level claims: cross the model and evidence schema on the same
+development reports and fixed decisions. That 2-by-2 design would separate a
+model-family effect from the effect of decision-conditioned versus independent
+evidence prompts. The present review does not answer that question and does not
+silently treat the two schemas as equivalent.
 
 None of this requires, and this narrative deliberately does not reach for,
 mechanistic comparison of the two models' internals. That remains a separate,
@@ -96,3 +113,12 @@ project's discipline is built to state plainly rather than paper over.
 This document exists to keep the direction legible across sessions, not to
 commit to writing a second paper on any timeline. The current JBHI submission
 does not reference, depend on, or wait for any part of this.
+
+The review is a feasibility gate, not a miniature performance study. Expansion
+stops if reviewers find the rubric unusable, the schemas incomparable, exact
+quotes commonly irrelevant or contradictory, or no-evidence outputs commonly
+miss obvious source material. Expansion becomes worth considering only if the
+review works across all five categories, identifies interpretable successes and
+failures, and shows that full-cohort rates would answer a defined follow-up
+question. That decision and its reasons must be recorded before any full-cohort
+run is launched.

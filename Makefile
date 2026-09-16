@@ -2,7 +2,7 @@ UV ?= uv
 UV_RUN ?= $(UV) run
 TEST_EXTRAS ?= --extra ci
 
-.PHONY: sync sync-all lint test audit-sample verify ci verify-evaluation-surfaces verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize medgemma-native-author-bundle governed-run-eclipse
+.PHONY: sync sync-all lint test audit-sample verify ci verify-evaluation-surfaces verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize medgemma-native-author-bundle evidence-review-build evidence-review-verify governed-run-eclipse
 
 sync:
 	$(UV) sync
@@ -14,7 +14,7 @@ lint:
 	$(UV_RUN) ruff check scripts/diagnose_medgemma_interface.py scripts/export_medgemma_interface_diagnostic.py
 	$(UV_RUN) ruff check scripts/run_linkage_diagnostic.py scripts/audit_linkage_anchors.py scripts/audit_report_snapshot_join.py
 	$(UV_RUN) ruff check scripts/prepare_comparison_review.py
-	$(UV_RUN) ruff check scripts/reconcile_explanation_artifact.py scripts/audit_cross_model_reason_traceability.py scripts/prepare_reason_traceability_review.py scripts/analyze_development_evidence_transport.py
+	$(UV_RUN) ruff check scripts/reconcile_explanation_artifact.py scripts/audit_cross_model_reason_traceability.py scripts/prepare_reason_traceability_review.py scripts/analyze_development_evidence_transport.py scripts/build_evidence_review_package.py scripts/analyze_evidence_review_responses.py
 	$(UV_RUN) ruff check scripts/audit_medgemma_study_integrity.py
 	$(UV_RUN) ruff check scripts/audit_bert_input_fairness.py
 	$(UV_RUN) ruff check scripts/audit_focal_error_signatures.py
@@ -149,6 +149,12 @@ medgemma-native-author-bundle:
 	$(UV) run python scripts/render_medgemma_native_author_bundle.py \
 		--candidate "$(RESULT_CANDIDATE)" --output-dir "$(AUTHOR_BUNDLE_DIR)" \
 		$(if $(strip $(ADMISSION)),--admission "$(ADMISSION)",)
+
+evidence-review-build:
+	$(UV_RUN) python scripts/build_evidence_review_package.py
+
+evidence-review-verify:
+	$(UV_RUN) python scripts/build_evidence_review_package.py --verify-only
 
 governed-run-eclipse:
 	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed run directory" && exit 2)
