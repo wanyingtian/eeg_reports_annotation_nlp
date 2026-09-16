@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "study_id": "jbhi-02463-medgemma-v1-evidence-development-20260916",
+  "configuration_id": "jbhi-02463/comparator/medgemma-27b-text-it/configuration/independent-native-interface-q2-v1/evidence-extraction",
+  "status": "frozen_before_100_report_evidence_inference",
+  "scientific_role": "post-submission follow-up methods study on the declared development surface",
+  "current_jbhi_revision_dependency": false,
+  "classification_calls_planned": 0,
+  "evidence_calls_planned": 100,
+  "protected_evaluation_allowed": false,
+  "automatic_full_cohort_expansion_allowed": false,
+  "prompt_or_threshold_optimization_allowed": false,
+  "prior_small_diagnostic_known": {
+    "records": 20,
+    "configuration": "later focal-v2 fixed classifications, historical explanation prompt",
+    "exact_traceability_fraction": 0.5,
+    "use": "motivates a complete development-surface transport characterization; not treated as an independent prior"
+  },
+  "question": "Can the historical grammar-constrained second call produce lawful, fixed-decision, source-traceable evidence for the completed MedGemma v1 configured system?",
+  "population": {
+    "name": "first 100 Zoe reports previously declared for development",
+    "records": 100,
+    "report_keys_and_normalized_text_disjoint_from_evaluation": true,
+    "patient_independence_claimed": false
+  },
+  "inputs": {
+    "dataset": {
+      "source": "jbhi-medgemma-native-chat-development-20260829/inputs/zoe_development_native_100.db",
+      "sha256": "7af5de9c8561d2c3347b89517fb245caf1fc8fb7001900582c6337e58142034e"
+    },
+    "manifest": {
+      "source": "jbhi-medgemma-native-chat-development-20260829/manifests/zoe_development_native_100.csv",
+      "sha256": "dddbb46edf0ded6e468b01513a8034f205dcad1de4015d6ce97365d5bec8c051"
+    },
+    "medgemma_fixed_classifications": {
+      "source": "jbhi-medgemma-native-chat-development-20260829/products/zoe_development_native_100/raw.csv",
+      "sha256": "f799362d9f6a22523c0ae8240b8ebd71a4cfe7a0187e5d65bd1ec051841bf633",
+      "run_receipt_sha256": "ff395e8d59dbd56b07c2ea205bdfa2bea183f39ea917881ce1cf9466cc9f1637"
+    },
+    "saved_mistral_stream": {
+      "source": "jbhi-native-20260814/products/llm/zoe/raw.csv",
+      "sha256": "eeade3d2b8fc7ffddb194a2cffdadfdb4df10c19e4e0b26003c0a534c9914dea",
+      "run_receipt_sha256": "bda88bdb040f84dc824c71f38a0af2890ab31d4d446876ac5fcb76422c52feea",
+      "selection": "same first 100 manifest keys in the same order; no new Mistral inference"
+    }
+  },
+  "model": {
+    "registry_name": "medgemma-27b-q2-candidate",
+    "upstream_release": "google/medgemma-27b-text-it",
+    "distribution": "unsloth/medgemma-27b-text-it-GGUF",
+    "revision": "334fbf6811c963d223f6ac107a459347353f068d",
+    "filename": "medgemma-27b-text-it-Q2_K.gguf",
+    "sha256": "b137aac80f2bcb1c1ed35bfe13387bc496eb18898d5f46425687604f0f714481",
+    "weights_or_training_changed": false,
+    "weights_redistributed": false,
+    "license_reference": "https://developers.google.com/health-ai-developer-foundations/terms"
+  },
+  "interface": {
+    "mode": "native_chat",
+    "chat_template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4",
+    "explanation_prompt_sha256": "09e7e46d13d9fd1f6ebd14e4caecf32766354ead048ef22aa834c5b6064cd05f",
+    "task_message_template_sha256": "610e0088b0fbf012b57245f14be9e96b2c10998518cab4fbe68c4e5864c5192e",
+    "grammar_sha256": "718d3b0b16499d04d97723893f5e1de67aa1f342ba8b455a293a3d93084cd315",
+    "classification_json_supplied_verbatim": true,
+    "sampling": {
+      "temperature": 0.0,
+      "top_k": 40,
+      "top_p": 0.95,
+      "max_tokens": 3000,
+      "stop_sequences": null
+    }
+  },
+  "runtime": {
+    "profile_id": "llama-cpp-python-metal-full-offload-flash-v1",
+    "local_inference_only": true,
+    "parameters": {
+      "n_ctx": 4096,
+      "n_gpu_layers": -1,
+      "n_batch": 1024,
+      "n_ubatch": 512,
+      "n_threads": 4,
+      "n_threads_batch": 10,
+      "flash_attn": true
+    }
+  },
+  "analysis": {
+    "paired_same_reports": true,
+    "primary_verified_quote_rule": "unchanged nonblank substring in the exact source report",
+    "fuzzy_or_semantic_candidates_in_primary_analysis": false,
+    "retain_all_outputs": true,
+    "metrics": [
+      "schema_validity",
+      "decision_copy_mismatches",
+      "substantive_segments",
+      "verified_exact_segments",
+      "units_with_any_verified_segment",
+      "units_with_all_segments_verified",
+      "by_category_exact_traceability"
+    ],
+    "inference_on_phrase_counts_allowed": false,
+    "model_ranking_claim_allowed": false,
+    "clinical_factuality_claim_allowed": false,
+    "causal_faithfulness_claim_allowed": false
+  },
+  "execution": {
+    "checkpoint_every": 1,
+    "resume_requires_identical_contract": true,
+    "interrupted_uncommitted_record_may_repeat": true,
+    "eclipse_supported": true,
+    "estimated_wall_time_minutes": [80, 100]
+  },
+  "implementation": {
+    "revision": "793d6ed5a8663a3ad5621bff2f5afcfa4155688c",
+    "executor_sha256": "7478dfb0e4fb0224c4b5ba49323956877e5386021a51c0df5ee767b3280c05cd",
+    "analysis_script_sha256": "214bf5abd62bcd325486eae94ca37f2eeaaa9c399b01cc1b5bd3faa9375b826a",
+    "comparison_module_sha256": "e50388eeb04d5b567100083d374b8c63fc6bfb8c35b9c26103a2f2d072bbd198",
+    "grounding_module_sha256": "0e99236ad3f5314fbbf988ed271f2c9a202d4bb7ad5b6950604d6910549b9647",
+    "protocol_sha256": "5b05d450fcb663cde9ae280e1ddcec046c5460085055d44f7b104e4fad100689"
+  },
+  "distribution": {
+    "plan_and_aggregate": "source_config_publishable_after_author_review",
+    "keyed_outputs_and_evidence_phrases": "outputs_governed",
+    "report_text": "governed_not_redistributed",
+    "model_weights": "not_redistributed"
+  },
+  "next_gate": "Review the complete 100-report development result before separately registering any held-out evidence generation."
+}
