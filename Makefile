@@ -2,7 +2,7 @@ UV ?= uv
 UV_RUN ?= $(UV) run
 TEST_EXTRAS ?= --extra ci
 
-.PHONY: sync sync-all lint test audit-sample verify ci verify-evaluation-surfaces verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize medgemma-native-author-bundle evidence-review-build evidence-review-verify governed-run-eclipse
+.PHONY: sync sync-all lint test audit-sample verify ci verify-evaluation-surfaces verify-llm-receipt preload-model smoke-model smoke-classification study-status study-ledger medgemma-readiness medgemma-prepare medgemma-tier-dry-run medgemma-tier-status medgemma-tier-run medgemma-native-authorization-check medgemma-native-prepare medgemma-native-dry-run medgemma-native-launch medgemma-native-finalize medgemma-native-author-bundle evidence-review-build evidence-review-verify evidence-clinical-delivery-build evidence-clinical-delivery-verify evidence-review-compare governed-run-eclipse
 
 sync:
 	$(UV) sync
@@ -155,6 +155,17 @@ evidence-review-build:
 
 evidence-review-verify:
 	$(UV_RUN) python scripts/build_evidence_review_package.py --verify-only
+
+evidence-clinical-delivery-build:
+	$(UV_RUN) python scripts/build_clinical_evidence_review_delivery.py
+
+evidence-clinical-delivery-verify:
+	$(UV_RUN) python scripts/build_clinical_evidence_review_delivery.py --verify-only
+
+evidence-review-compare:
+	@test -n "$(REVIEW_ONE)" || (echo "Set REVIEW_ONE to the first response JSON" && exit 2)
+	@test -n "$(REVIEW_TWO)" || (echo "Set REVIEW_TWO to the second response JSON" && exit 2)
+	$(UV_RUN) python scripts/compare_evidence_review_readers.py "$(REVIEW_ONE)" "$(REVIEW_TWO)"
 
 governed-run-eclipse:
 	@test -n "$(RUN_DIR)" || (echo "Set RUN_DIR to the governed run directory" && exit 2)

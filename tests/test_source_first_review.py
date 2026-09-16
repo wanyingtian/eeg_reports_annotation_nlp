@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,14 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC and SPEC.loader
 PACKAGE_BUILDER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PACKAGE_BUILDER)
+
+DELIVERY_SPEC = importlib.util.spec_from_file_location(
+    "build_clinical_evidence_review_delivery",
+    ROOT / "scripts/build_clinical_evidence_review_delivery.py",
+)
+assert DELIVERY_SPEC and DELIVERY_SPEC.loader
+DELIVERY_BUILDER = importlib.util.module_from_spec(DELIVERY_SPEC)
+DELIVERY_SPEC.loader.exec_module(DELIVERY_BUILDER)
 
 
 def _pair(
@@ -134,3 +143,47 @@ def test_frozen_package_hashes_ignore_append_only_review_outputs(tmp_path: Path)
 def test_frozen_package_hashes_reject_missing_instrument_file(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="missing files"):
         PACKAGE_BUILDER._output_hashes(tmp_path)
+
+
+def test_clinical_delivery_is_independent_and_excludes_withheld_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = tmp_path / "package"
+    output = tmp_path / "delivery"
+    package.mkdir()
+    for name in DELIVERY_BUILDER.DELIVERY_FILES:
+        if name != "README.txt":
+            (package / name).write_text("blinded reviewer material", encoding="utf-8")
+    (package / "README.txt").write_text("original readme", encoding="utf-8")
+    (package / "COMPLETE.json").write_text("{}", encoding="utf-8")
+    (package / "unblinding_key.json").write_text("withheld", encoding="utf-8")
+    (package / "blinded_review_summary.json").write_text("withheld", encoding="utf-8")
+    monkeypatch.setattr(DELIVERY_BUILDER, "PACKAGE", package)
+    monkeypatch.setattr(DELIVERY_BUILDER, "OUTPUT", output)
+    result = DELIVERY_BUILDER.build_delivery()
+    assert result["files_verified"] == len(DELIVERY_BUILDER.DELIVERY_FILES)
+    assert not (output / "unblinding_key.json").exists()
+    assert not (output / "blinded_review_summary.json").exists()
+    assert (output / "responses").is_dir()
+    completion = json.loads(
+        (output / "DELIVERY_COMPLETE.json").read_text(encoding="utf-8")
+    )
+    assert completion["status"] == "complete_frozen_awaiting_independent_reader"
+
+
+def test_clinical_delivery_verifier_rejects_context_leak(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = tmp_path / "package"
+    output = tmp_path / "delivery"
+    package.mkdir()
+    for name in DELIVERY_BUILDER.DELIVERY_FILES:
+        value = "MedGemma" if name == "review_form.html" else "blinded material"
+        (package / name).write_text(value, encoding="utf-8")
+    (package / "COMPLETE.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(DELIVERY_BUILDER, "PACKAGE", package)
+    monkeypatch.setattr(DELIVERY_BUILDER, "OUTPUT", output)
+    with pytest.raises(ValueError, match="leaks withheld context"):
+        DELIVERY_BUILDER.build_delivery()

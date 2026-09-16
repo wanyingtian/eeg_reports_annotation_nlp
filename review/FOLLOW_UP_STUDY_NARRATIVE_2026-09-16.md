@@ -129,3 +129,12 @@ decision support and evidence omission, while leaving genuine EEG ambiguities
 unresolved. This passes the tooling-feasibility gate and advances the study to
 an independent EEG-qualified read; it does not yet authorize unblinding or the
 full-cohort run. See `SOURCE_FIRST_TECHNICAL_READER_PASS1_2026-09-16.md`.
+
+The independent clinical-reader delivery is now frozen separately from the
+original instrument. It contains the same 20 cases and A/B assignments but none
+of the first reader's answers, model identities, selection metadata or automated
+focus strata. A blinded two-reader comparison is also implemented: it reports
+raw field-level agreement and produces a disagreement queue without copying
+report text, evidence phrases or notes. The study remains at **awaiting
+independent EEG-qualified review**. See
+`INDEPENDENT_CLINICAL_EVIDENCE_REVIEW_HANDOFF_2026-09-16.md`.
