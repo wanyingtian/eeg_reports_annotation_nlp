@@ -167,3 +167,10 @@ separately name the accepted provenance/review layer. Unknown combinations and
 the attempt to apply the original-thesis source-support calculation to the
 independent schema fail closed. Historical runners remain untouched. See
 `EVIDENCE_PROFILE_IMPLEMENTATION_2026-09-16.md`.
+
+The publication paths are now separated explicitly. The current JBHI revision
+retains only the completed classification-portability result and its
+classification-only boundary. The evidence-schema interaction, profile
+registry and any future relevance review belong to the follow-up methods paper.
+See `JBHI_TO_FOLLOW_UP_CLAIM_FIREWALL_2026-09-16.md` and
+`FOLLOW_UP_METHODS_PAPER_DRAFT_2026-09-16.md`.

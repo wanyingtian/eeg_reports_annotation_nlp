@@ -20,18 +20,16 @@ factor — quantization, prompt, grammar, decision policy — is either held
 fixed or explicitly varied as the manipulated factor. The same concern
 applies, with less obvious force, to model-generated *explanations*.
 
-Our initial cross-model evidence comparison held the evidence-generation
-schema fixed at *decision-conditioned* extraction — the frozen four-level
-classification is supplied to the model, which is then asked only for
-phrases supporting that already-fixed decision. Under this schema, on the
-full 100-report development surface, a configured MedGemma system returned
-an unchanged source quotation for 45.3% of its substantive phrases, versus
-18.0% for a saved historical Mistral configuration. Read naively, this
-invites the claim that MedGemma explanations are more source-grounded than
-Mistral's. That claim would be premature for a reason distinct from the
-usual caveats about entailment and relevance: the two saved evidence streams
-were never generated under an experimentally crossed design, so a schema
-effect and a model effect are observationally identical in that comparison.
+Our initial cross-model evidence comparison joined saved streams that were
+broadly decision-conditioned but were not produced under a fully crossed,
+identical evidence-interface experiment. On the full 100-report development
+surface, a configured MedGemma system returned an unchanged source quotation
+for 45.3% of its substantive phrases, versus 18.0% for a saved historical
+Mistral configuration. Read naively, this invites the claim that MedGemma
+explanations are more source-grounded than Mistral's. That claim would be
+premature for a reason distinct from the usual caveats about entailment and
+relevance: the saved streams differed in their producing interface histories,
+so a model effect and an evidence-interface effect could not be separated.
 
 We therefore ran a small factorial study to separate them.
 
@@ -52,11 +50,14 @@ evidence supplies no decision at all; the model is asked separately, for each
 category, to identify present, absent, and qualifying source passages. Three
 of the four cells reused already-saved, previously generated output; one new
 Mistral run (20 reports, independent-category prompt) was executed for this
-study, with the frozen classification, report set, and reference labels held
-identical to the other three cells. Two of its 20 outputs reached the token
-ceiling and one failed schema validation; all three were retained as
-non-parseable rather than dropped or retried, following this project's
-standing rule against silently discarding unfavorable cases.
+study. Reports and reference labels were identical across all four cells;
+within each model, the same frozen classifications were used across its two
+evidence schemas for the subsequent reference-alignment analysis. Two of the
+new Mistral outputs reached the token ceiling and one failed schema
+validation; all three were retained as non-parseable rather than dropped or
+retried, following this project's standing rule against silently discarding
+unfavorable cases. Each cell represents one frozen deterministic configured
+run, not repeated stochastic sampling.
 
 ## Result
 
@@ -86,19 +87,19 @@ of the crossing, not driven by one category's behavior.
 
 This result establishes that the evidence-generation schema is not a nuisance
 factor safely ignored when comparing two models' explanations: on this
-development sample, its effect size is comparable to, and opposite in sign
-for, the two models under study. It follows directly that the original
-decision-conditioned-only comparison cannot support a claim of the form
-"model A grounds its evidence better than model B" — that comparison is
-confounded with a schema choice that, if reversed, reverses which system
-looks better.
+development sample, its effect was large and opposite in sign for the two
+configured models. It follows directly that the earlier saved-stream
+comparison cannot support a claim of the form "model A grounds its evidence
+better than model B." For the coverage and unchanged-quotation endpoints in
+this sample, changing the schema changed which configured system had the
+higher observed value.
 
 This result does not establish which schema is preferable in general,
 whether either model's grounded phrases are clinically relevant or
 sufficient, or a population-level effect of any kind: the study is a
-20-report purposive development crossing, one cell was single-shot
-generation rather than a receipted multi-run estimate, and no hypothesis test
-or confidence interval is claimed. It also does not bear on whether MedGemma
+20-report purposive development crossing, every cell is one deterministic
+configured run rather than a repeated-run estimate, and no hypothesis test or
+confidence interval is claimed. It also does not bear on whether MedGemma
 or Mistral is the better *classifier* — Core Agreement and Certainty-Adjusted
 Agreement, the endpoints used for that separate question, are untouched by
 this study.
@@ -109,10 +110,10 @@ The practical value of this result is that it is a demonstrated instance of
 exactly the failure mode the surrounding evaluation-surface framework was
 built to prevent, rather than a hypothetical one. A framework that requires
 every comparison to name its held-fixed and manipulated factors is a
-reasonable precaution in the abstract; a framework that has already caught a
-47-point, sign-reversing confound before it reached a published claim is a
-validated one. We treat this factorial crossing as the primary evidentiary
-basis, in this follow-up line of work, for treating evidence-generation
+reasonable precaution in the abstract; a framework that has already exposed a
+47-point, sign-reversing interaction before it reached a published claim has
+demonstrated practical value. We treat this factorial crossing as the primary
+evidentiary basis, in this follow-up line of work, for treating evidence-generation
 schema as a first-class experimental factor — coordinate with model family,
 quantization, and interface — rather than an implementation detail folded
 into "which model produced this explanation."
@@ -127,4 +128,6 @@ itself resolve the open relevance/sufficiency question that motivated the
 sealed 20-case blinded review. That review, and a decision on which
 evidence-generation schema (or an explicit, named mixture) to standardize on
 for any future full-cohort run, are the two remaining gates before this line
-of work could support a quantitative claim.
+of work could support a held-out explanation-quality claim. The development
+factorial itself already supports the bounded descriptive interaction reported
+above.
