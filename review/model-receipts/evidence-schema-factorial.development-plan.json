@@ -1,0 +1,98 @@
+{
+  "experiment_id": "jbhi-evidence-schema-factorial-development-20260916-v1",
+  "status": "frozen_before_missing_cell_inference",
+  "surface": {
+    "reports": 20,
+    "categories": 5,
+    "report_category_units_per_cell": 100,
+    "manifest_sha256": "cdf5a0aa9d563518d6ed2382886b26826dc6cc358720f01393ec6e742ac65135",
+    "dataset_sha256": "7af5de9c8561d2c3347b89517fb245caf1fc8fb7001900582c6337e58142034e",
+    "held_out_execution_allowed": false
+  },
+  "factors": {
+    "configured_model": [
+      "mistral-7b-instruct-v0.2-q5_k_m",
+      "medgemma-27b-text-it-q2_k"
+    ],
+    "evidence_schema": [
+      "decision_conditioned",
+      "independent_category_evidence_v1"
+    ]
+  },
+  "cells": {
+    "mistral_decision_conditioned": {
+      "status": "complete_saved",
+      "output_sha256": "c7240104864fdde9ae5591a541a06c309e5d09e0e60877032d900a6c1efb8b8d",
+      "fixed_classifications_sha256": "9aacc89b2068ce30a7b8dbb5ed086830c86e9674ead27643c4797e07ad0bb5f7",
+      "structured_valid_records": [16, 20]
+    },
+    "mistral_independent_category_evidence": {
+      "status": "single_missing_cell_authorized_by_plan",
+      "fixed_classifications_sha256": "9aacc89b2068ce30a7b8dbb5ed086830c86e9674ead27643c4797e07ad0bb5f7",
+      "classifications_supplied_to_model": false
+    },
+    "medgemma_decision_conditioned": {
+      "status": "complete_saved",
+      "output_sha256": "22bf100d582e9984f794cbb4c51dd62d5af6779e43b3f4b5a0fe08eb3b05165d",
+      "fixed_classifications_sha256": "2379a6532674b68894cdd49e095e343a4b75c0cc7603a15e60323fb687f39737",
+      "structured_valid_records": [20, 20]
+    },
+    "medgemma_independent_category_evidence": {
+      "status": "complete_saved_reassociate_with_v2_classifications_for_analysis",
+      "output_sha256": "8c881e28dbe6e62cad4d1040ec3a05b16d4b1ace8ed60588a73f8f2a251bf2ba",
+      "fixed_classifications_for_analysis_sha256": "2379a6532674b68894cdd49e095e343a4b75c0cc7603a15e60323fb687f39737",
+      "classifications_supplied_to_model": false,
+      "structured_valid_records": [20, 20]
+    }
+  },
+  "contracts": {
+    "native_chat_interface": true,
+    "decision_conditioned_prompt_sha256": "09e7e46d13d9fd1f6ebd14e4caecf32766354ead048ef22aa834c5b6064cd05f",
+    "decision_conditioned_grammar_sha256": "718d3b0b16499d04d97723893f5e1de67aa1f342ba8b455a293a3d93084cd315",
+    "independent_prompt_sha256": "f6405c89e0ec25b3d478faa77b3f8718da16f9845010eebfae297384a52e1c32",
+    "independent_grammar_sha256": "46ccad683304b140151c5d103427acfe6e1a5dfbdfe8d70c7379a2a9610d3cc3",
+    "mistral_chat_template_sha256": "26a59556925c987317ce5291811ba3b7f32ec4c647c400c6cc7e3a9993007ba7",
+    "medgemma_chat_template_sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4"
+  },
+  "missing_cell_execution": {
+    "model_registry_name": "mistral",
+    "interface": "native_chat",
+    "evidence_mode": "independent-category-evidence-v1",
+    "temperature": 0.0,
+    "top_k": 40,
+    "top_p": 0.95,
+    "max_tokens": 3000,
+    "n_ctx": 4096,
+    "n_gpu_layers": 30,
+    "expected_records": 20,
+    "classifications_supplied_to_model": false,
+    "stop_after_records": 20
+  },
+  "implementation_sha256": {
+    "scripts/run_fixed_classification_explanations.py": "7478dfb0e4fb0224c4b5ba49323956877e5386021a51c0df5ee767b3280c05cd",
+    "src/eeg_review/category_evidence.py": "fea8bf3389a61b222668ea28cd2351b4bd16b099b5fbee5d48e1c9f7f43f75d7",
+    "src/LLM_pipeline/result_grammar_category_evidence.gbnf": "46ccad683304b140151c5d103427acfe6e1a5dfbdfe8d70c7379a2a9610d3cc3"
+  },
+  "endpoints": [
+    "structured_output_valid_records",
+    "substantive_evidence_coverage_units",
+    "units_with_any_unchanged_source_quotation",
+    "substantive_and_unchanged_segment_counts",
+    "candidate_and_unresolved_segment_counts",
+    "category_strata",
+    "within_model_schema_contrasts",
+    "descriptive_difference_of_differences"
+  ],
+  "prohibited_claims": [
+    "clinical sufficiency",
+    "entailment",
+    "causal faithfulness",
+    "calibrated confidence",
+    "model-family superiority",
+    "held-out performance"
+  ],
+  "protocol": {
+    "path": "review/EVIDENCE_SCHEMA_FACTORIAL_PLAN_2026-09-16.md",
+    "sha256": "272cbb0727be6fde04022fc9ec8b7da5eb782324fc4ac438005789411a439973"
+  }
+}
