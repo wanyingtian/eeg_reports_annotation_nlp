@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "study_id": "jbhi-02463-medgemma-v1-evidence-development-20260916",
+  "status": "completed_development_transport_diagnostic_not_manuscript_admitted",
+  "preregistered_plan_sha256": "9faaac9462eb63cb10932a91f3915861a56ea1f70f2bf308d8834a9751328fa8",
+  "execution_revision": "04d88adbf54c5f663f13dfb129a2173ac681e39f",
+  "execution_worktree_dirty": false,
+  "classification_calls": 0,
+  "evidence_calls": 100,
+  "records": 100,
+  "schema_valid_outputs": 100,
+  "invalid_schema_outputs": 0,
+  "decision_cells": 500,
+  "decision_copy_mismatches": 0,
+  "paired_same_report_surface": true,
+  "primary_rule": "unchanged nonblank substring in the exact source report",
+  "candidate_or_semantic_matching_in_primary_result": false,
+  "streams": {
+    "medgemma_native_v1_fixed_decision": {
+      "units": 500,
+      "units_with_substantive_segments": 484,
+      "substantive_segments": 728,
+      "verified_exact_segments": 330,
+      "verified_exact_segment_fraction": 0.4532967032967033,
+      "units_with_any_verified_segment": 305,
+      "units_with_all_segments_verified": 233,
+      "normalization_review_candidates": 390,
+      "unresolved_segments": 8
+    },
+    "mistral_historical_interface_saved": {
+      "units": 500,
+      "units_with_substantive_segments": 245,
+      "substantive_segments": 295,
+      "verified_exact_segments": 53,
+      "verified_exact_segment_fraction": 0.17966101694915254,
+      "units_with_any_verified_segment": 48,
+      "units_with_all_segments_verified": 27,
+      "normalization_review_candidates": 187,
+      "unresolved_segments": 55
+    }
+  },
+  "artifacts": {
+    "governed_keyed_output_sha256": "3963f2a3c639e088272c76daef534d57479ff34766adc9215a8c0a4cfae1d7cb",
+    "governed_run_receipt_sha256": "0fdc5abdce52798f2bc32810cf5e18f98a2eec84829a1041a3aff69718ea7e73",
+    "governed_aggregate_receipt_sha256": "b288ac0f99b535fc88d128863bdb899a23fe27c14894aa54bc1db33d1279e828"
+  },
+  "boundaries": [
+    "Development-surface diagnostic, not a held-out estimate.",
+    "Configured-system comparison, not a base-weight effect or model ranking.",
+    "Source presence is not entailment, clinical validity, or causal faithfulness.",
+    "Phrase and unit counts are dependent descriptive observations.",
+    "No current-JBHI manuscript claim depends on this follow-up result."
+  ],
+  "next_gate": "Perform a frozen source-first review sample before deciding on a roughly 25-hour held-out evidence run.",
+  "distribution": {
+    "this_record": "public_safe_after_author_review",
+    "keyed_outputs_and_evidence_phrases": "governed_only",
+    "model_weights": "not_redistributed"
+  }
+}
