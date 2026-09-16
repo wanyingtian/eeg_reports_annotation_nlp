@@ -14,7 +14,7 @@ lint:
 	$(UV_RUN) ruff check scripts/diagnose_medgemma_interface.py scripts/export_medgemma_interface_diagnostic.py
 	$(UV_RUN) ruff check scripts/run_linkage_diagnostic.py scripts/audit_linkage_anchors.py scripts/audit_report_snapshot_join.py
 	$(UV_RUN) ruff check scripts/prepare_comparison_review.py
-	$(UV_RUN) ruff check scripts/reconcile_explanation_artifact.py scripts/audit_cross_model_reason_traceability.py scripts/prepare_reason_traceability_review.py
+	$(UV_RUN) ruff check scripts/reconcile_explanation_artifact.py scripts/audit_cross_model_reason_traceability.py scripts/prepare_reason_traceability_review.py scripts/analyze_development_evidence_transport.py
 	$(UV_RUN) ruff check scripts/audit_medgemma_study_integrity.py
 	$(UV_RUN) ruff check scripts/audit_bert_input_fairness.py
 	$(UV_RUN) ruff check scripts/audit_focal_error_signatures.py
