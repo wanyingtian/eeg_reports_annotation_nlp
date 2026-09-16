@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Produce governed aggregate receipts for a thesis-era explanation artifact."""
+"""Produce governed aggregate receipts for an original-thesis explanation artifact."""
 
 from __future__ import annotations
 

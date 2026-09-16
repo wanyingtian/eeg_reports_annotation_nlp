@@ -81,7 +81,7 @@ def split_declared_sentences(value: object) -> tuple[str, ...]:
 
 
 def historical_polarity_units(frame: pd.DataFrame) -> list[EvidenceUnit]:
-    """Load the thesis-era 2,180-unit surface selected by learned polarity."""
+    """Load the original-thesis 2,180-unit surface selected by learned polarity."""
     units: list[EvidenceUnit] = []
     for _, row in frame.iterrows():
         key = str(row[ID_COLUMN])

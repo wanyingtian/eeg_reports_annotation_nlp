@@ -52,7 +52,7 @@ baseline OOF variability, explanation quality, publication implications, and
 the remaining patient/clinical/ethics gates without report text or case
 identifiers. The earlier active checkpoint is retained as operational history.
 
-The thesis-era learned-polarity explanation surface is separately reconciled in
+The original-thesis learned-polarity explanation surface is separately reconciled in
 [`EXPLANATION_RECONCILIATION_2026-09-01.md`](EXPLANATION_RECONCILIATION_2026-09-01.md).
 It recovers the 2,180 abnormal-supporting denominator and raw
 alignment/correctness counts, but it does not force the current public matcher

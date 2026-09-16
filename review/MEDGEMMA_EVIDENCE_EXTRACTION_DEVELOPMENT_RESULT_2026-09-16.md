@@ -20,9 +20,10 @@ saved classifications, and no case was removed or repaired. The run took about
 ## Same-report descriptive result
 
 The new MedGemma evidence and the already-saved historical-interface Mistral
-evidence were audited on the same 100 reports under one strict rule: a verified
-quotation must be an unchanged, nonblank substring of the exact source report.
-Fuzzy and semantic matching were not used for the primary result.
+evidence were audited on the same 100 reports under one deliberately narrow
+reporting rule: a verified quotation must be an unchanged, nonblank substring
+of the exact source report. Fuzzy and semantic matches were retained as
+source-localization candidates rather than folded into the quotation count.
 
 | Saved configured system | Substantive phrases | Exact quotations | Exact fraction | Category units with any exact quotation | Category units with all phrases exact |
 |---|---:|---:|---:|---:|---:|

@@ -8,7 +8,7 @@ inference, clinical validation, or manuscript admission.
 The explanation machinery is still usable at report-component level. A single
 typed adapter now accepts:
 
-- the thesis-era Mistral reason and saved-polarity artifact;
+- the original-thesis Mistral reason and saved-polarity artifact;
 - contemporary Mistral fixed-decision evidence under both saved interfaces;
 - MedGemma fixed-decision evidence; and
 - MedGemma's independent present, absent, and qualifying evidence schema.

@@ -1,4 +1,4 @@
-"""Reconcile a thesis-era explanation artifact without exposing governed rows.
+"""Reconcile an original-thesis explanation artifact without exposing governed rows.
 
 This module does not regenerate explanations or polarity labels. It validates a
 candidate historical artifact, computes aggregate-only checks, and keeps the
@@ -89,7 +89,7 @@ def _required_columns() -> set[str]:
 
 
 def load_explanation_artifact(path: Path) -> pd.DataFrame:
-    """Load and strictly validate the candidate thesis-era Zoe artifact."""
+    """Load and strictly validate the candidate original-thesis Zoe artifact."""
     frame = pd.read_csv(path)
     if LEGACY_ID_COLUMN in frame.columns and ID_COLUMN not in frame.columns:
         frame = frame.rename(columns={LEGACY_ID_COLUMN: ID_COLUMN})
