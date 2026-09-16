@@ -200,6 +200,7 @@ REQUIRED_FACTOR_IDS = {
     "task_semantics",
     "prompt_variant",
     "grammar_mode",
+    "decision_policy",
     "cohort",
     "reference",
     "selection_role",
@@ -212,12 +213,14 @@ CONFIGURATION_FACTORS = {
     "task_semantics",
     "prompt_variant",
     "grammar_mode",
+    "decision_policy",
 }
 CONTROLLED_ABLATION_FACTORS = {
     "quantization",
     "interface_mode",
     "prompt_variant",
     "grammar_mode",
+    "decision_policy",
 }
 
 
@@ -720,7 +723,7 @@ def _validate_registry(registry: EvaluationSurfaceRegistry, issues: list[Validat
                     IssueSeverity.BLOCKER,
                     f"{prefix}.declared_changed_factors",
                     "controlled ablation must change exactly one interface, prompt, "
-                    "grammar, or quantization factor",
+                    "grammar, quantization, or decision-policy factor",
                 )
             )
         if contrast.kind == ContrastKind.MODEL_NATIVE_TASK_COMPARISON:

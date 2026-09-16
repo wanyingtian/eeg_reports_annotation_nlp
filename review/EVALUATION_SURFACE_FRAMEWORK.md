@@ -29,9 +29,11 @@ to the manuscript.
 ### 1. Controlled ablation: what did this one change do?
 
 Hold the model artifact, task, prompt, grammar, population, reference, and
-metrics fixed. Change exactly one of interface, prompt, grammar, or
-quantization. The completed first-100 raw-versus-native interface checks for
-MedGemma and Mistral belong here.
+metrics fixed. Change exactly one of interface, prompt, grammar, quantization,
+or decision policy. The completed first-100 raw-versus-native interface checks
+for MedGemma and Mistral belong here. The planned external-interface comparison instead
+holds its interface and evidence-generation stage fixed while changing only
+the declared decision policy.
 
 This is the strongest design for explaining interface sensitivity. It does not
 establish performance on the protected evaluation population.
@@ -58,6 +60,31 @@ model-family experiment.
 The current historical-Mistral versus native-MedGemma evaluation is correctly
 registered this way. The supplied v5g configuration stream can enter the same
 class after exact intake.
+
+## External non-prompt producing systems
+
+The registry can admit a system whose operative policy is not an LLM prompt.
+Such a system must name its decision policy directly rather than place a fixed
+rule behind a fictitious prompt identifier. One such system is registered in this form:
+
+- model family: `external-interface-system`;
+- interface: `external_request_response_v1`;
+- prompt and quantization: `not-applicable`;
+- grammar: `structured-five-category-output-v1`; and
+- decision policy: either the frozen public baseline or the selected
+  alternate candidate.
+
+Six such surfaces are registered as **planned, not run**: baseline and
+candidate on Zoe, Maria, and their combined held-out population. Three planned
+controlled-ablation contrasts pair those surfaces within population and differ
+only in `decision_policy`. They bind external revision `4263f2ce8`, whose
+prediction interface accepts exactly `request_id` and `report`, rejects
+references and auxiliary fields during parsing, and emits both predictions
+before any reference can be observed.
+
+`preservation_gate_pass_rate` is registered as a process endpoint for this
+external system. It does not substitute for predictive accuracy, and registration
+does not authorize data access, execution, result intake, or a clinical claim.
 
 ## The symmetric interface safeguard
 
@@ -134,7 +161,7 @@ boundary.
 ## Adding a new result without drifting the evaluation
 
 1. Validate its producing bundle through the existing typed intake contract.
-2. Add one surface with all ten factors resolved, exact population arithmetic,
+2. Add one surface with all eleven factors resolved, exact population arithmetic,
    provenance node, artifact revision, and registered endpoints.
 3. Add a contrast only when both surfaces use the same report keys and the
    intended factor differences are explicit.

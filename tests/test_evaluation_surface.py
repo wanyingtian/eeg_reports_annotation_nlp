@@ -31,9 +31,9 @@ def test_public_registry_is_valid_and_contains_no_result_values() -> None:
 
     assert result["design_valid"] is True
     assert result["analysis_started"] is False
-    assert result["factor_count"] == 10
-    assert result["surface_count"] == 12
-    assert result["contrast_count"] == 6
+    assert result["factor_count"] == 11
+    assert result["surface_count"] == 18
+    assert result["contrast_count"] == 9
     assert result["design_family_count"] == 2
     assert result["issues"] == []
     payload = load_registry()
@@ -41,6 +41,43 @@ def test_public_registry_is_valid_and_contains_no_result_values() -> None:
     serialized = json.dumps(payload)
     assert '"observed_results"' not in serialized
     assert '"metric_values"' not in serialized
+
+
+def test_external_interface_policy_ablation_is_planned_and_result_blind() -> None:
+    payload = load_registry()
+    result = validate_evaluation_surface_registry(REGISTRY)
+
+    assert result["design_valid"] is True
+    baseline = surface(payload, "external-baseline-evaluation-1894-planned")
+    candidate = surface(payload, "external-candidate-evaluation-1894-planned")
+    comparison = contrast(payload, "external-candidate-policy-ablation-1894")
+    assert baseline["status"] == candidate["status"] == "planned"
+    assert baseline["result_values_in_registry"] is False
+    assert candidate["result_values_in_registry"] is False
+    assert comparison["status"] == "planned_not_run"
+    assert comparison["declared_changed_factors"] == ["decision_policy"]
+    differing = {
+        key
+        for key in baseline["factors"]
+        if baseline["factors"][key] != candidate["factors"][key]
+    }
+    assert differing == {"decision_policy"}
+
+
+def test_external_interface_policy_ablation_refuses_hidden_interface_change(tmp_path: Path) -> None:
+    payload = load_registry()
+    candidate = surface(payload, "external-candidate-evaluation-1894-planned")
+    candidate["factors"]["interface_mode"] = "historical_raw_completion"
+    path = write_registry(tmp_path, payload)
+
+    result = validate_evaluation_surface_registry(path)
+
+    assert result["design_valid"] is False
+    assert any(
+        "interface_mode" in issue["message"]
+        for issue in result["issues"]
+        if issue["field"].endswith("declared_changed_factors")
+    )
 
 
 def test_interface_ablation_cannot_hide_a_second_changed_factor(tmp_path: Path) -> None:

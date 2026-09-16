@@ -9,9 +9,10 @@
       "scope": "configuration",
       "allowed_values": [
         "mistral-7b-instruct-v0.2",
-        "medgemma-27b-text-it"
+        "medgemma-27b-text-it",
+        "external-interface-system"
       ],
-      "interpretation": "The upstream model family; it does not by itself identify a complete producing system."
+      "interpretation": "The producing system family, whether a weight-bearing language model or a non-language-model producing system; it does not by itself identify a complete producing configuration."
     },
     {
       "factor_id": "quantization",
@@ -19,7 +20,8 @@
       "allowed_values": [
         "Q5_K_M",
         "Q2_K",
-        "Q4_K_S"
+        "Q4_K_S",
+        "not-applicable"
       ],
       "interpretation": "The weight quantization used for a run; changing it can change outputs and resource use."
     },
@@ -29,7 +31,8 @@
       "allowed_values": [
         "historical_raw_completion",
         "model_native_chat",
-        "external_v5g_pending"
+        "external_v5g_pending",
+        "external_request_response_v1"
       ],
       "interpretation": "The model-facing input envelope. This is distinct from the task prompt and output grammar."
     },
@@ -56,7 +59,8 @@
         "external-v8",
         "external-v9",
         "external-v10",
-        "external-v5g"
+        "external-v5g",
+        "not-applicable"
       ],
       "interpretation": "A byte-identifiable task prompt. External labels remain summary-level names until exact source intake."
     },
@@ -66,9 +70,21 @@
       "allowed_values": [
         "historical-four-level-json",
         "external-consistency-grammar",
-        "external-pending"
+        "external-pending",
+        "structured-five-category-output-v1"
       ],
       "interpretation": "The structured-output contract. A consistency grammar is a separate factor from prompt content and model interface."
+    },
+    {
+      "factor_id": "decision_policy",
+      "scope": "configuration",
+      "allowed_values": [
+        "llm-generated-structured-annotation",
+        "external-pending",
+        "external-baseline-v0",
+        "external-candidate-v0"
+      ],
+      "interpretation": "The frozen rule or learned decision policy that maps an admitted report carrier to the five four-level outputs. This factor is distinct from model family, prompt, grammar, and interface."
     },
     {
       "factor_id": "cohort",
@@ -116,7 +132,8 @@
         "reproduced_mistral",
         "post_submission_mistral_interface_sensitivity",
         "post_submission_medgemma",
-        "external_v5g_pending_intake"
+        "external_v5g_pending_intake",
+        "post_submission_external_interface"
       ],
       "interpretation": "The scientific provenance layer. Integration records lineage and does not transfer contribution ownership."
     }
@@ -186,6 +203,15 @@
       "interpretation": "Measures the paired change on exactly matched reports; it does not attribute the change to one configuration component."
     },
     {
+      "metric_id": "preservation_gate_pass_rate",
+      "level": "report",
+      "statistic": "fraction of report predictions whose complete set of internal consistency checks passes",
+      "reference_requirement": "optional",
+      "unlabeled_allowed": true,
+      "definition_status": "defined",
+      "interpretation": "Reports whether a producing system preserved its declared report identity, ordering, structure, evidence, and reproducibility guarantees; it is not a clinical-performance metric."
+    },
+    {
       "metric_id": "positive_call_rate",
       "level": "label",
       "statistic": "fraction of reports assigned levels 3-4",
@@ -221,6 +247,7 @@
         "cohort": "evaluation-combined-1894",
         "reference": "ld-reference-annotator",
         "selection_role": "source-of-record",
+        "decision_policy": "llm-generated-structured-annotation",
         "evidence_layer": "submitted_mistral"
       },
       "population": {
@@ -257,6 +284,7 @@
         "cohort": "evaluation-combined-1894",
         "reference": "ld-reference-annotator",
         "selection_role": "source-of-record",
+        "decision_policy": "llm-generated-structured-annotation",
         "evidence_layer": "reproduced_mistral"
       },
       "population": {
@@ -293,6 +321,7 @@
         "cohort": "zoe-development-100",
         "reference": "ld-reference-annotator",
         "selection_role": "frozen-result-blind",
+        "decision_policy": "llm-generated-structured-annotation",
         "evidence_layer": "post_submission_medgemma"
       },
       "population": {
@@ -320,6 +349,7 @@
         "cohort": "zoe-development-100",
         "reference": "ld-reference-annotator",
         "selection_role": "frozen-result-blind",
+        "decision_policy": "llm-generated-structured-annotation",
         "evidence_layer": "post_submission_medgemma"
       },
       "population": {
@@ -347,6 +377,7 @@
         "cohort": "zoe-development-100",
         "reference": "ld-reference-annotator",
         "selection_role": "frozen-result-blind",
+        "decision_policy": "llm-generated-structured-annotation",
         "evidence_layer": "post_submission_mistral_interface_sensitivity"
       },
       "population": {
@@ -374,6 +405,7 @@
         "cohort": "zoe-development-100",
         "reference": "ld-reference-annotator",
         "selection_role": "frozen-result-blind",
+        "decision_policy": "llm-generated-structured-annotation",
         "evidence_layer": "post_submission_mistral_interface_sensitivity"
       },
       "population": {
@@ -401,6 +433,7 @@
         "cohort": "evaluation-combined-1894",
         "reference": "ld-reference-annotator",
         "selection_role": "held-out-once",
+        "decision_policy": "llm-generated-structured-annotation",
         "evidence_layer": "post_submission_medgemma"
       },
       "population": {
@@ -431,6 +464,7 @@
         "cohort": "evaluation-combined-1894",
         "reference": "ld-reference-annotator",
         "selection_role": "held-out-once",
+        "decision_policy": "llm-generated-structured-annotation",
         "evidence_layer": "post_submission_medgemma"
       },
       "population": {
@@ -461,6 +495,7 @@
         "cohort": "evaluation-combined-1894",
         "reference": "ld-reference-annotator",
         "selection_role": "held-out-once",
+        "decision_policy": "llm-generated-structured-annotation",
         "evidence_layer": "post_submission_mistral_interface_sensitivity"
       },
       "population": {
@@ -491,6 +526,7 @@
         "cohort": "external-labeled-pooled-1994",
         "reference": "ld-reference-annotator",
         "selection_role": "external-pending",
+        "decision_policy": "external-pending",
         "evidence_layer": "external_v5g_pending_intake"
       },
       "population": {
@@ -521,6 +557,7 @@
         "cohort": "external-labeled-pooled-1994",
         "reference": "ld-reference-annotator",
         "selection_role": "external-pending",
+        "decision_policy": "external-pending",
         "evidence_layer": "external_v5g_pending_intake"
       },
       "population": {
@@ -551,6 +588,7 @@
         "cohort": "external-large-unlabeled-45545",
         "reference": "none",
         "selection_role": "not-applicable",
+        "decision_policy": "external-pending",
         "evidence_layer": "external_v5g_pending_intake"
       },
       "population": {
@@ -560,6 +598,180 @@
         "arithmetic_status": "reported_external_not_intake_validated"
       },
       "metric_ids": ["positive_call_rate", "model_pair_binary_agreement"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "external-baseline-zoe-evaluation-1395-planned",
+      "status": "planned",
+      "role": "held_out_evaluation",
+      "provenance_node_id": "jbhi-02463/comparator/external-interface-system/external-baseline-v0/zoe-evaluation-planned",
+      "artifact_revision": "4263f2ce8",
+      "factors": {
+        "model_family": "external-interface-system",
+        "quantization": "not-applicable",
+        "interface_mode": "external_request_response_v1",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "not-applicable",
+        "grammar_mode": "structured-five-category-output-v1",
+        "cohort": "zoe-evaluation-1395",
+        "reference": "ld-reference-annotator",
+        "selection_role": "held-out-once",
+        "decision_policy": "external-baseline-v0",
+        "evidence_layer": "post_submission_external_interface"
+      },
+      "population": {
+        "records": 1395,
+        "includes_development": false,
+        "components": [{"cohort_id": "zoe-evaluation-1395", "records": 1395}],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy", "whole_report_binary_exact_match_accuracy", "whole_report_four_level_exact_match_accuracy", "paired_binary_accuracy_difference", "preservation_gate_pass_rate"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "external-candidate-zoe-evaluation-1395-planned",
+      "status": "planned",
+      "role": "held_out_evaluation",
+      "provenance_node_id": "jbhi-02463/comparator/external-interface-system/external-candidate-v0/zoe-evaluation-planned",
+      "artifact_revision": "4263f2ce8",
+      "factors": {
+        "model_family": "external-interface-system",
+        "quantization": "not-applicable",
+        "interface_mode": "external_request_response_v1",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "not-applicable",
+        "grammar_mode": "structured-five-category-output-v1",
+        "cohort": "zoe-evaluation-1395",
+        "reference": "ld-reference-annotator",
+        "selection_role": "held-out-once",
+        "decision_policy": "external-candidate-v0",
+        "evidence_layer": "post_submission_external_interface"
+      },
+      "population": {
+        "records": 1395,
+        "includes_development": false,
+        "components": [{"cohort_id": "zoe-evaluation-1395", "records": 1395}],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy", "whole_report_binary_exact_match_accuracy", "whole_report_four_level_exact_match_accuracy", "paired_binary_accuracy_difference", "preservation_gate_pass_rate"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "external-baseline-maria-evaluation-499-planned",
+      "status": "planned",
+      "role": "held_out_evaluation",
+      "provenance_node_id": "jbhi-02463/comparator/external-interface-system/external-baseline-v0/maria-evaluation-planned",
+      "artifact_revision": "4263f2ce8",
+      "factors": {
+        "model_family": "external-interface-system",
+        "quantization": "not-applicable",
+        "interface_mode": "external_request_response_v1",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "not-applicable",
+        "grammar_mode": "structured-five-category-output-v1",
+        "cohort": "maria-evaluation-499",
+        "reference": "ld-reference-annotator",
+        "selection_role": "held-out-once",
+        "decision_policy": "external-baseline-v0",
+        "evidence_layer": "post_submission_external_interface"
+      },
+      "population": {
+        "records": 499,
+        "includes_development": false,
+        "components": [{"cohort_id": "maria-evaluation-499", "records": 499}],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy", "whole_report_binary_exact_match_accuracy", "whole_report_four_level_exact_match_accuracy", "paired_binary_accuracy_difference", "preservation_gate_pass_rate"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "external-candidate-maria-evaluation-499-planned",
+      "status": "planned",
+      "role": "held_out_evaluation",
+      "provenance_node_id": "jbhi-02463/comparator/external-interface-system/external-candidate-v0/maria-evaluation-planned",
+      "artifact_revision": "4263f2ce8",
+      "factors": {
+        "model_family": "external-interface-system",
+        "quantization": "not-applicable",
+        "interface_mode": "external_request_response_v1",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "not-applicable",
+        "grammar_mode": "structured-five-category-output-v1",
+        "cohort": "maria-evaluation-499",
+        "reference": "ld-reference-annotator",
+        "selection_role": "held-out-once",
+        "decision_policy": "external-candidate-v0",
+        "evidence_layer": "post_submission_external_interface"
+      },
+      "population": {
+        "records": 499,
+        "includes_development": false,
+        "components": [{"cohort_id": "maria-evaluation-499", "records": 499}],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy", "whole_report_binary_exact_match_accuracy", "whole_report_four_level_exact_match_accuracy", "paired_binary_accuracy_difference", "preservation_gate_pass_rate"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "external-baseline-evaluation-1894-planned",
+      "status": "planned",
+      "role": "held_out_evaluation",
+      "provenance_node_id": "jbhi-02463/comparator/external-interface-system/external-baseline-v0/evaluation-planned",
+      "artifact_revision": "4263f2ce8",
+      "factors": {
+        "model_family": "external-interface-system",
+        "quantization": "not-applicable",
+        "interface_mode": "external_request_response_v1",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "not-applicable",
+        "grammar_mode": "structured-five-category-output-v1",
+        "cohort": "evaluation-combined-1894",
+        "reference": "ld-reference-annotator",
+        "selection_role": "held-out-once",
+        "decision_policy": "external-baseline-v0",
+        "evidence_layer": "post_submission_external_interface"
+      },
+      "population": {
+        "records": 1894,
+        "includes_development": false,
+        "components": [
+          {"cohort_id": "zoe-evaluation-1395", "records": 1395},
+          {"cohort_id": "maria-evaluation-499", "records": 499}
+        ],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy", "whole_report_binary_exact_match_accuracy", "whole_report_four_level_exact_match_accuracy", "paired_binary_accuracy_difference", "preservation_gate_pass_rate"],
+      "result_values_in_registry": false
+    },
+    {
+      "surface_id": "external-candidate-evaluation-1894-planned",
+      "status": "planned",
+      "role": "held_out_evaluation",
+      "provenance_node_id": "jbhi-02463/comparator/external-interface-system/external-candidate-v0/evaluation-planned",
+      "artifact_revision": "4263f2ce8",
+      "factors": {
+        "model_family": "external-interface-system",
+        "quantization": "not-applicable",
+        "interface_mode": "external_request_response_v1",
+        "task_semantics": "five-four-level-eeg-findings-v1",
+        "prompt_variant": "not-applicable",
+        "grammar_mode": "structured-five-category-output-v1",
+        "cohort": "evaluation-combined-1894",
+        "reference": "ld-reference-annotator",
+        "selection_role": "held-out-once",
+        "decision_policy": "external-candidate-v0",
+        "evidence_layer": "post_submission_external_interface"
+      },
+      "population": {
+        "records": 1894,
+        "includes_development": false,
+        "components": [
+          {"cohort_id": "zoe-evaluation-1395", "records": 1395},
+          {"cohort_id": "maria-evaluation-499", "records": 499}
+        ],
+        "arithmetic_status": "reconciled"
+      },
+      "metric_ids": ["core_binary_f1", "binary_accuracy", "exact_four_level_accuracy", "whole_report_binary_exact_match_accuracy", "whole_report_four_level_exact_match_accuracy", "paired_binary_accuracy_difference", "preservation_gate_pass_rate"],
       "result_values_in_registry": false
     }
   ],
@@ -629,6 +841,39 @@
       "metric_ids": ["core_binary_f1", "exact_four_level_f1_external_formula_pending", "whole_report_binary_exact_match_accuracy"],
       "causal_attribution_allowed": true,
       "claim_scope": "A quantization comparison reported externally; reproducible use awaits exact model, prompt, grammar, runtime, selection, key, and metric-formula intake."
+    },
+    {
+      "contrast_id": "external-candidate-policy-ablation-zoe-1395",
+      "status": "planned_not_run",
+      "kind": "controlled_ablation",
+      "surface_a": "external-baseline-zoe-evaluation-1395-planned",
+      "surface_b": "external-candidate-zoe-evaluation-1395-planned",
+      "declared_changed_factors": ["decision_policy"],
+      "metric_ids": ["binary_accuracy", "exact_four_level_accuracy", "paired_binary_accuracy_difference", "preservation_gate_pass_rate"],
+      "causal_attribution_allowed": true,
+      "claim_scope": "Prospective same-report Zoe comparison of the frozen external-interface decision policy only; no result or execution authority is registered."
+    },
+    {
+      "contrast_id": "external-candidate-policy-ablation-maria-499",
+      "status": "planned_not_run",
+      "kind": "controlled_ablation",
+      "surface_a": "external-baseline-maria-evaluation-499-planned",
+      "surface_b": "external-candidate-maria-evaluation-499-planned",
+      "declared_changed_factors": ["decision_policy"],
+      "metric_ids": ["binary_accuracy", "exact_four_level_accuracy", "paired_binary_accuracy_difference", "preservation_gate_pass_rate"],
+      "causal_attribution_allowed": true,
+      "claim_scope": "Prospective same-report Maria comparison of the frozen external-interface decision policy only; no result or execution authority is registered."
+    },
+    {
+      "contrast_id": "external-candidate-policy-ablation-1894",
+      "status": "planned_not_run",
+      "kind": "controlled_ablation",
+      "surface_a": "external-baseline-evaluation-1894-planned",
+      "surface_b": "external-candidate-evaluation-1894-planned",
+      "declared_changed_factors": ["decision_policy"],
+      "metric_ids": ["binary_accuracy", "exact_four_level_accuracy", "paired_binary_accuracy_difference", "preservation_gate_pass_rate"],
+      "causal_attribution_allowed": true,
+      "claim_scope": "Prospective reconciled 1,894-report comparison of the frozen external-interface decision policy only; cohort-specific results remain mandatory and no result or execution authority is registered."
     }
   ],
   "design_families": [
@@ -656,6 +901,7 @@
         "cohort": ["external-labeled-pooled-1994"],
         "reference": ["ld-reference-annotator", "sg-second-annotator"],
         "selection_role": ["external-pending"],
+        "decision_policy": ["external-pending"],
         "evidence_layer": ["external_v5g_pending_intake"]
       },
       "cohort_ids": ["external-labeled-pooled-1994"],
@@ -679,6 +925,7 @@
         "cohort": ["external-large-unlabeled-45545", "external-labeled-2493-unreconciled"],
         "reference": ["ld-reference-annotator", "none"],
         "selection_role": ["not-applicable", "external-pending"],
+        "decision_policy": ["llm-generated-structured-annotation", "external-pending"],
         "evidence_layer": ["reproduced_mistral", "external_v5g_pending_intake"]
       },
       "cohort_ids": ["external-large-unlabeled-45545", "external-labeled-2493-unreconciled"],
