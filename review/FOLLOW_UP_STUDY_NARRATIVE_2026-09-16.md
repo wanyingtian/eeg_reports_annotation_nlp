@@ -146,7 +146,16 @@ for Mistral. MedGemma supplied substantive evidence in 484 units and an
 unchanged quotation in 305; the saved Mistral stream did so in 245 and 48.
 Conditioning on agreement revealed different directions across the two evidence
 interfaces, so literal traceability cannot be treated as a universal proxy for
-reference agreement. The full-cohort evidence run is therefore held: the next
-informative computational step is to inventory and complete only the missing
-cells in a development-only model-by-evidence-schema crossing. See
+reference agreement. See
 `REFERENCE_ALIGNED_EVIDENCE_TRACEABILITY_RESULT_2026-09-16.md`.
+
+The resulting model-by-evidence-schema crossing is now complete on the frozen
+20-report development surface. Only the missing Mistral independent-evidence
+cell required new inference; three invalid outputs were retained without retry.
+Changing from decision-conditioned to independent evidence reduced MedGemma
+coverage from 97% to 68% but increased Mistral coverage from 57% to 75%.
+Unchanged-quotation coverage likewise moved from 60% to 34% for MedGemma and
+from 26% to 36% for Mistral. The opposite directions establish that evidence
+behavior is a model-by-interface property, not a model-weight ranking. This
+closes the computational factor-attribution step and keeps the full-cohort run
+on hold. See `EVIDENCE_SCHEMA_FACTORIAL_RESULT_2026-09-16.md`.

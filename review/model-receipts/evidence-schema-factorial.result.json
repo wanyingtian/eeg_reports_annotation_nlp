@@ -1,0 +1,92 @@
+{
+  "experiment_id": "jbhi-evidence-schema-factorial-development-20260916-v1",
+  "status": "complete_development_factorial",
+  "pre_execution_commit": "55f879b6a59052a965c46fae9b240f7124012968",
+  "implementation_commits": [
+    "8e6c5695db57f18a5ca23c2638bfd27208efb710",
+    "e509a96583e77ba410c5c8ae3e5971693390f95b"
+  ],
+  "surface": {
+    "models": 2,
+    "evidence_schemas": 2,
+    "cells": 4,
+    "reports_per_cell": 20,
+    "categories": 5,
+    "units_per_cell": 100,
+    "held_out_reports_used": false,
+    "blinded_review_unmasked": false
+  },
+  "new_inference": {
+    "cell": "mistral_independent_category_evidence",
+    "reports": 20,
+    "valid_structured_outputs": 17,
+    "invalid_structured_outputs_retained": 3,
+    "output_sha256": "6e8f6c8354d636b60cc86fc135a213c446312f3781c82fb5e179c49c1652b1bf"
+  },
+  "cells": {
+    "medgemma_decision_conditioned": {
+      "valid_records": [20, 20],
+      "evidence_units": [97, 100],
+      "units_with_unchanged_quote": [60, 100],
+      "unchanged_segments": [62, 124]
+    },
+    "medgemma_independent_category_evidence": {
+      "valid_records": [20, 20],
+      "evidence_units": [68, 100],
+      "units_with_unchanged_quote": [34, 100],
+      "unchanged_segments": [36, 107]
+    },
+    "mistral_decision_conditioned": {
+      "valid_records": [16, 20],
+      "evidence_units": [57, 100],
+      "units_with_unchanged_quote": [26, 100],
+      "unchanged_segments": [26, 70]
+    },
+    "mistral_independent_category_evidence": {
+      "valid_records": [17, 20],
+      "evidence_units": [75, 100],
+      "units_with_unchanged_quote": [36, 100],
+      "unchanged_segments": [40, 105]
+    }
+  },
+  "within_model_schema_effects_independent_minus_decision_conditioned": {
+    "medgemma": {
+      "evidence_coverage_percentage_points": -29.0,
+      "any_unchanged_quote_percentage_points": -26.0,
+      "unchanged_segment_fraction_percentage_points": -16.3551
+    },
+    "mistral": {
+      "evidence_coverage_percentage_points": 18.0,
+      "any_unchanged_quote_percentage_points": 10.0,
+      "unchanged_segment_fraction_percentage_points": 0.9524
+    }
+  },
+  "descriptive_interaction_mistral_minus_medgemma_percentage_points": {
+    "evidence_coverage": 47.0,
+    "any_unchanged_quote": 36.0,
+    "unchanged_quote_among_evidence_units": 14.2416,
+    "unchanged_segment_fraction": 17.3075
+  },
+  "finding": "Evidence-interface effects were large and opposite in direction for coverage across the two configured local models; source traceability cannot be attributed to model weights alone.",
+  "decision": {
+    "current_jbhi_revision": "no change; classification result remains sufficient",
+    "full_cohort_evidence_run": "do not launch for the current revision",
+    "follow_up": "retain as a completed development methods result; optional independent EEG-qualified review remains the bridge to clinical relevance"
+  },
+  "governed_output_sha256": {
+    "factorial_units.csv": "427a8db4391c8236bd0eb2e7b7de0d606328894e79fffa07f6504cf31a292090",
+    "factorial_cells.csv": "d9cc10bb7f6e258d2e5119c43db045a4c59ebe140a7bfdacc13f79f286385861",
+    "factorial_strata.csv": "e6ab14c664f8785700f8ba1b74de5308a9e5c5e313c0e10648fb192c7d07d02b",
+    "factorial_contrasts.csv": "5897cb8bddb34bd70f36c4c4b94e0673ff469d4878716f76a72849d64073fe49",
+    "factorial_paired_transitions.csv": "9b97539021e937c9079a3da078251f569a99aed2940328482e86a8c525fe6949",
+    "factorial_summary.json": "3d32ac63d58ac20bf0daa24084e3449609cabaa63da9b108095a587a48d0b20a",
+    "analysis_receipt.json": "ffbbb3dbc379731a9e0358bef728e846cbf72ec53a6f29195ea231e6466a7805",
+    "COMPLETE.json": "15c07c89ad8f9a17ed94a15cbcaeabde050651e5069f39272e4d379fb77eda2e"
+  },
+  "boundaries": [
+    "purposive development surface only",
+    "configured-model and evidence-schema factors are descriptive",
+    "source location is not clinical relevance, sufficiency or entailment",
+    "no held-out execution, hypothesis test or confidence interval"
+  ]
+}
