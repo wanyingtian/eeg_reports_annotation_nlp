@@ -122,3 +122,10 @@ review works across all five categories, identifies interpretable successes and
 failures, and shows that full-cohort rates would answer a defined follow-up
 question. That decision and its reasons must be recorded before any full-cohort
 run is launched.
+
+The first blinded technical-reader pass is now complete across all 20 cases.
+It confirmed that the rubric distinguishes literal presence, category relevance,
+decision support and evidence omission, while leaving genuine EEG ambiguities
+unresolved. This passes the tooling-feasibility gate and advances the study to
+an independent EEG-qualified read; it does not yet authorize unblinding or the
+full-cohort run. See `SOURCE_FIRST_TECHNICAL_READER_PASS1_2026-09-16.md`.

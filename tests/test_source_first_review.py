@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 
 from eeg_review.source_first_review import (
@@ -7,6 +10,15 @@ from eeg_review.source_first_review import (
     counterbalanced_aliases,
     unit_traceability_status,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location(
+    "build_evidence_review_package",
+    ROOT / "scripts/build_evidence_review_package.py",
+)
+assert SPEC and SPEC.loader
+PACKAGE_BUILDER = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(PACKAGE_BUILDER)
 
 
 def _pair(
@@ -106,3 +118,19 @@ def test_counterbalanced_aliases_is_deterministic_and_balanced() -> None:
     reverse = counterbalanced_aliases(list(reversed(case_ids)))
     assert forward == reverse
     assert sum(forward.values()) == 10
+
+
+def test_frozen_package_hashes_ignore_append_only_review_outputs(tmp_path: Path) -> None:
+    for name in PACKAGE_BUILDER.FROZEN_PACKAGE_FILES:
+        (tmp_path / name).write_text(name, encoding="utf-8")
+    before = PACKAGE_BUILDER._output_hashes(tmp_path)
+    (tmp_path / "blinded_review_summary.json").write_text("{}", encoding="utf-8")
+    responses = tmp_path / "responses"
+    responses.mkdir()
+    (responses / "reader.json").write_text("{}", encoding="utf-8")
+    assert PACKAGE_BUILDER._output_hashes(tmp_path) == before
+
+
+def test_frozen_package_hashes_reject_missing_instrument_file(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="missing files"):
+        PACKAGE_BUILDER._output_hashes(tmp_path)

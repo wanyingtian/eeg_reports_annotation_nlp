@@ -66,6 +66,16 @@ OUTPUT_DIR = (
     / "jbhi-medgemma-v1-evidence-development-20260916/review-source-first-v2"
 )
 SUPERSEDED_DIR = GOVERNED_ROOT / "jbhi-medgemma-v1-evidence-development-20260916/review"
+FROZEN_PACKAGE_FILES = (
+    "01_source_first_review.csv",
+    "02_blinded_evidence_review.csv",
+    "03_blinded_pair_comparison.csv",
+    "README.txt",
+    "analysis_metadata.json",
+    "package_receipt.json",
+    "review_form.html",
+    "unblinding_key.json",
+)
 
 STREAMS = {
     "medgemma_native_v1_fixed_decision": {
@@ -372,11 +382,10 @@ def _protect_tree(path: Path) -> None:
 
 
 def _output_hashes(path: Path) -> dict[str, str]:
-    return {
-        item.name: sha256_path(item)
-        for item in sorted(path.iterdir())
-        if item.is_file() and item.name != "COMPLETE.json"
-    }
+    missing = [name for name in FROZEN_PACKAGE_FILES if not (path / name).is_file()]
+    if missing:
+        raise ValueError(f"frozen review package is missing files: {missing}")
+    return {name: sha256_path(path / name) for name in FROZEN_PACKAGE_FILES}
 
 
 def verify_package(path: Path) -> dict[str, Any]:
